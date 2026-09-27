@@ -6,10 +6,9 @@
   "main": "index.js",
   "scripts": {
     "sync-types": "node scripts/sync-types.js",
-    "prebuild": "rm -rf dist && npm run sync-types",
-    "dev": "pnpm prebuild && vite",
+    "dev": "node scripts/sync-types.js && vite",
     "dev:netlify": "netlify dev",
-    "build": "pnpm prebuild && vite build",
+    "build": "node scripts/sync-types.js && vite build",
     "preview": "vite preview",
     "test": "vitest run --coverage",
     "test:watch": "vitest watch",
