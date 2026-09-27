@@ -11,7 +11,7 @@ const VERIFY_API_URLS = {
   prod: "https://api.salla.dev/exchange-authority/v1/verify",
 };
 
-exports.handler = async (event, _context) => {
+export const handler = async (event, _context) => {
   // Only allow POST requests
   if (event.httpMethod !== "POST") {
     return {
