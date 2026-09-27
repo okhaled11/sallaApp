@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { VERIFY_FUNCTION_URL, getAppId } from "../constants.js";
 
 describe("constants", () => {
-  it("exports VERIFY_FUNCTION_URL as serverless function path", () => {
-    expect(VERIFY_FUNCTION_URL).toBe("/api/verify-token");
+  it("exports VERIFY_FUNCTION_URL as Netlify function path", () => {
+    expect(VERIFY_FUNCTION_URL).toBe("/.netlify/functions/verify-token");
   });
 
   describe("getAppId", () => {
