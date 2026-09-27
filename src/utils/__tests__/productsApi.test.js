@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { fetchProducts } from "../productsApi.js";
+import { fetchProducts, updateProduct } from "../productsApi.js";
 
 describe("fetchProducts", () => {
   afterEach(() => {
@@ -24,5 +24,22 @@ describe("fetchProducts", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     const result = await fetchProducts("tok");
     expect(result).toEqual({ success: false, error: "offline" });
+  });
+
+  it("posts product id and changes to the update function", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: () => Promise.resolve({ success: true }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateProduct("tok", 5, { price: 12 });
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/update-product");
+    expect(JSON.parse(options.body)).toMatchObject({
+      token: "tok",
+      productId: 5,
+      price: 12,
+    });
   });
 });

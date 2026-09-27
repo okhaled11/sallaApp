@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { Package, RefreshCw } from "lucide-react";
+import { Package, Pencil, RefreshCw } from "lucide-react";
 import Button from "./forms/Button.jsx";
+import ProductEditForm from "./ProductEditForm.jsx";
 
 const numberFormat = new Intl.NumberFormat();
 
@@ -15,14 +16,22 @@ function soldLabel(count) {
   return `Sold ${numberFormat.format(count)} times`;
 }
 
+function stockLabel(quantity) {
+  if (quantity === null || quantity === undefined) return "Unlimited stock";
+  if (quantity === 0) return "Out of stock";
+  return `Stock ${numberFormat.format(quantity)}`;
+}
+
 export default function ProductsSales({
   products,
   totalSold,
   isLoading,
   error,
   onReload,
+  onUpdateProduct,
 }) {
   const [query, setQuery] = useState("");
+  const [editingId, setEditingId] = useState(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -43,7 +52,7 @@ export default function ProductsSales({
         <div>
           <h2 className="panel-title">Product Sales</h2>
           <span className="panel-subtitle">
-            How many times each product in your store has been sold
+            How many times each product has been sold · edit price and stock
           </span>
         </div>
         <div className="panel-actions">
@@ -119,6 +128,14 @@ export default function ProductsSales({
                     <span className="product-meta">
                       {product.sku ? `SKU ${product.sku} · ` : ""}
                       {formatPrice(product.price, product.currency)}
+                      {" · "}
+                      <span
+                        className={
+                          product.quantity === 0 ? "product-out-of-stock" : ""
+                        }
+                      >
+                        {stockLabel(product.quantity)}
+                      </span>
                     </span>
                   </div>
                   <div className="product-sold">
@@ -135,6 +152,28 @@ export default function ProductsSales({
                       />
                     </div>
                   </div>
+                  {onUpdateProduct && (
+                    <Button
+                      size="icon"
+                      title="Edit price & quantity"
+                      aria-label={`Edit ${product.name}`}
+                      aria-expanded={editingId === product.id}
+                      onClick={() =>
+                        setEditingId((id) =>
+                          id === product.id ? null : product.id,
+                        )
+                      }
+                    >
+                      <Pencil size={16} />
+                    </Button>
+                  )}
+                  {editingId === product.id && (
+                    <ProductEditForm
+                      product={product}
+                      onSave={onUpdateProduct}
+                      onCancel={() => setEditingId(null)}
+                    />
+                  )}
                 </li>
               ))}
             </ul>

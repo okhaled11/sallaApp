@@ -589,7 +589,7 @@ pre,
 
 .product-row {
   display: grid;
-  grid-template-columns: 48px 1fr minmax(160px, 220px);
+  grid-template-columns: 48px 1fr minmax(160px, 220px) auto;
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-sm) var(--space-md);
@@ -661,6 +661,57 @@ pre,
   background: var(--accent-primary);
 }
 
+.product-out-of-stock {
+  color: var(--accent-danger);
+  font-weight: 500;
+}
+
+.product-edit {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+}
+
+.product-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.product-edit-field input {
+  width: 160px;
+  padding: var(--space-sm);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.product-edit-field input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.product-edit-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.product-edit-error {
+  flex-basis: 100%;
+  color: var(--accent-danger);
+  font-size: 0.85rem;
+}
+
 /* ============================================
    Responsive
    ============================================ */
@@ -685,7 +736,20 @@ pre,
   }
 
   .product-row {
-    grid-template-columns: 40px 1fr;
+    grid-template-columns: 40px 1fr auto;
+  }
+
+  .product-row > .btn-icon {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .product-edit-field {
+    flex: 1 1 120px;
+  }
+
+  .product-edit-field input {
+    width: 100%;
   }
 
   .product-thumb {

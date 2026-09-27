@@ -10,6 +10,8 @@ The app runs inside the Salla merchant dashboard (iframe) using `@salla.sa/embed
 - Shows the number of units sold for each product (`sold_quantity` from the Salla Merchant API)
 - Shows a summary: product count, total units sold, and best seller
 - Lets the merchant search by product name or SKU
+- Shows stock for each product (in stock / out of stock / unlimited)
+- Lets the merchant edit a product's **price** and **quantity** inline (pencil button), saved via `PUT /admin/v2/products/{id}`
 
 ## How It Works
 
@@ -20,6 +22,8 @@ The app runs inside the Salla merchant dashboard (iframe) using `@salla.sa/embed
 4. embedded.ready()           - Remove the dashboard loading overlay
 5. POST /api/products         - Server verifies the token again, then fetches
                                 all products from GET /admin/v2/products
+6. POST /api/update-product   - Server verifies the token, validates the new
+                                price / quantity, then PUT /admin/v2/products/{id}
 ```
 
 The Salla Merchant API is only called from the serverless function, so the merchant access token never reaches the browser.
@@ -30,7 +34,7 @@ Set these environment variables on Vercel / Netlify:
 
 | Variable             | Required | Description                                                                             |
 | -------------------- | -------- | --------------------------------------------------------------------------------------- |
-| `SALLA_ACCESS_TOKEN` | Yes      | Merchant OAuth access token for the store (needs `products.read` scope)                 |
+| `SALLA_ACCESS_TOKEN` | Yes      | Merchant OAuth access token for the store (needs `products.read_write` scope)           |
 | `ENV`                | No       | `prod` (default) or `dev`, selects the Salla token verification service                 |
 
 The app also expects `?app_id=YOUR_APP_ID` in the app URL (used to verify the embedded token).

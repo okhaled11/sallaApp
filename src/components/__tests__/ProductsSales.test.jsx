@@ -90,4 +90,38 @@ describe("ProductsSales", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(onReload).toHaveBeenCalled();
   });
+
+  it("shows stock status for each product", () => {
+    renderComponent({
+      products: [
+        { ...products[0], quantity: 4 },
+        { ...products[1], quantity: 0 },
+        { ...products[2], quantity: null },
+      ],
+    });
+    expect(screen.getByText("Stock 4")).toBeInTheDocument();
+    expect(screen.getByText("Out of stock")).toBeInTheDocument();
+    expect(screen.getByText("Unlimited stock")).toBeInTheDocument();
+  });
+
+  it("hides edit buttons when editing is not enabled", () => {
+    renderComponent();
+    expect(
+      screen.queryByRole("button", { name: "Edit Blue Shirt" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the edit form and saves changes", async () => {
+    const onUpdateProduct = vi.fn().mockResolvedValue({ success: true });
+    renderComponent({ onUpdateProduct });
+
+    await userEvent.click(screen.getByRole("button", { name: "Edit Red Hat" }));
+    const priceInput = screen.getByLabelText(/Price/);
+    await userEvent.clear(priceInput);
+    await userEvent.type(priceInput, "75");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onUpdateProduct).toHaveBeenCalledWith(2, { price: 75 });
+    expect(screen.queryByLabelText(/Price/)).not.toBeInTheDocument();
+  });
 });

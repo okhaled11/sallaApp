@@ -38,7 +38,19 @@ function AppContent() {
     isLoading,
     error: productsError,
     reload,
+    updateProduct,
   } = useProducts(token, isReady && !!token);
+
+  const handleUpdateProduct = useCallback(
+    async (productId, changes) => {
+      const result = await updateProduct(productId, changes);
+      if (result.success) {
+        showToast("Product updated", "success");
+      }
+      return result;
+    },
+    [updateProduct, showToast],
+  );
 
   // Show toast on initial connection (once only) and sync host theme
   useEffect(() => {
@@ -94,6 +106,7 @@ function AppContent() {
             isLoading={isLoading}
             error={productsError}
             onReload={reload}
+            onUpdateProduct={handleUpdateProduct}
           />
         )}
       </main>
