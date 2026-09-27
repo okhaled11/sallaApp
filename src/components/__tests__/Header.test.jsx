@@ -11,7 +11,7 @@ describe("Header", () => {
         <Header />
       </ThemeProvider>,
     );
-    expect(screen.getByText("Embedded SDK Playground")).toBeInTheDocument();
+    expect(screen.getByText("Product Sales")).toBeInTheDocument();
     expect(screen.getByText(/v0\.2\.6/)).toBeInTheDocument();
   });
 

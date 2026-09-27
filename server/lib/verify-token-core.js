@@ -19,11 +19,61 @@ const JSON_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const respond = (statusCode, payload) => ({
+export const respond = (statusCode, payload) => ({
   statusCode,
   headers: JSON_HEADERS,
   body: payload === undefined ? "" : JSON.stringify(payload),
 });
+
+/**
+ * Verify an embedded token against the Salla exchange authority service.
+ *
+ * @param {{ token: string, appId: string, iss?: string, subject?: string }} params
+ * @returns {Promise<{ status: number, result: any }>}
+ */
+export async function verifyEmbeddedToken({ token, appId, iss, subject }) {
+  // Determine environment (default to 'prod' when ENV is not set)
+  const environment = process.env.ENV || "prod";
+
+  const apiUrl = VERIFY_API_URLS[environment];
+  if (!apiUrl) {
+    return {
+      status: 400,
+      result: {
+        success: false,
+        error: `Invalid environment: ${environment}. Must be 'dev' or 'prod'`,
+      },
+    };
+  }
+
+  console.log("Verifying token with Salla API", {
+    apiUrl,
+    appId,
+    token: "[REDACTED]",
+    iss: iss || "merchant-dashboard",
+    subject: subject || "embedded-page",
+    env: environment,
+  });
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "s-source": appId, // APP ID (dynamic)
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      token,
+      iss: iss || "merchant-dashboard",
+      subject: subject || "embedded-page",
+      env: environment,
+    }),
+  });
+
+  console.log("Salla API response status:", response.status);
+
+  const result = await response.json();
+  return { status: response.status, result };
+}
 
 /**
  * @param {{ method: string, body: unknown }} request - body may be a JSON string or an already-parsed object
@@ -52,44 +102,13 @@ export async function verifyTokenRequest({ method, body }) {
       return respond(400, { success: false, error: "App ID is required" });
     }
 
-    // Determine environment (default to 'prod' when ENV is not set)
-    const environment = process.env.ENV || "prod";
-
-    const apiUrl = VERIFY_API_URLS[environment];
-    if (!apiUrl) {
-      return respond(400, {
-        success: false,
-        error: `Invalid environment: ${environment}. Must be 'dev' or 'prod'`,
-      });
-    }
-
-    console.log("Verifying token with Salla API", {
-      apiUrl,
+    const { status, result } = await verifyEmbeddedToken({
+      token,
       appId,
-      token: "[REDACTED]",
-      iss: iss || "merchant-dashboard",
-      subject: subject || "embedded-page",
-      env: environment,
+      iss,
+      subject,
     });
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "s-source": appId, // APP ID (dynamic)
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        token,
-        iss: iss || "merchant-dashboard",
-        subject: subject || "embedded-page",
-        env: environment,
-      }),
-    });
-
-    console.log("Salla API response status:", response.status);
-
-    const result = await response.json();
-    return respond(response.status, result);
+    return respond(status, result);
   } catch (error) {
     console.error("Token verification error:", error);
     return respond(500, {

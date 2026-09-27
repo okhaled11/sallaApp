@@ -11,7 +11,7 @@ export default function Header() {
         <div className="logo">
           <Code2 size={28} />
         </div>
-        <h1 className="header-title">Embedded SDK Playground</h1>
+        <h1 className="header-title">Product Sales</h1>
         <span className="header-version">v0.2.6</span>
       </div>
       <div className="header-right">

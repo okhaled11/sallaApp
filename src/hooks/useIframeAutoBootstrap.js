@@ -22,7 +22,7 @@ export function useIframeAutoBootstrap(bootstrap) {
   // Detect iframe/popup mode on mount
   useEffect(() => {
     const isInIframe = window.parent !== window;
-    const hasOpener = window.opener !== null;
+    const hasOpener = !!window.opener;
 
     isInIframeRef.current = isInIframe;
 

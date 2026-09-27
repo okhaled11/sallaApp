@@ -10,9 +10,6 @@ vi.mock("@salla.sa/embedded-sdk", () => ({
       getToken: vi.fn(),
     },
     onThemeChange: vi.fn(),
-    nav: {
-      onActionClick: vi.fn(),
-    },
   },
 }));
 
@@ -26,16 +23,11 @@ vi.mock("../useThemeSubscription.js", () => ({
   useThemeSubscription: vi.fn(),
 }));
 
-vi.mock("../useActionClickSubscription.js", () => ({
-  useActionClickSubscription: vi.fn(),
-}));
-
 // Import after mocks are set up
 import { useAppBootstrap } from "../useAppBootstrap.js";
 import { embedded as mockEmbedded } from "@salla.sa/embedded-sdk";
 import { verifyToken } from "../../utils/tokenVerification.js";
 import { useThemeSubscription } from "../useThemeSubscription.js";
-import { useActionClickSubscription } from "../useActionClickSubscription.js";
 
 describe("useAppBootstrap", () => {
   beforeEach(() => {
@@ -45,7 +37,6 @@ describe("useAppBootstrap", () => {
     });
     mockEmbedded.auth.getToken.mockReturnValue(null);
     mockEmbedded.onThemeChange.mockReturnValue(() => {});
-    mockEmbedded.nav.onActionClick.mockReturnValue(() => {});
   });
 
   it("initializes with default state", () => {
@@ -162,18 +153,6 @@ describe("useAppBootstrap", () => {
 
     // Theme subscription hook should be called with handler and isReady
     expect(useThemeSubscription).toHaveBeenCalled();
-  });
-
-  it("uses action click subscription hook", async () => {
-    const onActionClick = vi.fn();
-    const { result } = renderHook(() => useAppBootstrap({ onActionClick }));
-
-    await act(async () => {
-      await result.current.bootstrap();
-    });
-
-    // Action click subscription hook should be called
-    expect(useActionClickSubscription).toHaveBeenCalled();
   });
 
   it("auto-initializes when autoInit is true", async () => {

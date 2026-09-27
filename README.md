@@ -1,30 +1,48 @@
-# Embedded SDK Playground v0.2.6
+# Product Sales
 
-A developer testing tool for the Salla Embedded SDK.
+A Salla embedded app that lists the store's products and shows how many times each product has been sold.
 
 ## Overview
 
-This test console allows you to simulate and debug the communication between an embedded third-party app (iframe) and the Salla Dashboard (host). It sends and receives events using the `@salla.sa/embedded-sdk` package.
+The app runs inside the Salla merchant dashboard (iframe) using `@salla.sa/embedded-sdk`. Once connected it:
 
-## Bootstrap Flow
+- Lists every product in the store, sorted by best sellers first
+- Shows the number of units sold for each product (`sold_quantity` from the Salla Merchant API)
+- Shows a summary: product count, total units sold, and best seller
+- Lets the merchant search by product name or SKU
 
-The test console demonstrates the complete authentication flow:
+## How It Works
 
 ```
-1. embedded.init() - Initialize SDK and get layout info
-2. embedded.auth.getToken() - Get token from URL (?token=XXX)
-3. Verify token with Salla API
-4. embedded.ready() - Signal app is ready (removes host loading)
-   OR embedded.destroy() - Exit embedded view
+1. embedded.init()            - Initialize SDK and get layout info (theme, locale…)
+2. embedded.auth.getToken()   - Get the embedded token from URL (?token=XXX)
+3. POST /api/verify-token     - Verify the token with Salla
+4. embedded.ready()           - Remove the dashboard loading overlay
+5. POST /api/products         - Server verifies the token again, then fetches
+                                all products from GET /admin/v2/products
 ```
+
+The Salla Merchant API is only called from the serverless function, so the merchant access token never reaches the browser.
+
+## Configuration
+
+Set these environment variables on Vercel / Netlify:
+
+| Variable             | Required | Description                                                                             |
+| -------------------- | -------- | --------------------------------------------------------------------------------------- |
+| `SALLA_ACCESS_TOKEN` | Yes      | Merchant OAuth access token for the store (needs `products.read` scope)                 |
+| `ENV`                | No       | `prod` (default) or `dev`, selects the Salla token verification service                 |
+
+The app also expects `?app_id=YOUR_APP_ID` in the app URL (used to verify the embedded token).
+
+> **Note:** `SALLA_ACCESS_TOKEN` is a single store token, which is fine for testing on one store. For an app installed on many stores, store each merchant's access token (from the `app.store.authorize` webhook) and look it up by the verified `merchant_id`.
 
 ## Usage
 
-1. Add the deployment link for this app to your test app in Salla Partners
-2. "Run App" from the installed app page in merchant dashboard
-3. The console will auto-run the bootstrap flow
-4. Use the buttons to trigger and test the available events, or use the playground to test through code
-5. You can monitor the message log for incoming/outgoing events
+1. Add the deployment link for this app to your app in Salla Partners
+2. Install the app on your test store and set `SALLA_ACCESS_TOKEN`
+3. Open the app from the merchant dashboard
+4. The products and their sales appear automatically; use **Refresh** to reload
 
 ## Development
 
@@ -32,8 +50,14 @@ The test console demonstrates the complete authentication flow:
 # Install dependencies
 pnpm install
 
-# Start dev server
+# Start dev server (frontend only)
 pnpm dev
+
+# Start with serverless functions (Netlify)
+pnpm dev:netlify
+
+# Run tests
+pnpm test
 
 # Build for production
 pnpm build

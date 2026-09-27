@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { embedded } from "@salla.sa/embedded-sdk";
 import { verifyToken } from "../utils/tokenVerification.js";
 import { useThemeSubscription } from "./useThemeSubscription.js";
-import { useActionClickSubscription } from "./useActionClickSubscription.js";
 import logger from "../utils/logger.js";
 
 /**
@@ -30,14 +29,12 @@ import logger from "../utils/logger.js";
  *
  * STEP 5: Subscribe to Events
  *   - Use embedded.onThemeChange() for theme updates
- *   - Use embedded.nav.onActionClick() for nav button clicks
  *
  * @example
  * ```jsx
  * function MyApp() {
  *   const { isReady, layout, verifiedData, error } = useAppBootstrap({
  *     onThemeChange: (theme) => console.log('Theme:', theme),
- *     onActionClick: (value) => console.log('Action:', value),
  *   });
  *
  *   if (error) return <ErrorPage message={error} />;
@@ -55,16 +52,10 @@ import logger from "../utils/logger.js";
  * @param {boolean} options.debug - Enable SDK debug logging (default: true)
  * @param {boolean} options.autoInit - Auto-initialize on mount (default: false)
  * @param {function} options.onThemeChange - Callback when theme changes
- * @param {function} options.onActionClick - Callback when nav action is clicked
  * @returns {Object} Bootstrap state and controls
  */
 export function useAppBootstrap(options = {}) {
-  const {
-    debug = true,
-    autoInit = false,
-    onThemeChange,
-    onActionClick,
-  } = options;
+  const { debug = true, autoInit = false, onThemeChange } = options;
 
   // ============================================
   // State
@@ -176,7 +167,6 @@ export function useAppBootstrap(options = {}) {
   );
 
   useThemeSubscription(handleThemeChange, isReady);
-  useActionClickSubscription(onActionClick, isReady);
 
   // ============================================
   // Auto-init (optional)

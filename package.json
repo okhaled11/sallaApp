@@ -40,10 +40,8 @@
     "vitest": "^2.1.8"
   },
   "dependencies": {
-    "@monaco-editor/react": "^4.7.0",
     "@salla.sa/embedded-sdk": "v0.2.6",
     "lucide-react": "^0.562.0",
-    "monaco-editor": "^0.55.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   }

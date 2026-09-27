@@ -1,5 +1,6 @@
-// Token verification is handled by a serverless function (api/verify-token.js on Vercel)
+// Serverless functions (api/*.js on Vercel, server/functions/*.js on Netlify)
 export const VERIFY_FUNCTION_URL = "/api/verify-token";
+export const PRODUCTS_FUNCTION_URL = "/api/products";
 
 // App ID - can be overridden via URL parameter ?appId=XXX
 export function getAppId() {
