@@ -2,7 +2,7 @@ import { VERIFY_FUNCTION_URL, getAppId } from "./constants.js";
 import logger from "./logger.js";
 
 /**
- * Verify token via Netlify serverless function
+ * Verify token via serverless function
  */
 export async function verifyToken(token) {
   try {

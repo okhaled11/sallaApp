@@ -1,6 +1,11 @@
 [functions]
   directory = "server/functions"
 
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
 [build]
   command = "pnpm build"
   publish = "dist"
