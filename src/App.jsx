@@ -10,6 +10,7 @@ import StatusBar from "./components/StatusBar.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
 import ProfitInsights from "./components/ProfitInsights.jsx";
+import ActionPlan from "./components/ActionPlan.jsx";
 import { DEFAULT_LOW_STOCK_LIMIT } from "./utils/categoryInsights.js";
 
 function AppContent() {
@@ -129,10 +130,17 @@ function AppContent() {
                   selectedCategoryId={categoryFilter?.id ?? null}
                   onSelectCategory={handleSelectCategory}
                 />
-                <ProfitInsights
-                  products={products}
-                  onEditProduct={handleEditProduct}
-                />
+                <div className="insights-side">
+                  <ProfitInsights
+                    products={products}
+                    onEditProduct={handleEditProduct}
+                  />
+                  <ActionPlan
+                    products={products}
+                    lowStockLimit={lowStockLimit}
+                    onEditProduct={handleEditProduct}
+                  />
+                </div>
               </div>
             )}
             <ProductsSales

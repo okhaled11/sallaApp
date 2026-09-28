@@ -1068,6 +1068,220 @@ pre,
 }
 
 /* ============================================
+   Action Plan (under Profit)
+   ============================================ */
+
+.insights-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  min-width: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.panel-title-icon {
+  vertical-align: -3px;
+  margin-inline-end: 6px;
+  color: var(--accent-primary);
+}
+
+.action-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.action-tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr 2fr;
+  gap: var(--space-sm);
+}
+
+.action-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border-top: 3px solid var(--border-color-strong);
+  min-width: 0;
+}
+
+.action-tile-critical {
+  border-top-color: var(--accent-danger);
+}
+
+.action-tile-warning {
+  border-top-color: var(--accent-warning);
+}
+
+.action-tile-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-tile-value small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.action-tile-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.action-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.segmented-button {
+  flex: 1;
+  padding: 4px 8px;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.segmented-button:hover {
+  color: var(--text-primary);
+}
+
+.segmented-button.is-active {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.segmented-count {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: 0;
+  list-style: none;
+}
+
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-inline-start: 3px solid var(--border-color-strong);
+  border-radius: var(--radius-md);
+}
+
+.action-critical {
+  border-inline-start-color: var(--accent-danger);
+}
+
+.action-warning {
+  border-inline-start-color: var(--accent-warning);
+}
+
+.action-info {
+  border-inline-start-color: var(--accent-info);
+}
+
+.action-icon {
+  display: flex;
+  flex-shrink: 0;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.action-critical .action-icon {
+  color: #dc2626;
+}
+
+.action-warning .action-icon {
+  color: #b45309;
+}
+
+.action-info .action-icon {
+  color: #2563eb;
+}
+
+[data-theme="dark"] .action-critical .action-icon {
+  color: #f87171;
+}
+
+[data-theme="dark"] .action-warning .action-icon {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .action-info .action-icon {
+  color: #93c5fd;
+}
+
+.action-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.action-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.action-product,
+.action-reason {
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-reason {
+  color: var(--text-secondary);
+}
+
+.action-empty {
+  padding: var(--space-md) 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* ============================================
    Responsive
    ============================================ */
 
