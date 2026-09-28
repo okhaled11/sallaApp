@@ -1,16 +1,21 @@
 /**
- * Safe, typed errors for the Salla API flow.
+ * Safe, typed errors for the merchant auth / Salla API flow.
  *
  * `message` is always safe to return to the browser: it never contains
- * tokens or secrets.
+ * tokens, secrets or connection strings.
  */
 
 export const ERROR_CODES = {
   CONFIG_MISSING: "CONFIG_MISSING",
   EMBEDDED_TOKEN_INVALID: "EMBEDDED_TOKEN_INVALID",
+  MERCHANT_UNKNOWN: "MERCHANT_UNKNOWN",
+  MERCHANT_NOT_AUTHORIZED: "MERCHANT_NOT_AUTHORIZED",
+  MERCHANT_TOKEN_MISSING: "MERCHANT_TOKEN_MISSING",
+  TOKEN_REFRESH_FAILED: "TOKEN_REFRESH_FAILED",
   SALLA_UNAUTHORIZED: "SALLA_UNAUTHORIZED",
   SALLA_FORBIDDEN: "SALLA_FORBIDDEN",
   SALLA_API_ERROR: "SALLA_API_ERROR",
+  DATABASE_ERROR: "DATABASE_ERROR",
 };
 
 export class SallaAuthError extends Error {
@@ -41,7 +46,11 @@ export function requireEnv(...names) {
   }
 }
 
-const SECRET_ENV_VARS = ["SALLA_ACCESS_TOKEN", "SALLA_CLIENT_SECRET"];
+const SECRET_ENV_VARS = [
+  "SALLA_CLIENT_SECRET",
+  "SALLA_WEBHOOK_SECRET",
+  "DATABASE_URL",
+];
 
 // Salla (Ory) tokens, bearer headers, and credentials inside URLs
 const SECRET_PATTERNS = [
