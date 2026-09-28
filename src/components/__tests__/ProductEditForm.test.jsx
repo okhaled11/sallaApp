@@ -87,4 +87,25 @@ describe("ProductEditForm", () => {
       "Unlimited",
     );
   });
+
+  it("adds a missing cost price", async () => {
+    const { onSave } = renderForm();
+    const costInput = screen.getByLabelText("Cost (SAR)");
+    expect(costInput).toHaveValue(null);
+    expect(costInput).toHaveAttribute("placeholder", "Not set");
+
+    await userEvent.type(costInput, "42.5");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).toHaveBeenCalledWith(5, { costPrice: 42.5 });
+  });
+
+  it("validates the cost price", async () => {
+    const { onSave } = renderForm();
+    await userEvent.type(screen.getByLabelText("Cost (SAR)"), "-3");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/Cost must be 0/);
+  });
 });

@@ -74,6 +74,8 @@ describe("products-core", () => {
       image: "img.png",
       quantity: 3,
       soldQuantity: 5,
+      salePrice: null,
+      costPrice: null,
       categories: [
         { id: 11, name: "Men" },
         { id: 12, name: "Shirts" },
@@ -89,6 +91,39 @@ describe("products-core", () => {
   it("maps unlimited_quantity as unlimited even if quantity is set", () => {
     expect(
       mapProduct({ id: 1, quantity: 0, unlimited_quantity: true }).quantity,
+    ).toBe(null);
+  });
+
+  it("maps cost price and an active sale price", () => {
+    expect(
+      mapProduct({
+        id: 1,
+        price: { amount: 100, currency: "SAR" },
+        sale_price: { amount: 80, currency: "SAR" },
+        cost_price: 45,
+      }),
+    ).toMatchObject({ price: 100, salePrice: 80, costPrice: 45 });
+
+    // cost_price may also come as { amount }
+    expect(mapProduct({ id: 1, cost_price: { amount: 12 } }).costPrice).toBe(
+      12,
+    );
+  });
+
+  it("ignores empty sale price and unset (0) cost price", () => {
+    expect(
+      mapProduct({
+        id: 1,
+        price: { amount: 100 },
+        sale_price: { amount: 0 },
+        cost_price: 0,
+      }),
+    ).toMatchObject({ salePrice: null, costPrice: null });
+
+    // A "sale" that isn't cheaper is not a discount
+    expect(
+      mapProduct({ id: 1, price: { amount: 100 }, sale_price: { amount: 120 } })
+        .salePrice,
     ).toBe(null);
   });
 
@@ -245,6 +280,12 @@ describe("products-core", () => {
       ).toEqual({ changes: { price: 10.5, quantity: 3 } });
     });
 
+    it("maps costPrice to Salla's cost_price", () => {
+      expect(validateProductChanges({ productId: 5, costPrice: 42.5 })).toEqual(
+        { changes: { cost_price: 42.5 } },
+      );
+    });
+
     it("accepts a single field", () => {
       expect(validateProductChanges({ productId: 5, quantity: 0 })).toEqual({
         changes: { quantity: 0 },
@@ -258,6 +299,8 @@ describe("products-core", () => {
       [{ productId: 5, price: "10" }, /Price/],
       [{ productId: 5, quantity: 1.5 }, /Quantity/],
       [{ productId: 5, quantity: -2 }, /Quantity/],
+      [{ productId: 5, costPrice: -1 }, /Cost price/],
+      [{ productId: 5, costPrice: "9" }, /Cost price/],
       [{ productId: 5 }, /Nothing to update/],
     ])("rejects %j", (input, message) => {
       expect(validateProductChanges(input).error).toMatch(message);

@@ -2,12 +2,15 @@ import { useState } from "react";
 import Button from "./forms/Button.jsx";
 
 /**
- * Inline form to edit a product's price and stock quantity.
+ * Inline form to edit a product's price, cost and stock quantity.
  * Only fields that actually changed are sent.
  */
 export default function ProductEditForm({ product, onSave, onCancel }) {
   const [price, setPrice] = useState(
     product.price == null ? "" : String(product.price),
+  );
+  const [costPrice, setCostPrice] = useState(
+    product.costPrice == null ? "" : String(product.costPrice),
   );
   const [quantity, setQuantity] = useState(
     product.quantity == null ? "" : String(product.quantity),
@@ -28,6 +31,15 @@ export default function ProductEditForm({ product, onSave, onCancel }) {
         return;
       }
       if (value !== product.price) changes.price = value;
+    }
+
+    if (costPrice.trim() !== "") {
+      const value = Number(costPrice);
+      if (!Number.isFinite(value) || value < 0) {
+        setError("Cost must be 0 or more");
+        return;
+      }
+      if (value !== product.costPrice) changes.costPrice = value;
     }
 
     if (quantity.trim() !== "") {
@@ -66,6 +78,19 @@ export default function ProductEditForm({ product, onSave, onCancel }) {
           inputMode="decimal"
           value={price}
           onChange={(e) => setPrice(e.target.value)}
+          disabled={isSaving}
+        />
+      </label>
+      <label className="product-edit-field">
+        <span>Cost{product.currency ? ` (${product.currency})` : ""}</span>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          inputMode="decimal"
+          placeholder="Not set"
+          value={costPrice}
+          onChange={(e) => setCostPrice(e.target.value)}
           disabled={isSaving}
         />
       </label>

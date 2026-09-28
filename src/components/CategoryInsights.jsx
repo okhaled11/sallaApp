@@ -38,6 +38,7 @@ function CategoryCard({ category, onSelect, isSelected }) {
     productCount,
     totalSold,
     salesShare,
+    margin,
     topSellers,
     runningLow,
     outOfStock,
@@ -57,6 +58,16 @@ function CategoryCard({ category, onSelect, isSelected }) {
         <span className="category-meta">
           {numberFormat.format(productCount)} products ·{" "}
           {numberFormat.format(totalSold)} sold
+          {margin !== null && (
+            <>
+              {" · "}
+              <span
+                className={margin < 0.15 ? "category-margin-thin" : undefined}
+              >
+                {percentFormat.format(margin)} margin
+              </span>
+            </>
+          )}
         </span>
         <div
           className="category-share"

@@ -31,10 +31,27 @@ const PER_PAGE = 50;
 // Safety cap so a huge catalog can't keep the function running forever
 const MAX_PAGES = 40;
 
+// Salla sends amounts as a number or as { amount, currency }
+function toAmount(value) {
+  const amount =
+    typeof value === "object" && value !== null ? value.amount : value;
+  const number = Number(amount);
+  return amount === null ||
+    amount === undefined ||
+    amount === "" ||
+    !Number.isFinite(number)
+    ? null
+    : number;
+}
+
 /**
  * Normalize a Salla product into the shape the UI needs.
  */
 export function mapProduct(product) {
+  const price = toAmount(product.price);
+  const salePrice = toAmount(product.sale_price);
+  const costPrice = toAmount(product.cost_price);
+
   return {
     id: product.id,
     name: product.name || "—",
@@ -52,6 +69,15 @@ export function mapProduct(product) {
         ? null
         : Number(product.quantity),
     soldQuantity: Number(product.sold_quantity) || 0,
+    // Only an actual discount counts (Salla sends 0 when there is none)
+    salePrice:
+      salePrice !== null &&
+      salePrice > 0 &&
+      (price === null || salePrice < price)
+        ? salePrice
+        : null,
+    // 0 is Salla's default when the merchant never entered a cost
+    costPrice: costPrice !== null && costPrice > 0 ? costPrice : null,
     categories: Array.isArray(product.categories)
       ? product.categories
           .filter((category) => category && category.id != null)
@@ -163,7 +189,12 @@ export async function updateProduct(accessToken, productId, changes) {
  *
  * @returns {{ changes?: object, error?: string }}
  */
-export function validateProductChanges({ productId, price, quantity }) {
+export function validateProductChanges({
+  productId,
+  price,
+  quantity,
+  costPrice,
+}) {
   if (!Number.isInteger(productId) || productId <= 0) {
     return { error: "A valid productId is required" };
   }
@@ -186,8 +217,24 @@ export function validateProductChanges({ productId, price, quantity }) {
     changes.quantity = quantity;
   }
 
+  if (costPrice !== undefined) {
+    if (
+      typeof costPrice !== "number" ||
+      !Number.isFinite(costPrice) ||
+      costPrice < 0
+    ) {
+      return {
+        error: "Cost price must be a number greater than or equal to 0",
+      };
+    }
+    // Salla's field name
+    changes.cost_price = costPrice;
+  }
+
   if (Object.keys(changes).length === 0) {
-    return { error: "Nothing to update: send price and/or quantity" };
+    return {
+      error: "Nothing to update: send price, quantity and/or costPrice",
+    };
   }
 
   return { changes };

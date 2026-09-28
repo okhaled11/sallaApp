@@ -125,6 +125,57 @@ describe("ProductsSales", () => {
     expect(screen.queryByLabelText(/Price/)).not.toBeInTheDocument();
   });
 
+  it("shows each product's margin when it has a cost price", () => {
+    renderComponent({
+      products: [
+        { ...products[0], costPrice: 60, salePrice: null },
+        { ...products[1], costPrice: 47, salePrice: null },
+        products[2],
+      ],
+    });
+    expect(screen.getByText("40% margin")).toBeInTheDocument();
+    expect(screen.getByText("6% margin")).toHaveClass("category-margin-thin");
+    expect(screen.getAllByText(/margin$/)).toHaveLength(2);
+  });
+
+  it("opens a row requested from outside and clears a search hiding it", async () => {
+    const onEditingChange = vi.fn();
+    const { rerender } = render(
+      <ProductsSales
+        products={products}
+        totalSold={13}
+        isLoading={false}
+        error={null}
+        onReload={vi.fn()}
+        onUpdateProduct={vi.fn()}
+        editingId={null}
+        onEditingChange={onEditingChange}
+      />,
+    );
+
+    await userEvent.type(screen.getByLabelText("Search products"), "shirt");
+    expect(screen.queryByText("Red Hat")).not.toBeInTheDocument();
+
+    rerender(
+      <ProductsSales
+        products={products}
+        totalSold={13}
+        isLoading={false}
+        error={null}
+        onReload={vi.fn()}
+        onUpdateProduct={vi.fn()}
+        editingId={2}
+        onEditingChange={onEditingChange}
+      />,
+    );
+
+    expect(screen.getByLabelText("Search products")).toHaveValue("");
+    expect(screen.getByLabelText(/Price/)).toHaveValue(50);
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onEditingChange).toHaveBeenCalledWith(null);
+  });
+
   describe("category filter", () => {
     const categorized = [
       { ...products[0], categories: [{ id: 1, name: "Shirts" }] },

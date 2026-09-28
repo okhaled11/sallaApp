@@ -950,8 +950,114 @@ pre,
 }
 
 /* ============================================
+   Insights row: categories (wide) + profit (narrow)
+   ============================================ */
+
+.insights-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.profit-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-md);
+}
+
+.profit-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.profit-tiles .summary-value {
+  font-size: 1.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profit-coverage {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.profit-coverage .category-share-bar {
+  flex: none;
+}
+
+.margin-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.margin-badge-good {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.margin-badge-thin {
+  color: #b45309;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.margin-badge-loss {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+[data-theme="dark"] .margin-badge-good {
+  color: #6ee7b7;
+}
+
+[data-theme="dark"] .margin-badge-thin {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .margin-badge-loss {
+  color: #f87171;
+}
+
+.category-margin-thin {
+  color: #b45309;
+  font-weight: 500;
+}
+
+[data-theme="dark"] .category-margin-thin {
+  color: #fbbf24;
+}
+
+.link-button {
+  flex-shrink: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  color: var(--accent-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ============================================
    Responsive
    ============================================ */
+
+@media (max-width: 1024px) {
+  .insights-grid {
+    grid-template-columns: 1fr;
+  }
+}
 
 @media (max-width: 640px) {
   .main-content {

@@ -59,6 +59,14 @@ export function useProducts(token, enabled = true) {
                     updated.quantity !== undefined
                       ? updated.quantity
                       : (changes.quantity ?? p.quantity),
+                  costPrice:
+                    updated.costPrice !== undefined
+                      ? updated.costPrice
+                      : (changes.costPrice ?? p.costPrice),
+                  salePrice:
+                    updated.salePrice !== undefined
+                      ? updated.salePrice
+                      : p.salePrice,
                 }
               : p,
           ),

@@ -112,4 +112,18 @@ describe("categoryInsights", () => {
   it("returns an empty list for no products", () => {
     expect(buildCategoryInsights([])).toEqual([]);
   });
+
+  it("adds each category's revenue-weighted margin", () => {
+    const [withCost, withoutCost] = buildCategoryInsights([
+      product(1, { price: 100, costPrice: 60, soldQuantity: 10 }),
+      product(2, {
+        price: 100,
+        costPrice: null,
+        soldQuantity: 1,
+        categories: [incense],
+      }),
+    ]);
+    expect(withCost.margin).toBeCloseTo(0.4);
+    expect(withoutCost.margin).toBe(null);
+  });
 });

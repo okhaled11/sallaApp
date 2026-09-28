@@ -1,8 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Package, Pencil, RefreshCw, X } from "lucide-react";
 import Button from "./forms/Button.jsx";
 import ProductEditForm from "./ProductEditForm.jsx";
 import { UNCATEGORIZED_ID } from "../utils/categoryInsights.js";
+import { productProfit } from "../utils/profitInsights.js";
+
+const percentFormat = new Intl.NumberFormat(undefined, {
+  style: "percent",
+  maximumFractionDigits: 0,
+});
 
 const numberFormat = new Intl.NumberFormat();
 
@@ -23,6 +29,19 @@ function stockLabel(quantity) {
   return `Stock ${numberFormat.format(quantity)}`;
 }
 
+function MarginText({ product }) {
+  const profit = productProfit(product);
+  if (!profit || profit.margin === null) return null;
+  return (
+    <>
+      {" · "}
+      <span className={profit.margin < 0.15 ? "category-margin-thin" : ""}>
+        {percentFormat.format(profit.margin)} margin
+      </span>
+    </>
+  );
+}
+
 export default function ProductsSales({
   products,
   totalSold,
@@ -32,9 +51,19 @@ export default function ProductsSales({
   onUpdateProduct,
   categoryFilter = null,
   onClearCategory,
+  // Optional: control which row is being edited from outside (e.g. "Add cost")
+  editingId: controlledEditingId,
+  onEditingChange,
 }) {
   const [query, setQuery] = useState("");
-  const [editingId, setEditingId] = useState(null);
+  const [localEditingId, setLocalEditingId] = useState(null);
+  const isControlled = controlledEditingId !== undefined;
+  const editingId = isControlled ? controlledEditingId : localEditingId;
+  const setEditingId = (update) => {
+    const next = typeof update === "function" ? update(editingId) : update;
+    if (isControlled) onEditingChange?.(next);
+    else setLocalEditingId(next);
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -52,6 +81,25 @@ export default function ProductsSales({
       );
     });
   }, [products, query, categoryFilter]);
+
+  // When a row is opened (possibly from another card), make sure it is
+  // visible and scrolled into view — once per newly opened row.
+  const [revealedId, setRevealedId] = useState(null);
+  useEffect(() => {
+    if (editingId === null || editingId === undefined) {
+      setRevealedId(null);
+      return;
+    }
+    if (revealedId === editingId) return;
+    if (!filtered.some((p) => p.id === editingId)) {
+      setQuery("");
+      return;
+    }
+    setRevealedId(editingId);
+    document
+      .getElementById(`product-row-${editingId}`)
+      ?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  }, [editingId, filtered, revealedId]);
 
   const maxSold = products.reduce((max, p) => Math.max(max, p.soldQuantity), 0);
   const bestSeller = products[0]?.soldQuantity > 0 ? products[0] : null;
@@ -136,7 +184,11 @@ export default function ProductsSales({
           ) : (
             <ul className="products-list">
               {filtered.map((product) => (
-                <li key={product.id} className="product-row">
+                <li
+                  key={product.id}
+                  id={`product-row-${product.id}`}
+                  className="product-row"
+                >
                   <div className="product-thumb">
                     {product.image ? (
                       <img src={product.image} alt="" loading="lazy" />
@@ -157,6 +209,7 @@ export default function ProductsSales({
                       >
                         {stockLabel(product.quantity)}
                       </span>
+                      <MarginText product={product} />
                     </span>
                   </div>
                   <div className="product-sold">

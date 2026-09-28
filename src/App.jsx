@@ -9,6 +9,7 @@ import Header from "./components/Header.jsx";
 import StatusBar from "./components/StatusBar.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
+import ProfitInsights from "./components/ProfitInsights.jsx";
 import { DEFAULT_LOW_STOCK_LIMIT } from "./utils/categoryInsights.js";
 
 function AppContent() {
@@ -45,6 +46,13 @@ function AppContent() {
 
   const [lowStockLimit, setLowStockLimit] = useState(DEFAULT_LOW_STOCK_LIMIT);
   const [categoryFilter, setCategoryFilter] = useState(null);
+  const [editingProductId, setEditingProductId] = useState(null);
+
+  // "Add cost" / "Edit" in the profit card opens that product's edit form
+  const handleEditProduct = useCallback((product) => {
+    setCategoryFilter(null);
+    setEditingProductId(product.id);
+  }, []);
 
   const handleSelectCategory = useCallback((category) => {
     setCategoryFilter(
@@ -113,13 +121,19 @@ function AppContent() {
         ) : (
           <>
             {!productsError && products.length > 0 && (
-              <CategoryInsights
-                products={products}
-                lowStockLimit={lowStockLimit}
-                onLowStockLimitChange={setLowStockLimit}
-                selectedCategoryId={categoryFilter?.id ?? null}
-                onSelectCategory={handleSelectCategory}
-              />
+              <div className="insights-grid">
+                <CategoryInsights
+                  products={products}
+                  lowStockLimit={lowStockLimit}
+                  onLowStockLimitChange={setLowStockLimit}
+                  selectedCategoryId={categoryFilter?.id ?? null}
+                  onSelectCategory={handleSelectCategory}
+                />
+                <ProfitInsights
+                  products={products}
+                  onEditProduct={handleEditProduct}
+                />
+              </div>
             )}
             <ProductsSales
               products={products}
@@ -130,6 +144,8 @@ function AppContent() {
               onUpdateProduct={handleUpdateProduct}
               categoryFilter={categoryFilter}
               onClearCategory={() => setCategoryFilter(null)}
+              editingId={editingProductId}
+              onEditingChange={setEditingProductId}
             />
           </>
         )}

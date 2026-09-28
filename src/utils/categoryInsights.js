@@ -5,6 +5,8 @@
  * Products without a category are grouped under "Uncategorized".
  */
 
+import { weightedMargin } from "./profitInsights.js";
+
 export const UNCATEGORIZED_ID = "uncategorized";
 export const DEFAULT_LOW_STOCK_LIMIT = 5;
 
@@ -24,7 +26,7 @@ const bySoldDesc = (a, b) => b.soldQuantity - a.soldQuantity;
  * @param {{ lowStockLimit?: number, topCount?: number }} [options]
  * @returns {Array<{
  *   id: string, name: string, productCount: number, totalSold: number,
- *   salesShare: number, topSellers: Array, runningLow: Array,
+ *   salesShare: number, margin: number|null, topSellers: Array, runningLow: Array,
  *   outOfStock: Array, neverSold: Array
  * }>} Categories sorted by units sold (best first)
  */
@@ -62,6 +64,8 @@ export function buildCategoryInsights(
         productCount: group.products.length,
         totalSold,
         salesShare: storeSold ? totalSold / storeSold : 0,
+        // Revenue-weighted, only products with a cost price
+        margin: weightedMargin(group.products),
         topSellers: group.products
           .filter((p) => p.soldQuantity > 0)
           .sort(bySoldDesc)
