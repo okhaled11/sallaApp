@@ -1,12 +1,6 @@
 [functions]
   directory = "server/functions"
 
-# Must come before the generic /api/* rule
-[[redirects]]
-  from = "/api/webhooks/salla"
-  to = "/.netlify/functions/salla-webhook"
-  status = 200
-
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
