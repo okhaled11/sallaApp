@@ -884,6 +884,19 @@ pre,
   color: var(--accent-danger);
 }
 
+.save-status {
+  margin: 0 0 var(--space-md);
+  font-size: 0.8125rem;
+}
+
+.save-status-success {
+  color: var(--accent-success);
+}
+
+.save-status-error {
+  color: var(--accent-danger);
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;

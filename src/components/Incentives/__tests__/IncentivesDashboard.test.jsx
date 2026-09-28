@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import IncentivesDashboard from "../IncentivesDashboard.jsx";
@@ -76,6 +76,38 @@ describe("IncentivesDashboard", () => {
     await userEvent.type(input, "2");
 
     expect(screen.queryByText(/قطع بس/)).not.toBeInTheDocument();
+  });
+
+  it("disables saving outside the Salla dashboard", () => {
+    render(<IncentivesDashboard />);
+    expect(
+      screen.getByRole("button", { name: /Save changes/ }),
+    ).toBeDisabled();
+  });
+
+  it("saves the changes to the store", async () => {
+    const fetchMock = vi.fn(async (_url, options) => ({
+      json: async () =>
+        options?.method === "POST"
+          ? {
+              success: true,
+              data: { settings: JSON.parse(options.body).settings },
+            }
+          : { success: true, data: { settings: null } },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<IncentivesDashboard token="tok" />);
+    await userEvent.click(screen.getByRole("button", { name: /Save changes/ }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/Saved/);
+    expect(screen.getByRole("button", { name: /Saved/ })).toBeDisabled();
+    const [, options] = fetchMock.mock.calls.find(
+      ([, opts]) => opts?.method === "POST",
+    );
+    expect(JSON.parse(options.body).token).toBe("tok");
+
+    vi.unstubAllGlobals();
   });
 
   it("resets all settings", async () => {

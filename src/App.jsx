@@ -99,7 +99,7 @@ function AppContent() {
       />
       <main className="main-content">
         <div className="dashboard-grid">
-          <IncentivesDashboard />
+          <IncentivesDashboard token={isReady ? token : null} />
           <div className="grid-full">
             {notice ? (
               <div className="panel products-state">{notice}</div>
