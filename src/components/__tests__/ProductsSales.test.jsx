@@ -72,7 +72,7 @@ describe("ProductsSales", () => {
     renderComponent();
     await userEvent.type(screen.getByLabelText("Search products"), "zzz");
     expect(
-      screen.getByText("No products match your search."),
+      screen.getByText("No products match your filters."),
     ).toBeInTheDocument();
   });
 
@@ -123,5 +123,45 @@ describe("ProductsSales", () => {
 
     expect(onUpdateProduct).toHaveBeenCalledWith(2, { price: 75 });
     expect(screen.queryByLabelText(/Price/)).not.toBeInTheDocument();
+  });
+
+  describe("category filter", () => {
+    const categorized = [
+      { ...products[0], categories: [{ id: 1, name: "Shirts" }] },
+      { ...products[1], categories: [{ id: 2, name: "Hats" }] },
+      { ...products[2], categories: [] },
+    ];
+
+    it("shows only products in the selected category", () => {
+      renderComponent({
+        products: categorized,
+        categoryFilter: { id: "2", name: "Hats" },
+      });
+      expect(screen.getByText("Red Hat")).toBeInTheDocument();
+      expect(screen.queryByText("Green Bag")).not.toBeInTheDocument();
+      expect(screen.getAllByText("Blue Shirt")).toHaveLength(1); // best seller tile only
+    });
+
+    it("shows uncategorized products for the Uncategorized group", () => {
+      renderComponent({
+        products: categorized,
+        categoryFilter: { id: "uncategorized", name: "Uncategorized" },
+      });
+      expect(screen.getByText("Green Bag")).toBeInTheDocument();
+      expect(screen.queryByText("Red Hat")).not.toBeInTheDocument();
+    });
+
+    it("clears the filter from its chip", async () => {
+      const onClearCategory = vi.fn();
+      renderComponent({
+        products: categorized,
+        categoryFilter: { id: "2", name: "Hats" },
+        onClearCategory,
+      });
+      await userEvent.click(
+        screen.getByRole("button", { name: "Clear category filter Hats" }),
+      );
+      expect(onClearCategory).toHaveBeenCalled();
+    });
   });
 });

@@ -59,6 +59,10 @@ describe("products-core", () => {
         thumbnail: "img.png",
         quantity: 3,
         sold_quantity: 5,
+        categories: [
+          { id: 11, name: "Men", parent_id: 0, status: "active" },
+          { id: 12, name: "Shirts" },
+        ],
       }),
     ).toEqual({
       id: 7,
@@ -70,12 +74,29 @@ describe("products-core", () => {
       image: "img.png",
       quantity: 3,
       soldQuantity: 5,
+      categories: [
+        { id: 11, name: "Men" },
+        { id: 12, name: "Shirts" },
+      ],
     });
   });
 
   it("maps missing quantity as unlimited (null)", () => {
     expect(mapProduct({ id: 1, quantity: null }).quantity).toBe(null);
     expect(mapProduct({ id: 1 }).quantity).toBe(null);
+  });
+
+  it("maps unlimited_quantity as unlimited even if quantity is set", () => {
+    expect(
+      mapProduct({ id: 1, quantity: 0, unlimited_quantity: true }).quantity,
+    ).toBe(null);
+  });
+
+  it("maps missing or invalid categories to an empty list", () => {
+    expect(mapProduct({ id: 1 }).categories).toEqual([]);
+    expect(
+      mapProduct({ id: 1, categories: [null, { name: "no id" }] }).categories,
+    ).toEqual([]);
   });
 
   it("handles CORS preflight and rejects other methods", async () => {

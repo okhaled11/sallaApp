@@ -46,10 +46,20 @@ export function mapProduct(product) {
       product.thumbnail || product.main_image || product.image?.url || null,
     // null means unlimited stock
     quantity:
-      product.quantity === null || product.quantity === undefined
+      product.unlimited_quantity ||
+      product.quantity === null ||
+      product.quantity === undefined
         ? null
         : Number(product.quantity),
     soldQuantity: Number(product.sold_quantity) || 0,
+    categories: Array.isArray(product.categories)
+      ? product.categories
+          .filter((category) => category && category.id != null)
+          .map((category) => ({
+            id: category.id,
+            name: category.name || "—",
+          }))
+      : [],
   };
 }
 

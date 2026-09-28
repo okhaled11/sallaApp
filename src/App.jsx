@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import { useTheme } from "./contexts/ThemeContext.jsx";
 import { useAppBootstrap } from "./hooks/useAppBootstrap.js";
 import { useIframeAutoBootstrap } from "./hooks/useIframeAutoBootstrap.js";
@@ -8,6 +8,8 @@ import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import Header from "./components/Header.jsx";
 import StatusBar from "./components/StatusBar.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
+import CategoryInsights from "./components/CategoryInsights.jsx";
+import { DEFAULT_LOW_STOCK_LIMIT } from "./utils/categoryInsights.js";
 
 function AppContent() {
   const { setTheme } = useTheme();
@@ -40,6 +42,15 @@ function AppContent() {
     reload,
     updateProduct,
   } = useProducts(token, isReady && !!token);
+
+  const [lowStockLimit, setLowStockLimit] = useState(DEFAULT_LOW_STOCK_LIMIT);
+  const [categoryFilter, setCategoryFilter] = useState(null);
+
+  const handleSelectCategory = useCallback((category) => {
+    setCategoryFilter(
+      category ? { id: category.id, name: category.name } : null,
+    );
+  }, []);
 
   const handleUpdateProduct = useCallback(
     async (productId, changes) => {
@@ -100,14 +111,27 @@ function AppContent() {
         {notice ? (
           <div className="panel products-state">{notice}</div>
         ) : (
-          <ProductsSales
-            products={products}
-            totalSold={totalSold}
-            isLoading={isLoading}
-            error={productsError}
-            onReload={reload}
-            onUpdateProduct={handleUpdateProduct}
-          />
+          <>
+            {!productsError && products.length > 0 && (
+              <CategoryInsights
+                products={products}
+                lowStockLimit={lowStockLimit}
+                onLowStockLimitChange={setLowStockLimit}
+                selectedCategoryId={categoryFilter?.id ?? null}
+                onSelectCategory={handleSelectCategory}
+              />
+            )}
+            <ProductsSales
+              products={products}
+              totalSold={totalSold}
+              isLoading={isLoading}
+              error={productsError}
+              onReload={reload}
+              onUpdateProduct={handleUpdateProduct}
+              categoryFilter={categoryFilter}
+              onClearCategory={() => setCategoryFilter(null)}
+            />
+          </>
         )}
       </main>
     </div>

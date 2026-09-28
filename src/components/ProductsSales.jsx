@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { Package, Pencil, RefreshCw } from "lucide-react";
+import { Package, Pencil, RefreshCw, X } from "lucide-react";
 import Button from "./forms/Button.jsx";
 import ProductEditForm from "./ProductEditForm.jsx";
+import { UNCATEGORIZED_ID } from "../utils/categoryInsights.js";
 
 const numberFormat = new Intl.NumberFormat();
 
@@ -29,19 +30,28 @@ export default function ProductsSales({
   error,
   onReload,
   onUpdateProduct,
+  categoryFilter = null,
+  onClearCategory,
 }) {
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
+    return products.filter((p) => {
+      if (categoryFilter) {
+        const inCategory = p.categories?.length
+          ? p.categories.some((c) => String(c.id) === categoryFilter.id)
+          : categoryFilter.id === UNCATEGORIZED_ID;
+        if (!inCategory) return false;
+      }
+      if (!q) return true;
+      return (
         p.name.toLowerCase().includes(q) ||
-        (p.sku && p.sku.toLowerCase().includes(q)),
-    );
-  }, [products, query]);
+        (p.sku && p.sku.toLowerCase().includes(q))
+      );
+    });
+  }, [products, query, categoryFilter]);
 
   const maxSold = products.reduce((max, p) => Math.max(max, p.soldQuantity), 0);
   const bestSeller = products[0]?.soldQuantity > 0 ? products[0] : null;
@@ -104,13 +114,24 @@ export default function ProductsSales({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
+            {categoryFilter && (
+              <button
+                type="button"
+                className="filter-chip"
+                onClick={onClearCategory}
+                aria-label={`Clear category filter ${categoryFilter.name}`}
+              >
+                Category: {categoryFilter.name}
+                <X size={14} />
+              </button>
+            )}
           </div>
 
           {filtered.length === 0 ? (
             <div className="products-state">
               {products.length === 0
                 ? "No products found in this store."
-                : "No products match your search."}
+                : "No products match your filters."}
             </div>
           ) : (
             <ul className="products-list">
