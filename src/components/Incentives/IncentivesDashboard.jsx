@@ -1,5 +1,5 @@
-import { useId, useState } from "react";
-import { RotateCcw, Save } from "lucide-react";
+import { useId } from "react";
+import { RotateCcw } from "lucide-react";
 import Button from "../forms/Button.jsx";
 import IncentiveCard, { NumberField } from "./IncentiveCard.jsx";
 import IncentivePreview from "./IncentivePreview.jsx";
@@ -25,26 +25,10 @@ function toLocalInput(iso) {
  * Cart incentives: live preview + one settings card per incentive.
  * Renders grid items directly so they share the dashboard grid.
  */
-export default function IncentivesDashboard({ token = null }) {
-  const { settings, updateSection, resetSettings, save, isSaving, isDirty } =
-    useIncentiveSettings(token);
+export default function IncentivesDashboard() {
+  const { settings, updateSection, resetSettings } = useIncentiveSettings();
   const { freeShipping, countdown, coupon, lowStock } = settings;
   const ids = useId();
-  const [saveStatus, setSaveStatus] = useState(null);
-
-  const handleSave = async () => {
-    setSaveStatus(null);
-    const result = await save();
-    setSaveStatus(
-      result.success
-        ? { type: "success", message: "Saved — live on your product pages" }
-        : { type: "error", message: `Could not save: ${result.error}` },
-    );
-  };
-
-  let saveLabel = "Save changes";
-  if (isSaving) saveLabel = "Saving...";
-  else if (token && !isDirty) saveLabel = "Saved";
 
   return (
     <>
@@ -66,30 +50,8 @@ export default function IncentivesDashboard({ token = null }) {
               <RotateCcw size={14} />
               Reset
             </Button>
-            <Button
-              size="small"
-              variant="primary"
-              onClick={handleSave}
-              disabled={!token || isSaving || !isDirty}
-              title={
-                token
-                  ? "Show these incentives on your store's product pages"
-                  : "Open the app from the Salla dashboard to save"
-              }
-            >
-              <Save size={14} />
-              {saveLabel}
-            </Button>
           </div>
         </div>
-        {saveStatus && !(saveStatus.type === "success" && isDirty) && (
-          <p
-            className={`save-status save-status-${saveStatus.type}`}
-            role={saveStatus.type === "error" ? "alert" : "status"}
-          >
-            {saveStatus.message}
-          </p>
-        )}
         <IncentivePreview settings={settings} />
       </section>
 

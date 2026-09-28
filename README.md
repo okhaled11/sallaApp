@@ -58,21 +58,8 @@ Environment variables (Vercel → Project → Settings → Environment Variables
 | `SALLA_CLIENT_ID`     | No       | App Client ID. Not read by the code yet (kept for future OAuth work)           |
 | `SALLA_CLIENT_SECRET` | No       | App Client Secret. Not read by the code yet (kept for future OAuth work)       |
 | `ENV`                 | No       | `prod` (default) or `dev`, selects the Salla embedded token service            |
-| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | For incentives | Upstash Redis REST credentials, where the saved cart incentives live (`KV_REST_API_URL` / `KV_REST_API_TOKEN` also work) |
 
-The app URL must contain `?app_id=YOUR_APP_ID` (used to verify the embedded token). See `.env.example`.
-
-## Cart incentives on the storefront
-
-**Save changes** in the incentives panel sends the settings to `POST /api/incentives` (embedded token verified, then stored in Upstash Redis). The store reads them from the public `GET /api/incentives`.
-
-To show them on the store's product pages, add an **App Snippet** in Salla Partners (your app → App Snippets) that loads the storefront script from your deployment:
-
-```html
-<script src="https://YOUR-APP-DOMAIN/storefront/incentives.js" defer></script>
-```
-
-The script ([public/storefront/incentives.js](public/storefront/incentives.js)) runs only on product pages. It shows the free shipping bar (from the cart subtotal), the countdown, the remaining-stock message and the coupon above the add-to-cart button. To put them somewhere else, add `<div id="zawwid-incentives"></div>` to the theme. Nothing is shown until the first save, and after a save the store picks up the change within about 30 seconds (CDN cache).
+No database is needed. The app URL must contain `?app_id=YOUR_APP_ID` (used to verify the embedded token). See `.env.example`.
 
 ## Usage
 

@@ -1,9 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createDefaultSettings } from "../components/Incentives/incentiveDefaults.js";
-import {
-  fetchPublishedIncentives,
-  saveIncentives,
-} from "../utils/incentivesApi.js";
 
 export const STORAGE_KEY = "salla-incentives:v1";
 
@@ -20,37 +16,25 @@ function mergeSettings(defaults, stored) {
   return merged;
 }
 
-function readDraft() {
+function loadSettings() {
+  const defaults = createDefaultSettings();
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? mergeSettings(defaults, JSON.parse(raw)) : defaults;
   } catch {
     // Blocked or corrupt storage: fall back to defaults
-    return null;
+    return defaults;
   }
 }
 
-// Same key order on both sides, without server-only fields like updatedAt
-const snapshot = (settings) =>
-  JSON.stringify(mergeSettings(createDefaultSettings(0), settings));
-
 /**
- * useIncentiveSettings - Cart incentive settings.
+ * useIncentiveSettings - Cart incentive settings, kept in this browser
+ * (localStorage) for now.
  *
- * Edits are a draft kept in this browser (localStorage); `save` publishes
- * them to the server, where the storefront script reads them.
- *
- * @param {string|null} token - Embedded token; loads and saves only when set
- * @returns {{ settings: object, updateSection: function, resetSettings: function, save: function, isSaving: boolean, isDirty: boolean }}
+ * @returns {{ settings: object, updateSection: function, resetSettings: function }}
  */
-export function useIncentiveSettings(token = null) {
-  const [hadDraft] = useState(() => readDraft() !== null);
-  const [settings, setSettings] = useState(() =>
-    mergeSettings(createDefaultSettings(), readDraft()),
-  );
-  // Settings live on the storefront: undefined = unknown, null = never saved
-  const [published, setPublished] = useState(undefined);
-  const [isSaving, setIsSaving] = useState(false);
+export function useIncentiveSettings() {
+  const [settings, setSettings] = useState(loadSettings);
 
   useEffect(() => {
     try {
@@ -59,25 +43,6 @@ export function useIncentiveSettings(token = null) {
       /* storage unavailable: settings still work for this session */
     }
   }, [settings]);
-
-  useEffect(() => {
-    if (!token) return;
-    let cancelled = false;
-
-    fetchPublishedIncentives().then((result) => {
-      if (cancelled || !result.success) return;
-      const live = result.data?.settings ?? null;
-      setPublished(live);
-      // A fresh browser starts from what the store shows now
-      if (live && !hadDraft) {
-        setSettings(mergeSettings(createDefaultSettings(), live));
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [token, hadDraft]);
 
   const updateSection = useCallback((section, patch) => {
     setSettings((prev) => ({
@@ -90,36 +55,5 @@ export function useIncentiveSettings(token = null) {
     setSettings(createDefaultSettings());
   }, []);
 
-  /**
-   * Publish the current settings to the storefront.
-   *
-   * @returns {Promise<{ success: boolean, error?: string }>}
-   */
-  const save = useCallback(async () => {
-    if (!token) return { success: false, error: "No token" };
-
-    setIsSaving(true);
-    const sent = settings;
-    const result = await saveIncentives(token, sent);
-    setIsSaving(false);
-
-    if (!result.success) {
-      return { success: false, error: result.error || "Failed to save" };
-    }
-
-    const saved = result.data?.settings ?? sent;
-    setPublished(saved);
-    // Take the server's cleaned-up values unless the merchant kept editing
-    setSettings((prev) =>
-      prev === sent ? mergeSettings(createDefaultSettings(), saved) : prev,
-    );
-    return { success: true };
-  }, [token, settings]);
-
-  const isDirty = useMemo(
-    () => !published || snapshot(settings) !== snapshot(published),
-    [settings, published],
-  );
-
-  return { settings, updateSection, resetSettings, save, isSaving, isDirty };
+  return { settings, updateSection, resetSettings };
 }
