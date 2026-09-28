@@ -96,4 +96,73 @@ describe("ProfitInsights", () => {
     ).toBeInTheDocument();
     expect(screen.getAllByText("—")).toHaveLength(2);
   });
+
+  describe("show more", () => {
+    const earnersList = () =>
+      within(section(/Earns the most/)).getByRole("list");
+
+    it("expands to every product with a cost and collapses back", async () => {
+      render(<ProfitInsights products={products} />);
+      // Collapsed: only products that make a profit
+      expect(
+        within(earnersList()).queryByText("Amber"),
+      ).not.toBeInTheDocument();
+
+      const button = screen.getByRole("button", {
+        name: "Show more (all 3 with cost)",
+      });
+      expect(button).toHaveAttribute("aria-expanded", "false");
+      await userEvent.click(button);
+
+      const rows = within(earnersList()).getAllByRole("listitem");
+      expect(rows.map((row) => row.textContent)).toEqual([
+        expect.stringContaining("Oud Oil"),
+        expect.stringContaining("Musk"),
+        expect.stringContaining("Amber"),
+      ]);
+      expect(within(rows[2]).getByText("-40 SAR")).toHaveClass(
+        "profit-negative",
+      );
+      // Products without a cost are not in this list
+      expect(
+        within(earnersList()).queryByText("Bakhoor"),
+      ).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Show less" }));
+      expect(within(earnersList()).getAllByRole("listitem")).toHaveLength(2);
+    });
+
+    it("shows the top 5 first when many products have a cost", async () => {
+      const many = Array.from({ length: 8 }, (_, i) => ({
+        ...base,
+        id: 100 + i,
+        name: `Item ${i + 1}`,
+        price: 100,
+        costPrice: 50,
+        soldQuantity: 10 - i,
+      }));
+      render(<ProfitInsights products={many} />);
+
+      expect(within(earnersList()).getAllByRole("listitem")).toHaveLength(5);
+      await userEvent.click(
+        screen.getByRole("button", { name: "Show more (all 8 with cost)" }),
+      );
+      expect(within(earnersList()).getAllByRole("listitem")).toHaveLength(8);
+    });
+
+    it("hides the button when everything is already shown", () => {
+      render(<ProfitInsights products={products.slice(0, 2)} />);
+      expect(
+        screen.queryByRole("button", { name: /Show more/ }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("lists products with a cost even when none makes a profit", () => {
+      render(<ProfitInsights products={[products[2], products[3]]} />);
+      expect(within(earnersList()).getByText("Amber")).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Add cost prices to see/),
+      ).not.toBeInTheDocument();
+    });
+  });
 });

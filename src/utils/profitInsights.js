@@ -62,6 +62,9 @@ export function buildProfitInsights(
     else missingCost.push(product);
   }
 
+  // Every product with a cost, most profitable first (losses at the end)
+  const ranked = [...withCost].sort((a, b) => b.totalProfit - a.totalProfit);
+
   const totalProfit = withCost.reduce((sum, row) => sum + row.totalProfit, 0);
   const totalRevenue = withCost.reduce((sum, row) => sum + row.revenue, 0);
 
@@ -70,11 +73,9 @@ export function buildProfitInsights(
     totalRevenue,
     averageMargin: totalRevenue > 0 ? totalProfit / totalRevenue : null,
     coverage: products.length ? withCost.length / products.length : 0,
+    ranked,
     // Who actually earns the money (often not the best sellers)
-    leaders: withCost
-      .filter((row) => row.totalProfit > 0)
-      .sort((a, b) => b.totalProfit - a.totalProfit)
-      .slice(0, topCount),
+    leaders: ranked.filter((row) => row.totalProfit > 0).slice(0, topCount),
     // Thin margins and losses, worst first
     lowMargin: withCost
       .filter((row) => row.margin !== null && row.margin < lowMargin)

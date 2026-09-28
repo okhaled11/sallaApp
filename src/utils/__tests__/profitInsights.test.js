@@ -73,6 +73,8 @@ describe("profitInsights", () => {
     expect(insights.leaders.map((row) => row.product.id)).toEqual([2, 1, 3]);
     expect(insights.lowMargin.map((row) => row.product.id)).toEqual([4, 3]);
     expect(insights.missingCost.map((p) => p.id)).toEqual([6, 5]);
+    // Every product with a cost, losses last
+    expect(insights.ranked.map((row) => row.product.id)).toEqual([2, 1, 3, 4]);
   });
 
   it("handles a store with no cost prices", () => {

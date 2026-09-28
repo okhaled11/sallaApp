@@ -1,4 +1,4 @@
-import { useId, useMemo } from "react";
+import { useId, useMemo, useState } from "react";
 import { Coins, TrendingDown, CircleHelp } from "lucide-react";
 import Button from "./forms/Button.jsx";
 import { buildProfitInsights } from "../utils/profitInsights.js";
@@ -40,10 +40,17 @@ export default function ProfitInsights({ products, onEditProduct }) {
     averageMargin,
     coverage,
     leaders,
+    ranked,
     lowMargin,
     missingCost,
   } = insights;
   const withCostCount = products.length - missingCost.length;
+  const listId = useId();
+  const [showAll, setShowAll] = useState(false);
+  // Collapsed: top earners. Expanded: every product with a cost price.
+  // If nothing makes a profit yet, show every product with a cost directly.
+  const canExpand = leaders.length > 0 && ranked.length > leaders.length;
+  const visibleRows = showAll || leaders.length === 0 ? ranked : leaders;
 
   return (
     <section className="panel profit-panel" aria-labelledby={titleId}>
@@ -89,18 +96,38 @@ export default function ProfitInsights({ products, onEditProduct }) {
           <h3 className="category-section-title">
             <Coins size={14} /> Earns the most
           </h3>
-          {leaders.length ? (
-            <ol className="category-top-list">
-              {leaders.map(({ product, totalProfit: profit, margin }) => (
-                <li key={product.id}>
-                  <span className="category-item-name">{product.name}</span>
-                  <MarginBadge margin={margin} />
-                  <span className="category-item-detail">
-                    {formatMoney(profit, currency)}
-                  </span>
-                </li>
-              ))}
-            </ol>
+          {visibleRows.length ? (
+            <>
+              <ol
+                id={listId}
+                className={`category-top-list ${showAll ? "profit-list-expanded" : ""}`}
+              >
+                {visibleRows.map(({ product, totalProfit: profit, margin }) => (
+                  <li key={product.id}>
+                    <span className="category-item-name">{product.name}</span>
+                    <MarginBadge margin={margin} />
+                    <span
+                      className={`category-item-detail ${profit < 0 ? "profit-negative" : ""}`}
+                    >
+                      {formatMoney(profit, currency)}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              {canExpand && (
+                <button
+                  type="button"
+                  className="link-button profit-show-more"
+                  aria-expanded={showAll}
+                  aria-controls={listId}
+                  onClick={() => setShowAll((value) => !value)}
+                >
+                  {showAll
+                    ? "Show less"
+                    : `Show more (all ${ranked.length} with cost)`}
+                </button>
+              )}
+            </>
           ) : (
             <p className="category-empty">
               Add cost prices to see which products earn the most.
