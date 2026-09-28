@@ -8,7 +8,6 @@ import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import Header from "./components/Header.jsx";
 import StatusBar from "./components/StatusBar.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
-import IncentivesDashboard from "./components/Incentives/IncentivesDashboard.jsx";
 
 function AppContent() {
   const { setTheme } = useTheme();
@@ -98,23 +97,18 @@ function AppContent() {
         iframeMode={iframeMode}
       />
       <main className="main-content">
-        <div className="dashboard-grid">
-          <IncentivesDashboard />
-          <div className="grid-full">
-            {notice ? (
-              <div className="panel products-state">{notice}</div>
-            ) : (
-              <ProductsSales
-                products={products}
-                totalSold={totalSold}
-                isLoading={isLoading}
-                error={productsError}
-                onReload={reload}
-                onUpdateProduct={handleUpdateProduct}
-              />
-            )}
-          </div>
-        </div>
+        {notice ? (
+          <div className="panel products-state">{notice}</div>
+        ) : (
+          <ProductsSales
+            products={products}
+            totalSold={totalSold}
+            isLoading={isLoading}
+            error={productsError}
+            onReload={reload}
+            onUpdateProduct={handleUpdateProduct}
+          />
+        )}
       </main>
     </div>
   );
