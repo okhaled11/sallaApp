@@ -5,7 +5,7 @@
  * at least EXPIRY_BUFFER_MS, refreshing it (and persisting the NEW refresh
  * token) when needed.
  *
- * Concurrency: the refresh runs while holding a Postgres row lock on the
+ * Concurrency: the refresh runs while holding a Redis lock on the
  * merchant's row (see withLockedMerchantToken). A request that waited on the
  * lock re-reads the row and reuses the token the first request just saved,
  * so a refresh token is never used twice — even across serverless instances.

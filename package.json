@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@salla.sa/embedded-sdk": "v0.2.6",
+    "@upstash/redis": "^1.39.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"

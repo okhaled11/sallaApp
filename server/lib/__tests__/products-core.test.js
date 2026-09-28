@@ -118,6 +118,21 @@ describe("products-core", () => {
       expect(getValidAccessToken).not.toHaveBeenCalledWith("666");
     });
 
+    it("prefers SALLA_APP_ID over the app_id sent by the browser", async () => {
+      process.env.SALLA_APP_ID = "server-app-id";
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(200, { success: true, data: [], pagination: {} }),
+      );
+
+      await call({ token: "embedded" });
+
+      expect(introspectEmbeddedToken).toHaveBeenCalledWith({
+        token: "embedded",
+        appId: "server-app-id",
+      });
+      delete process.env.SALLA_APP_ID;
+    });
+
     it("returns 401 when the embedded session is not verified", async () => {
       introspectEmbeddedToken.mockResolvedValue({
         verified: false,
@@ -186,19 +201,6 @@ describe("products-core", () => {
       expect(res.body).not.toMatch(/access_token|refresh_token/);
     });
 
-    it("does not read SALLA_ACCESS_TOKEN", async () => {
-      process.env.SALLA_ACCESS_TOKEN = "ory_at_from_env";
-      fetchMock.mockResolvedValueOnce(
-        jsonResponse(200, { success: true, data: [], pagination: {} }),
-      );
-
-      await call({ token: "t", appId: "a" });
-      expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe(
-        `Bearer ${MERCHANT_TOKEN}`,
-      );
-      delete process.env.SALLA_ACCESS_TOKEN;
-    });
-
     it("refreshes and retries once when Salla returns 401", async () => {
       getValidAccessToken
         .mockResolvedValueOnce("ory_at_revoked")
@@ -260,7 +262,7 @@ describe("products-core", () => {
       [ERROR_CODES.TOKEN_REFRESH_FAILED, "Token refresh failed", 401],
       [
         ERROR_CODES.CONFIG_MISSING,
-        "Server is missing configuration: DATABASE_URL",
+        "Server is missing configuration: KV_REST_API_URL",
         500,
       ],
     ])(

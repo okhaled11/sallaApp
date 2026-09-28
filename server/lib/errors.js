@@ -15,7 +15,7 @@ export const ERROR_CODES = {
   SALLA_UNAUTHORIZED: "SALLA_UNAUTHORIZED",
   SALLA_FORBIDDEN: "SALLA_FORBIDDEN",
   SALLA_API_ERROR: "SALLA_API_ERROR",
-  DATABASE_ERROR: "DATABASE_ERROR",
+  STORAGE_ERROR: "STORAGE_ERROR",
 };
 
 export class SallaAuthError extends Error {
@@ -49,7 +49,7 @@ export function requireEnv(...names) {
 const SECRET_ENV_VARS = [
   "SALLA_CLIENT_SECRET",
   "SALLA_WEBHOOK_SECRET",
-  "DATABASE_URL",
+  "KV_REST_API_TOKEN",
 ];
 
 // Salla (Ory) tokens, bearer headers, and credentials inside URLs

@@ -117,7 +117,7 @@ describe("salla-webhook-core", () => {
       expect(upsertMerchantToken).not.toHaveBeenCalled();
     });
 
-    it("returns 500 (so Salla retries) when the database fails", async () => {
+    it("returns 500 (so Salla retries) when storage fails", async () => {
       upsertMerchantToken.mockRejectedValueOnce(new Error("connection lost"));
       const res = parse(
         await handleSallaWebhook(signedRequest(authorizePayload())),

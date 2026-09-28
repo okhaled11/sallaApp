@@ -6,7 +6,7 @@
  *
  * Flow for both:
  *   1. Introspect the embedded token (?token=...) with Salla -> verified merchant_id
- *   2. getValidAccessToken(merchant_id) -> merchant OAuth token from the database
+ *   2. getValidAccessToken(merchant_id) -> merchant OAuth token from Redis
  *      (refreshed automatically when it is about to expire)
  *   3. Call the Salla Merchant API with Authorization: Bearer <access_token>
  *
@@ -15,7 +15,11 @@
  * Used by the Vercel functions (api/products.js, api/update-product.js) and the
  * Netlify functions (server/functions/products.js, server/functions/update-product.js).
  */
-import { respond, introspectEmbeddedToken } from "./verify-token-core.js";
+import {
+  respond,
+  introspectEmbeddedToken,
+  resolveAppId,
+} from "./verify-token-core.js";
 import { getValidAccessToken } from "./salla-token-manager.js";
 import { ERROR_CODES, SallaAuthError, logError, redact } from "./errors.js";
 
@@ -217,7 +221,8 @@ async function authorizeRequest({ method, body }) {
       response: respond(400, { success: false, error: "Invalid JSON body" }),
     };
   }
-  const { token, appId } = data;
+  const { token } = data;
+  const appId = resolveAppId(data.appId);
 
   if (!token) {
     return {

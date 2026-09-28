@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// In-memory stand-in for the Postgres table. withLockedMerchantToken runs
-// callbacks one at a time, like SELECT ... FOR UPDATE does for one row.
+// In-memory stand-in for Redis storage. withLockedMerchantToken runs
+// callbacks one at a time, like the Redis lock does for one merchant.
 const fakeDb = vi.hoisted(() => {
   const rows = new Map();
   let lockChain = Promise.resolve();

@@ -27,6 +27,14 @@ const JSON_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+/**
+ * The app ID sent to Salla as S-Source. SALLA_APP_ID (server config) wins;
+ * the ?app_id= value sent by the browser is only a fallback.
+ */
+export function resolveAppId(requestAppId) {
+  return process.env.SALLA_APP_ID || requestAppId || null;
+}
+
 export const respond = (statusCode, payload) => ({
   statusCode,
   headers: JSON_HEADERS,
@@ -144,7 +152,8 @@ export async function verifyTokenRequest({ method, body }) {
   try {
     const data =
       typeof body === "string" ? JSON.parse(body || "{}") : body || {};
-    const { token, iss, subject, appId } = data;
+    const { token, iss, subject } = data;
+    const appId = resolveAppId(data.appId);
 
     if (!token) {
       return respond(400, { success: false, error: "Token is required" });
