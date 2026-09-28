@@ -4,16 +4,20 @@
  * - productsRequest: lists all products with how many times each was sold
  * - updateProductRequest: updates a product's price and/or quantity
  *
- * Both verify the embedded token first (so only the Salla dashboard can call
- * them), then talk to the Salla Merchant API.
+ * Flow for both:
+ *   1. Introspect the embedded token (?token=...) with Salla -> verified merchant_id
+ *   2. getValidAccessToken(merchant_id) -> merchant OAuth token from the database
+ *      (refreshed automatically when it is about to expire)
+ *   3. Call the Salla Merchant API with Authorization: Bearer <access_token>
+ *
+ * The merchant access/refresh tokens never leave the server.
  *
  * Used by the Vercel functions (api/products.js, api/update-product.js) and the
  * Netlify functions (server/functions/products.js, server/functions/update-product.js).
- *
- * Requires env var SALLA_ACCESS_TOKEN: the merchant OAuth access token
- * (scope: products.read_write) obtained when the app was installed on the store.
  */
-import { respond, verifyEmbeddedToken } from "./verify-token-core.js";
+import { respond, introspectEmbeddedToken } from "./verify-token-core.js";
+import { getValidAccessToken } from "./salla-token-manager.js";
+import { ERROR_CODES, SallaAuthError, logError, redact } from "./errors.js";
 
 const SALLA_PRODUCTS_URL = "https://api.salla.dev/admin/v2/products";
 const PER_PAGE = 50;
@@ -42,11 +46,35 @@ export function mapProduct(product) {
   };
 }
 
+/**
+ * Turn a failed Salla API response into a safe, specific error.
+ */
 function sallaError(result, response, fallback) {
-  const message = result.error?.message || result.message || fallback;
-  const error = new Error(message);
-  error.status = response.status;
-  return error;
+  const sallaMessage = redact(
+    result.error?.message || result.message || fallback,
+  );
+
+  if (response.status === 401) {
+    return new SallaAuthError(
+      ERROR_CODES.SALLA_UNAUTHORIZED,
+      "Salla API returned 401: the store's access token was rejected. Reinstall the app from the Salla dashboard to re-authorize it.",
+      401,
+    );
+  }
+
+  if (response.status === 403) {
+    return new SallaAuthError(
+      ERROR_CODES.SALLA_FORBIDDEN,
+      `Salla API returned 403 (insufficient scope): ${sallaMessage}. Enable the required permission in Salla Partners (App Scopes), then reinstall the app.`,
+      403,
+    );
+  }
+
+  return new SallaAuthError(
+    ERROR_CODES.SALLA_API_ERROR,
+    `Salla API returned ${response.status}: ${sallaMessage}`,
+    response.status >= 400 && response.status < 600 ? response.status : 502,
+  );
 }
 
 /**
@@ -67,7 +95,7 @@ export async function fetchAllProducts(accessToken) {
       },
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => ({}));
     if (!response.ok || result.success === false) {
       throw sallaError(result, response, "Failed to fetch products");
     }
@@ -106,7 +134,7 @@ export async function updateProduct(accessToken, productId, changes) {
     body: JSON.stringify(changes),
   });
 
-  const result = await response.json();
+  const result = await response.json().catch(() => ({}));
   if (!response.ok || result.success === false) {
     throw sallaError(result, response, "Failed to update product");
   }
@@ -149,10 +177,26 @@ export function validateProductChanges({ productId, price, quantity }) {
 }
 
 /**
- * Shared request checks: method, body, embedded token, access token.
- * When `response` is returned the request is rejected with it.
- *
- * @returns {Promise<{ response?: object, data?: object, accessToken?: string }>}
+ * Run a Salla API call with the merchant's token. If Salla rejects the token
+ * with 401 (e.g. revoked early), refresh once and retry.
+ */
+export async function withMerchantAccessToken(merchantId, call) {
+  const accessToken = await getValidAccessToken(merchantId);
+  try {
+    return await call(accessToken);
+  } catch (error) {
+    if (error?.code !== ERROR_CODES.SALLA_UNAUTHORIZED) throw error;
+    const retryToken = await getValidAccessToken(merchantId, {
+      rejectedToken: accessToken,
+    });
+    return call(retryToken);
+  }
+}
+
+/**
+ * Shared request checks: method, body, embedded session -> merchant ID.
+ * Returns `{ response }` to short-circuit, otherwise `{ data, merchantId }`.
+ * Throws SallaAuthError when the embedded session can't be verified.
  */
 async function authorizeRequest({ method, body }) {
   if (method === "OPTIONS") {
@@ -165,7 +209,14 @@ async function authorizeRequest({ method, body }) {
     };
   }
 
-  const data = typeof body === "string" ? JSON.parse(body || "{}") : body || {};
+  let data;
+  try {
+    data = typeof body === "string" ? JSON.parse(body || "{}") : body || {};
+  } catch {
+    return {
+      response: respond(400, { success: false, error: "Invalid JSON body" }),
+    };
+  }
   const { token, appId } = data;
 
   if (!token) {
@@ -180,36 +231,37 @@ async function authorizeRequest({ method, body }) {
     };
   }
 
-  const accessToken = process.env.SALLA_ACCESS_TOKEN;
-  if (!accessToken) {
-    return {
-      response: respond(500, {
-        success: false,
-        error: "SALLA_ACCESS_TOKEN is not configured on the server",
-      }),
-    };
+  // The merchant ID comes from Salla's introspection of the embedded token,
+  // never from the request body.
+  const identity = await introspectEmbeddedToken({ token, appId });
+  if (!identity.verified) {
+    throw new SallaAuthError(
+      ERROR_CODES.EMBEDDED_TOKEN_INVALID,
+      "Embedded session could not be verified. Reopen the app from the Salla dashboard.",
+      401,
+    );
+  }
+  if (!identity.merchantId) {
+    throw new SallaAuthError(
+      ERROR_CODES.MERCHANT_UNKNOWN,
+      "Could not determine the store for this session.",
+      401,
+    );
   }
 
-  // Only serve / change product data for a verified embedded session
-  const verification = await verifyEmbeddedToken({ token, appId });
-  if (!verification.result?.success) {
-    return {
-      response: respond(401, {
-        success: false,
-        error: "Token verification failed",
-      }),
-    };
-  }
-
-  return { data, accessToken };
+  return { data, merchantId: identity.merchantId };
 }
 
 function errorResponse(error, label) {
-  console.error(`${label}:`, error);
-  return respond(error.status || 500, {
-    success: false,
-    error: error.message || "Internal server error",
-  });
+  logError(label, error);
+  if (error instanceof SallaAuthError) {
+    return respond(error.status, {
+      success: false,
+      error: error.message,
+      code: error.code,
+    });
+  }
+  return respond(500, { success: false, error: "Internal server error" });
 }
 
 /**
@@ -220,10 +272,13 @@ function errorResponse(error, label) {
  */
 export async function productsRequest(request) {
   try {
-    const { response, accessToken } = await authorizeRequest(request);
+    const { response, merchantId } = await authorizeRequest(request);
     if (response) return response;
 
-    const rawProducts = await fetchAllProducts(accessToken);
+    const rawProducts = await withMerchantAccessToken(
+      merchantId,
+      fetchAllProducts,
+    );
     const products = rawProducts
       .map(mapProduct)
       .sort((a, b) => b.soldQuantity - a.soldQuantity);
@@ -236,7 +291,7 @@ export async function productsRequest(request) {
       },
     });
   } catch (error) {
-    return errorResponse(error, "Products fetch error");
+    return errorResponse(error, "Products fetch error:");
   }
 }
 
@@ -248,7 +303,7 @@ export async function productsRequest(request) {
  */
 export async function updateProductRequest(request) {
   try {
-    const { response, data, accessToken } = await authorizeRequest(request);
+    const { response, data, merchantId } = await authorizeRequest(request);
     if (response) return response;
 
     const { changes, error } = validateProductChanges(data);
@@ -256,13 +311,15 @@ export async function updateProductRequest(request) {
       return respond(400, { success: false, error });
     }
 
-    const updated = await updateProduct(accessToken, data.productId, changes);
+    const updated = await withMerchantAccessToken(merchantId, (accessToken) =>
+      updateProduct(accessToken, data.productId, changes),
+    );
 
     return respond(200, {
       success: true,
       data: { product: mapProduct(updated) },
     });
   } catch (error) {
-    return errorResponse(error, "Product update error");
+    return errorResponse(error, "Product update error:");
   }
 }

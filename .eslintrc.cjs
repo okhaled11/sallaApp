@@ -47,7 +47,7 @@ module.exports = {
   ],
   overrides: [
     {
-      files: ["server/**/*.js", "scripts/**/*.js"],
+      files: ["server/**/*.js", "scripts/**/*.js", "api/**/*.js"],
       env: { node: true, browser: false },
       rules: {
         "react-refresh/only-export-components": "off",
@@ -55,7 +55,11 @@ module.exports = {
       },
     },
     {
-      files: ["src/test/**/*.js", "src/**/__tests__/**/*.{js,jsx}"],
+      files: [
+        "src/test/**/*.js",
+        "src/**/__tests__/**/*.{js,jsx}",
+        "server/**/__tests__/**/*.js",
+      ],
       env: { node: true, browser: true },
       globals: {
         vi: "readonly",

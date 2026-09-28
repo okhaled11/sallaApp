@@ -6,6 +6,7 @@
   "main": "index.js",
   "scripts": {
     "sync-types": "node scripts/sync-types.js",
+    "db:migrate": "node scripts/db-migrate.js",
     "dev": "node scripts/sync-types.js && vite",
     "dev:netlify": "netlify dev",
     "build": "node scripts/sync-types.js && vite build",
@@ -42,6 +43,7 @@
   "dependencies": {
     "@salla.sa/embedded-sdk": "v0.2.6",
     "lucide-react": "^0.562.0",
+    "pg": "^8.23.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   }

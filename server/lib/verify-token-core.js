@@ -5,11 +5,19 @@
  * Used by both the Vercel function (api/verify-token.js) and the
  * Netlify function (server/functions/verify-token.js).
  */
+import { logError } from "./errors.js";
 
 // Environment-based API URLs
 const VERIFY_API_URLS = {
   dev: "https://exchange-authority-service-dev-62.merchants.workers.dev/exchange-authority/v1/verify",
   prod: "https://api.salla.dev/exchange-authority/v1/verify",
+};
+
+// Same service; introspect also returns who the token belongs to
+// ({ merchant_id, user_id, exp }), as used by embedded.auth.introspect()
+const INTROSPECT_API_URLS = {
+  dev: "https://exchange-authority-service-dev-62.merchants.workers.dev/exchange-authority/v1/introspect",
+  prod: "https://api.salla.dev/exchange-authority/v1/introspect",
 };
 
 const JSON_HEADERS = {
@@ -24,6 +32,50 @@ export const respond = (statusCode, payload) => ({
   headers: JSON_HEADERS,
   body: payload === undefined ? "" : JSON.stringify(payload),
 });
+
+/**
+ * Introspect an embedded token server-side and return the merchant it was
+ * issued for. The merchant ID comes from Salla's answer, never from the
+ * browser, so a client cannot ask for another store's data.
+ *
+ * @param {{ token: string, appId: string }} params
+ * @returns {Promise<{ verified: boolean, merchantId: string|null }>}
+ */
+export async function introspectEmbeddedToken({ token, appId }) {
+  const environment = process.env.ENV || "prod";
+  const apiUrl = INTROSPECT_API_URLS[environment];
+  if (!apiUrl) {
+    return { verified: false, merchantId: null };
+  }
+
+  const response = await fetch(apiUrl, {
+    method: "POST",
+    headers: {
+      "S-Source": appId,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      token,
+      iss: "merchant-dashboard",
+      subject: "embedded-page",
+      env: environment,
+    }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.success) {
+    return { verified: false, merchantId: null };
+  }
+
+  const merchantId = result.data?.merchant_id;
+  return {
+    verified: true,
+    merchantId:
+      merchantId === null || merchantId === undefined
+        ? null
+        : String(merchantId),
+  };
+}
 
 /**
  * Verify an embedded token against the Salla exchange authority service.
@@ -110,7 +162,7 @@ export async function verifyTokenRequest({ method, body }) {
     });
     return respond(status, result);
   } catch (error) {
-    console.error("Token verification error:", error);
+    logError("Token verification error:", error);
     return respond(500, {
       success: false,
       error: error.message || "Internal server error",
