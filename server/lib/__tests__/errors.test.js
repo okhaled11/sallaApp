@@ -4,7 +4,7 @@ import { redact, toLoggable, requireEnv, ERROR_CODES } from "../errors.js";
 describe("errors", () => {
   afterEach(() => {
     delete process.env.SALLA_CLIENT_SECRET;
-    delete process.env.KV_REST_API_TOKEN;
+    delete process.env.SALLA_ACCESS_TOKEN;
   });
 
   it("redacts Salla tokens and bearer headers", () => {
@@ -17,9 +17,9 @@ describe("errors", () => {
 
   it("redacts configured secret values", () => {
     process.env.SALLA_CLIENT_SECRET = "my-client-secret";
-    process.env.KV_REST_API_TOKEN = "my-redis-token";
-    expect(redact("secret=my-client-secret kv=my-redis-token")).toBe(
-      "secret=[REDACTED] kv=[REDACTED]",
+    process.env.SALLA_ACCESS_TOKEN = "my-access-token";
+    expect(redact("secret=my-client-secret token=my-access-token")).toBe(
+      "secret=[REDACTED] token=[REDACTED]",
     );
   });
 
@@ -37,12 +37,12 @@ describe("errors", () => {
   it("names (not values of) missing env vars", () => {
     process.env.SALLA_CLIENT_SECRET = "value";
     try {
-      requireEnv("SALLA_CLIENT_SECRET", "KV_REST_API_URL");
+      requireEnv("SALLA_CLIENT_SECRET", "SALLA_ACCESS_TOKEN");
       throw new Error("should have thrown");
     } catch (error) {
       expect(error.code).toBe(ERROR_CODES.CONFIG_MISSING);
       expect(error.message).toBe(
-        "Server is missing configuration: KV_REST_API_URL",
+        "Server is missing configuration: SALLA_ACCESS_TOKEN",
       );
     }
   });

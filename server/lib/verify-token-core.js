@@ -13,13 +13,6 @@ const VERIFY_API_URLS = {
   prod: "https://api.salla.dev/exchange-authority/v1/verify",
 };
 
-// Same service; introspect also returns who the token belongs to
-// ({ merchant_id, user_id, exp }), as used by embedded.auth.introspect()
-const INTROSPECT_API_URLS = {
-  dev: "https://exchange-authority-service-dev-62.merchants.workers.dev/exchange-authority/v1/introspect",
-  prod: "https://api.salla.dev/exchange-authority/v1/introspect",
-};
-
 const JSON_HEADERS = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": "*",
@@ -27,63 +20,11 @@ const JSON_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-/**
- * The app ID sent to Salla as S-Source. SALLA_APP_ID (server config) wins;
- * the ?app_id= value sent by the browser is only a fallback.
- */
-export function resolveAppId(requestAppId) {
-  return process.env.SALLA_APP_ID || requestAppId || null;
-}
-
 export const respond = (statusCode, payload) => ({
   statusCode,
   headers: JSON_HEADERS,
   body: payload === undefined ? "" : JSON.stringify(payload),
 });
-
-/**
- * Introspect an embedded token server-side and return the merchant it was
- * issued for. The merchant ID comes from Salla's answer, never from the
- * browser, so a client cannot ask for another store's data.
- *
- * @param {{ token: string, appId: string }} params
- * @returns {Promise<{ verified: boolean, merchantId: string|null }>}
- */
-export async function introspectEmbeddedToken({ token, appId }) {
-  const environment = process.env.ENV || "prod";
-  const apiUrl = INTROSPECT_API_URLS[environment];
-  if (!apiUrl) {
-    return { verified: false, merchantId: null };
-  }
-
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: {
-      "S-Source": appId,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      token,
-      iss: "merchant-dashboard",
-      subject: "embedded-page",
-      env: environment,
-    }),
-  });
-
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.success) {
-    return { verified: false, merchantId: null };
-  }
-
-  const merchantId = result.data?.merchant_id;
-  return {
-    verified: true,
-    merchantId:
-      merchantId === null || merchantId === undefined
-        ? null
-        : String(merchantId),
-  };
-}
 
 /**
  * Verify an embedded token against the Salla exchange authority service.
@@ -152,8 +93,7 @@ export async function verifyTokenRequest({ method, body }) {
   try {
     const data =
       typeof body === "string" ? JSON.parse(body || "{}") : body || {};
-    const { token, iss, subject } = data;
-    const appId = resolveAppId(data.appId);
+    const { token, iss, subject, appId } = data;
 
     if (!token) {
       return respond(400, { success: false, error: "Token is required" });
