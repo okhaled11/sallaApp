@@ -2228,3 +2228,848 @@ pre,
     overflow: visible;
   }
 }
+
+/* ============================================
+   AI Growth Copilot & Catalog Hub Styles
+   ============================================ */
+
+.copilot-hub-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.copilot-hub-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--salla-primary) 0%,
+    var(--salla-secondary) 50%,
+    #8b5cf6 100%
+  );
+}
+
+.copilot-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+@media (min-width: 900px) {
+  .copilot-header {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}
+
+.copilot-header-brand {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.copilot-logo-glow {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(0, 77, 91, 0.12), rgba(115, 252, 215, 0.25));
+  color: var(--salla-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(115, 252, 215, 0.2);
+}
+
+.copilot-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.copilot-main-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.copilot-ai-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(115, 252, 215, 0.25);
+  color: #004d5b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0, 77, 91, 0.15);
+}
+
+.copilot-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #00b259;
+  box-shadow: 0 0 0 0 rgba(0, 178, 89, 0.7);
+  animation: pulse-ring 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes pulse-ring {
+  to {
+    box-shadow: 0 0 0 8px rgba(0, 178, 89, 0);
+  }
+}
+
+.copilot-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Copilot KPI Bar */
+.copilot-kpi-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .copilot-kpi-bar {
+    width: auto;
+    min-width: 480px;
+  }
+}
+
+.copilot-kpi-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.copilot-kpi-card.highlight-card {
+  background: linear-gradient(145deg, rgba(0, 178, 89, 0.06), rgba(115, 252, 215, 0.12));
+  border-color: rgba(0, 178, 89, 0.3);
+}
+
+.copilot-kpi-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.copilot-kpi-val {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.copilot-kpi-val.text-success {
+  color: var(--salla-success);
+}
+
+.copilot-kpi-val.text-primary {
+  color: var(--salla-primary);
+}
+
+.copilot-kpi-val.text-score {
+  color: #0284c7;
+}
+
+.copilot-kpi-val small {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: normal;
+}
+
+.copilot-kpi-hint {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+
+.copilot-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.copilot-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0284c7, #00b259);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* Prompt Pills */
+.copilot-prompts-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 12px;
+  scrollbar-width: thin;
+}
+
+.copilot-prompts-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.copilot-prompt-pill {
+  border: 1px dashed var(--border-color-strong);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.775rem;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.copilot-prompt-pill:hover {
+  background: #ffffff;
+  border-color: var(--salla-primary);
+  color: var(--salla-primary);
+  transform: translateY(-1px);
+}
+
+.copilot-prompt-pill.active {
+  background: var(--salla-primary);
+  color: #ffffff;
+  border-color: var(--salla-primary);
+  border-style: solid;
+}
+
+/* Toolbar & Filter Tabs */
+.copilot-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  padding-bottom: var(--space-sm);
+  border-bottom: 1px solid var(--border-color);
+}
+
+@media (min-width: 768px) {
+  .copilot-toolbar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.copilot-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.copilot-tab {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.copilot-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.copilot-tab.active {
+  color: var(--salla-primary);
+  background: rgba(0, 77, 91, 0.08);
+  font-weight: 600;
+}
+
+.copilot-search-wrap {
+  min-width: 240px;
+}
+
+.copilot-search-input {
+  width: 100%;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.copilot-search-input:focus {
+  border-color: var(--salla-primary);
+  background: #ffffff;
+}
+
+/* Cards Grid */
+.copilot-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-md);
+}
+
+/* Opportunity Card */
+.copilot-opp-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.copilot-opp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-color-strong);
+}
+
+.copilot-opp-card.priority-urgent {
+  border-right: 4px solid var(--salla-danger);
+}
+
+.copilot-opp-card.priority-high {
+  border-right: 4px solid var(--salla-primary);
+}
+
+.copilot-opp-card.priority-medium {
+  border-right: 4px solid #8b5cf6;
+}
+
+.copilot-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.copilot-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.copilot-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.badge-price_optimization {
+  background: rgba(0, 178, 89, 0.12);
+  color: #00804a;
+}
+
+.badge-seo_copywriting {
+  background: rgba(139, 92, 246, 0.12);
+  color: #6d28d9;
+}
+
+.badge-margin_defense {
+  background: rgba(245, 67, 74, 0.12);
+  color: #d62d34;
+}
+
+.badge-deadstock_revival {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+}
+
+.badge-stock_urgency {
+  background: rgba(245, 158, 11, 0.14);
+  color: #b45309;
+}
+
+.copilot-urgent-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--salla-danger);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.copilot-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.copilot-dismiss-btn:hover {
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.copilot-card-product-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.copilot-product-thumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: #ffffff;
+}
+
+.copilot-product-thumb-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+}
+
+.copilot-product-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.copilot-product-title {
+  margin: 0 0 4px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.copilot-product-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.copilot-meta-item strong {
+  color: var(--text-primary);
+}
+
+.copilot-rationale-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.copilot-rationale-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+/* Card metrics */
+.copilot-card-metrics {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.copilot-metric-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.copilot-metric-pill.gain {
+  background: rgba(0, 178, 89, 0.12);
+  color: #00804a;
+  font-weight: 600;
+}
+
+.copilot-metric-pill.suggested {
+  background: rgba(0, 77, 91, 0.08);
+  color: var(--salla-primary);
+}
+
+.copilot-metric-pill.suggested strong {
+  color: var(--salla-primary);
+}
+
+.copilot-pill-diff {
+  color: #00804a;
+  font-weight: 600;
+}
+
+.copilot-metric-pill.warning {
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.copilot-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.copilot-action-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  padding: 7px 12px;
+}
+
+.copilot-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  padding: 7px 10px;
+}
+
+/* Empty State */
+.copilot-empty-state {
+  text-align: center;
+  padding: var(--space-xl) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.copilot-empty-icon {
+  color: var(--salla-success);
+}
+
+.copilot-empty-title {
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--text-primary);
+}
+
+.copilot-empty-desc {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  max-width: 480px;
+}
+
+.copilot-reset-dismissed-btn {
+  margin-top: var(--space-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ============================================
+   SEO Copy Modal
+   ============================================ */
+
+.copilot-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-md);
+}
+
+.copilot-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.copilot-modal-dialog {
+  position: relative;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 680px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  animation: modal-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.copilot-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.copilot-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.copilot-ai-icon-bubble {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #004d5b, #73fcd7);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copilot-modal-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.copilot-modal-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.775rem;
+  color: var(--text-secondary);
+}
+
+.copilot-modal-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 6px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.copilot-modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-primary);
+}
+
+.copilot-modal-body {
+  padding: var(--space-lg);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.copilot-copy-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.copilot-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.copilot-field-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.copilot-copy-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.copilot-copy-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--salla-primary);
+  border-color: var(--salla-primary);
+}
+
+.copilot-copy-box {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  user-select: all;
+}
+
+.copilot-copy-box.highlight-text {
+  font-weight: 600;
+  color: var(--salla-primary);
+  border-right: 3px solid var(--salla-secondary);
+}
+
+.copilot-copy-box.meta-text {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.copilot-benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.copilot-benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+
+.copilot-bullet {
+  color: var(--salla-primary);
+  font-size: 0.875rem;
+}
+
+.copilot-two-cols {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-md);
+}
+
+@media (min-width: 600px) {
+  .copilot-two-cols {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.copilot-tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.copilot-keyword-tag {
+  background: rgba(0, 77, 91, 0.07);
+  color: var(--salla-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 77, 91, 0.12);
+}
+
+.copilot-target-audience {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.copilot-modal-footer {
+  padding: var(--space-md) var(--space-lg);
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.copilot-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.copilot-copy-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
