@@ -94,9 +94,32 @@ export function mapProduct(product) {
 /**
  * Turn a failed Salla API response into a safe, specific error.
  */
+/**
+ * Salla's validation errors (422) put the real reason in a per-field object,
+ * not in `error.message` (that's often just a generic code like
+ * "alert.invalid_fields"). Check the shapes Salla is known to use and format
+ * whatever is found so the actual invalid field surfaces instead of the code.
+ */
+function fieldErrors(result) {
+  const fields =
+    result.error?.fields ||
+    result.fields ||
+    result.errors ||
+    result.data?.errors;
+  if (!fields || typeof fields !== "object") return null;
+
+  const parts = Object.entries(fields).map(([field, messages]) => {
+    const text = Array.isArray(messages)
+      ? messages.join(" ")
+      : String(messages);
+    return `${field}: ${text}`;
+  });
+  return parts.length ? parts.join("; ") : null;
+}
+
 export function sallaError(result, response, fallback) {
   const sallaMessage = redact(
-    result.error?.message || result.message || fallback,
+    fieldErrors(result) || result.error?.message || result.message || fallback,
   );
 
   if (response.status === 401) {

@@ -135,7 +135,7 @@ describe("campaign-core", () => {
   });
 
   it("formats dates in Saudi local time for Salla", () => {
-    expect(toSallaDate("2030-01-01T21:30:00Z")).toBe("2030-01-02T00:30:00");
+    expect(toSallaDate("2030-01-01T21:30:00Z")).toBe("2030-01-02 00:30:00");
   });
 
   describe("POST /api/campaign", () => {
@@ -171,7 +171,7 @@ describe("campaign-core", () => {
       expect(offer).toMatchObject({
         offer_type: "percentage",
         applied_to: "product",
-        buy: { type: "product", products: [1], min_amount: 0 },
+        buy: { products: [1], min_amount: 0 },
         get: { discount_amount: 25 },
       });
 

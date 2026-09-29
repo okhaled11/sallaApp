@@ -66,12 +66,13 @@ async function sallaFetch(accessToken, path, { method = "GET", body } = {}) {
 }
 
 /**
- * Salla expects local store time without a timezone. Salla stores run on
- * Saudi time (UTC+3, no daylight saving).
+ * Salla expects local store time without a timezone, space-separated
+ * ("YYYY-MM-DD HH:mm:ss"), not ISO 8601's "T" separator. Salla stores run
+ * on Saudi time (UTC+3, no daylight saving).
  */
 export function toSallaDate(date) {
   const riyadh = new Date(new Date(date).getTime() + 3 * 60 * 60 * 1000);
-  return riyadh.toISOString().slice(0, 19);
+  return riyadh.toISOString().slice(0, 19).replace("T", " ");
 }
 
 export async function getStoreId(accessToken) {
@@ -108,9 +109,9 @@ function offerBody({ productIds, discountPercent, endsAt, name }) {
     expiry_date: toSallaDate(endsAt),
     min_purchase_amount: 0,
     min_items_count: 0,
-    buy: { type: "product", products: productIds, min_amount: 0 },
+    // No "type" field here: that's only for buy_x_get_y offers, not percentage
+    buy: { products: productIds, min_amount: 0 },
     get: { discount_amount: discountPercent },
-    customer_groups: [],
   };
 }
 
