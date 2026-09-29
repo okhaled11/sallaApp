@@ -76,6 +76,7 @@ describe("products-core", () => {
       soldQuantity: 5,
       salePrice: null,
       costPrice: null,
+      url: null,
       categories: [
         { id: 11, name: "Men" },
         { id: 12, name: "Shirts" },

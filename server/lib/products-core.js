@@ -69,6 +69,8 @@ export function mapProduct(product) {
         ? null
         : Number(product.quantity),
     soldQuantity: Number(product.sold_quantity) || 0,
+    // Storefront page of the product (used by the promo modal)
+    url: product.urls?.customer || product.url || null,
     // Only an actual discount counts (Salla sends 0 when there is none)
     salePrice:
       salePrice !== null &&
@@ -92,7 +94,7 @@ export function mapProduct(product) {
 /**
  * Turn a failed Salla API response into a safe, specific error.
  */
-function sallaError(result, response, fallback) {
+export function sallaError(result, response, fallback) {
   const sallaMessage = redact(
     result.error?.message || result.message || fallback,
   );
@@ -245,7 +247,7 @@ export function validateProductChanges({
  * Returns `{ response }` to short-circuit, otherwise `{ data, accessToken }`.
  * Throws SallaAuthError when config is missing or the session isn't verified.
  */
-async function authorizeRequest({ method, body }) {
+export async function authorizeRequest({ method, body }) {
   if (method === "OPTIONS") {
     return { response: respond(204) };
   }
@@ -293,7 +295,7 @@ async function authorizeRequest({ method, body }) {
   return { data, accessToken: process.env.SALLA_ACCESS_TOKEN };
 }
 
-function errorResponse(error, label) {
+export function errorResponse(error, label) {
   logError(label, error);
   if (error instanceof SallaAuthError) {
     return respond(error.status, {

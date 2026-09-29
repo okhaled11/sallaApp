@@ -14,6 +14,7 @@ export default defineConfig({
     include: [
       "src/**/*.{test,spec}.{js,jsx,ts,tsx}",
       "server/**/*.{test,spec}.js",
+      "shared/**/*.{test,spec}.js",
     ],
     coverage: {
       provider: "v8",

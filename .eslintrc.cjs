@@ -47,7 +47,12 @@ module.exports = {
   ],
   overrides: [
     {
-      files: ["server/**/*.js", "scripts/**/*.js", "api/**/*.js"],
+      files: [
+        "server/**/*.js",
+        "scripts/**/*.js",
+        "api/**/*.js",
+        "shared/**/*.js",
+      ],
       env: { node: true, browser: false },
       rules: {
         "react-refresh/only-export-components": "off",

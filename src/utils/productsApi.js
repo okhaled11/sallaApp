@@ -1,6 +1,7 @@
 import {
   PRODUCTS_FUNCTION_URL,
   UPDATE_PRODUCT_FUNCTION_URL,
+  CAMPAIGN_FUNCTION_URL,
   getAppId,
 } from "./constants.js";
 import logger from "./logger.js";
@@ -42,5 +43,20 @@ export function updateProduct(token, productId, changes) {
     UPDATE_PRODUCT_FUNCTION_URL,
     { token, productId, ...changes },
     "Product update",
+  );
+}
+
+/**
+ * Promo campaign: read, publish or stop
+ *
+ * @param {string} token - Embedded token
+ * @param {"get"|"save"|"stop"} action
+ * @param {object} [campaign] - Draft to publish (action "save")
+ */
+export function campaignRequest(token, action, campaign) {
+  return postJson(
+    CAMPAIGN_FUNCTION_URL,
+    { token, action, ...(campaign ? { campaign } : {}) },
+    "Campaign",
   );
 }

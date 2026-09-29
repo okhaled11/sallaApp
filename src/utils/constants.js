@@ -2,6 +2,9 @@
 export const VERIFY_FUNCTION_URL = "/api/verify-token";
 export const PRODUCTS_FUNCTION_URL = "/api/products";
 export const UPDATE_PRODUCT_FUNCTION_URL = "/api/update-product";
+export const CAMPAIGN_FUNCTION_URL = "/api/campaign";
+// Storefront popup script, injected into the store by the App Snippet
+export const STOREFRONT_SCRIPT_PATH = "/storefront/campaign.js";
 
 // App ID - can be overridden via URL parameter ?appId=XXX
 export function getAppId() {

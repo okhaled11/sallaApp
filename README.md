@@ -52,12 +52,13 @@ Access tokens expire after 14 days, and reinstalling the app issues a new one. W
 
 Environment variables (Vercel → Project → Settings → Environment Variables). Do not use the `VITE_` prefix: these must stay server-side.
 
-| Variable              | Required | Description                                                                    |
-| --------------------- | -------- | ------------------------------------------------------------------------------ |
-| `SALLA_ACCESS_TOKEN`  | Yes      | Merchant OAuth access token for your store (needs `products.read_write` scope) |
-| `SALLA_CLIENT_ID`     | No       | App Client ID. Not read by the code yet (kept for future OAuth work)           |
-| `SALLA_CLIENT_SECRET` | No       | App Client Secret. Not read by the code yet (kept for future OAuth work)       |
-| `ENV`                 | No       | `prod` (default) or `dev`, selects the Salla embedded token service            |
+| Variable              | Required  | Description                                                                    |
+| --------------------- | --------- | ------------------------------------------------------------------------------ |
+| `SALLA_ACCESS_TOKEN`  | Yes       | Merchant OAuth access token for your store (needs `products.read_write` scope) |
+| `SALLA_APP_ID`        | For popup | App ID. The public storefront endpoint reads the campaign from App Settings    |
+| `SALLA_CLIENT_ID`     | No        | App Client ID. Not read by the code yet (kept for future OAuth work)           |
+| `SALLA_CLIENT_SECRET` | No        | App Client Secret. Not read by the code yet (kept for future OAuth work)       |
+| `ENV`                 | No        | `prod` (default) or `dev`, selects the Salla embedded token service            |
 
 No database is needed. The app URL must contain `?app_id=YOUR_APP_ID` (used to verify the embedded token). See `.env.example`.
 
@@ -67,6 +68,40 @@ No database is needed. The app URL must contain `?app_id=YOUR_APP_ID` (used to v
 2. Enable **Products → Read & Write** in App Scopes, install the app on your demo store
 3. Set `SALLA_ACCESS_TOKEN` (see above) and redeploy
 4. Open the app from the merchant dashboard; use **Refresh** to reload products
+
+## Promo Popup (boost unsold products)
+
+The **Boost unsold products** card builds a popup that shows in the store with a **real discount** and a **countdown**, to move products that never sold.
+
+```
+Dashboard builder (live preview = the real storefront script)
+   │  Publish (confirmed with embedded.ui.confirm)
+   ▼
+POST /api/campaign
+   ├─ Special Offer in Salla (percentage on the chosen products, ends with the countdown)
+   └─ Snapshot saved in App Settings, key `promo_campaign` (no database)
+   ▼
+Store: App Snippet loads /storefront/campaign.js
+   │  store id: salla.config.get('store.id')
+   ▼
+GET /api/storefront-campaign?store=<id>   (public, edge-cached 60s)
+   ▼
+Popup: Shadow DOM, RTL, accessible dialog, text rendered as text only
+```
+
+- **Merchant controls:** up to 6 products (never-sold products suggested first), discount 1–90%, countdown end (up to 90 days), title, message, button text, accent color, light/dark, center or bottom sheet, delay, and frequency (every page / once per visit / once a day).
+- **Validation** lives in `shared/campaign.js` and runs in both the dashboard and the server.
+- **Stop** turns off the Special Offer and hides the popup.
+
+### One-time setup in Salla Partners
+
+1. **App Scopes:** Special Offers → Read & Write (plus Products → Read & Write), then reinstall the app and update `SALLA_ACCESS_TOKEN`.
+2. **App Settings:** add a text field with the key `promo_campaign`.
+3. **App Snippet:** add
+   ```html
+   <script src="https://YOUR-DOMAIN/storefront/campaign.js" defer></script>
+   ```
+4. Set `SALLA_APP_ID` in Vercel and redeploy.
 
 ## Development
 
