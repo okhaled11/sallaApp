@@ -1,6 +1,7 @@
 import { useId, useMemo, useState } from "react";
 import Icon from "./Icon.jsx";
 import Button from "./forms/Button.jsx";
+import StoreReportModal from "./StoreReportModal.jsx";
 import { buildStoreStats } from "../utils/storeStats.js";
 
 const numberFormat = new Intl.NumberFormat(undefined, {
@@ -35,6 +36,7 @@ export default function StoreStatistics({
 }) {
   const titleId = useId();
   const [activeTab, setActiveTab] = useState("all"); // 'all' | 'drivers' | 'categories' | 'risks'
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   const stats = useMemo(() => buildStoreStats(products), [products]);
   const {
@@ -70,47 +72,60 @@ export default function StoreStatistics({
           </div>
         </div>
 
-        {/* View Tabs */}
-        <div className="store-stats-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "all"}
-            className={`stats-tab-btn ${activeTab === "all" ? "active" : ""}`}
-            onClick={() => setActiveTab("all")}
-          >
-            نظرة شاملة
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "drivers"}
-            className={`stats-tab-btn ${activeTab === "drivers" ? "active" : ""}`}
-            onClick={() => setActiveTab("drivers")}
-          >
-            الأكثر ربحية ({topProfitDrivers.length})
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "categories"}
-            className={`stats-tab-btn ${activeTab === "categories" ? "active" : ""}`}
-            onClick={() => setActiveTab("categories")}
-          >
-            أرباح الأقسام
-          </button>
-          {(lossMakers.length > 0 || missingCostTopSellers.length > 0) && (
+        <div className="store-stats-header-actions">
+          {/* View Tabs */}
+          <div className="store-stats-tabs" role="tablist">
             <button
               type="button"
               role="tab"
-              aria-selected={activeTab === "risks"}
-              className={`stats-tab-btn stats-tab-alert ${activeTab === "risks" ? "active" : ""}`}
-              onClick={() => setActiveTab("risks")}
+              aria-selected={activeTab === "all"}
+              className={`stats-tab-btn ${activeTab === "all" ? "active" : ""}`}
+              onClick={() => setActiveTab("all")}
             >
-              فرص وتنبيهات (
-              {lossMakers.length + (missingCostTopSellers.length > 0 ? 1 : 0)})
+              نظرة شاملة
             </button>
-          )}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "drivers"}
+              className={`stats-tab-btn ${activeTab === "drivers" ? "active" : ""}`}
+              onClick={() => setActiveTab("drivers")}
+            >
+              الأكثر ربحية ({topProfitDrivers.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === "categories"}
+              className={`stats-tab-btn ${activeTab === "categories" ? "active" : ""}`}
+              onClick={() => setActiveTab("categories")}
+            >
+              أرباح الأقسام
+            </button>
+            {(lossMakers.length > 0 || missingCostTopSellers.length > 0) && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "risks"}
+                className={`stats-tab-btn stats-tab-alert ${activeTab === "risks" ? "active" : ""}`}
+                onClick={() => setActiveTab("risks")}
+              >
+                فرص وتنبيهات (
+                {lossMakers.length + (missingCostTopSellers.length > 0 ? 1 : 0)}
+                )
+              </button>
+            )}
+          </div>
+
+          <Button
+            variant="primary"
+            size="small"
+            onClick={() => setIsReportOpen(true)}
+            className="stats-report-trigger-btn"
+          >
+            <Icon name="file" size={15} />
+            <span>تقرير الأرباح</span>
+          </Button>
         </div>
       </div>
 
@@ -454,6 +469,14 @@ export default function StoreStatistics({
           </div>
         )}
       </div>
+
+      <StoreReportModal
+        isOpen={isReportOpen}
+        onClose={() => setIsReportOpen(false)}
+        products={products}
+        stats={stats}
+        currency={resolvedCurrency}
+      />
     </section>
   );
 }
