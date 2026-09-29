@@ -1,6 +1,9 @@
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Alert02Icon,
+  Analytics01Icon,
+  AnalyticsUpIcon,
+  BarChartIcon,
   Cancel01Icon,
   ChampionIcon,
   ChartDecreaseIcon,
@@ -8,12 +11,14 @@ import {
   Coins01Icon,
   HelpCircleIcon,
   Invoice01Icon,
+  Money01Icon,
   PackageAddIcon,
   PackageIcon,
   PackageRemoveIcon,
   PencilEdit02Icon,
   SleepingIcon,
   SnowIcon,
+  Store01Icon,
   Tag01Icon,
 } from "@hugeicons/core-free-icons";
 
@@ -23,17 +28,22 @@ import {
  */
 const ICONS = {
   alert: Alert02Icon,
+  analytics: Analytics01Icon,
+  analyticsUp: AnalyticsUpIcon,
+  barChart: BarChartIcon,
   checklist: CheckListIcon,
   close: Cancel01Icon,
   coins: Coins01Icon,
   edit: PencilEdit02Icon,
   help: HelpCircleIcon,
   invoice: Invoice01Icon,
+  money: Money01Icon,
   outOfStock: PackageRemoveIcon,
   package: PackageIcon,
   restock: PackageAddIcon,
   sleeping: SleepingIcon,
   snow: SnowIcon,
+  store: Store01Icon,
   tag: Tag01Icon,
   trendDown: ChartDecreaseIcon,
   trophy: ChampionIcon,

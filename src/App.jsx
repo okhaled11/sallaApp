@@ -11,6 +11,7 @@ import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
 import ProfitInsights from "./components/ProfitInsights.jsx";
 import ActionPlan from "./components/ActionPlan.jsx";
+import StoreStatistics from "./components/StoreStatistics.jsx";
 import { DEFAULT_LOW_STOCK_LIMIT } from "./utils/categoryInsights.js";
 
 function AppContent() {
@@ -139,26 +140,35 @@ function AppContent() {
         ) : (
           <>
             {!productsError && products.length > 0 && (
-              <div className="insights-grid">
-                <CategoryInsights
+              <>
+                <StoreStatistics
                   products={products}
-                  lowStockLimit={lowStockLimit}
-                  onLowStockLimitChange={setLowStockLimit}
-                  selectedCategoryId={categoryFilter?.id ?? null}
+                  currency={layout?.currency}
+                  onEditProduct={handleEditProduct}
                   onSelectCategory={handleSelectCategory}
+                  selectedCategoryId={categoryFilter?.id ?? null}
                 />
-                <div className="insights-side">
-                  <ProfitInsights
-                    products={products}
-                    onEditProduct={handleEditProduct}
-                  />
-                  <ActionPlan
+                <div className="insights-grid">
+                  <CategoryInsights
                     products={products}
                     lowStockLimit={lowStockLimit}
-                    onEditProduct={handleEditProduct}
+                    onLowStockLimitChange={setLowStockLimit}
+                    selectedCategoryId={categoryFilter?.id ?? null}
+                    onSelectCategory={handleSelectCategory}
                   />
+                  <div className="insights-side">
+                    <ProfitInsights
+                      products={products}
+                      onEditProduct={handleEditProduct}
+                    />
+                    <ActionPlan
+                      products={products}
+                      lowStockLimit={lowStockLimit}
+                      onEditProduct={handleEditProduct}
+                    />
+                  </div>
                 </div>
-              </div>
+              </>
             )}
             <ProductsSales
               products={products}
