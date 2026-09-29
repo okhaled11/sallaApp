@@ -69,8 +69,6 @@ export function mapProduct(product) {
         ? null
         : Number(product.quantity),
     soldQuantity: Number(product.sold_quantity) || 0,
-    // Storefront page of the product (used by the promo modal)
-    url: product.urls?.customer || product.url || null,
     // Only an actual discount counts (Salla sends 0 when there is none)
     salePrice:
       salePrice !== null &&
@@ -94,32 +92,9 @@ export function mapProduct(product) {
 /**
  * Turn a failed Salla API response into a safe, specific error.
  */
-/**
- * Salla's validation errors (422) put the real reason in a per-field object,
- * not in `error.message` (that's often just a generic code like
- * "alert.invalid_fields"). Check the shapes Salla is known to use and format
- * whatever is found so the actual invalid field surfaces instead of the code.
- */
-function fieldErrors(result) {
-  const fields =
-    result.error?.fields ||
-    result.fields ||
-    result.errors ||
-    result.data?.errors;
-  if (!fields || typeof fields !== "object") return null;
-
-  const parts = Object.entries(fields).map(([field, messages]) => {
-    const text = Array.isArray(messages)
-      ? messages.join(" ")
-      : String(messages);
-    return `${field}: ${text}`;
-  });
-  return parts.length ? parts.join("; ") : null;
-}
-
-export function sallaError(result, response, fallback) {
+function sallaError(result, response, fallback) {
   const sallaMessage = redact(
-    fieldErrors(result) || result.error?.message || result.message || fallback,
+    result.error?.message || result.message || fallback,
   );
 
   if (response.status === 401) {
@@ -270,7 +245,7 @@ export function validateProductChanges({
  * Returns `{ response }` to short-circuit, otherwise `{ data, accessToken }`.
  * Throws SallaAuthError when config is missing or the session isn't verified.
  */
-export async function authorizeRequest({ method, body }) {
+async function authorizeRequest({ method, body }) {
   if (method === "OPTIONS") {
     return { response: respond(204) };
   }
@@ -318,7 +293,7 @@ export async function authorizeRequest({ method, body }) {
   return { data, accessToken: process.env.SALLA_ACCESS_TOKEN };
 }
 
-export function errorResponse(error, label) {
+function errorResponse(error, label) {
   logError(label, error);
   if (error instanceof SallaAuthError) {
     return respond(error.status, {

@@ -41,11 +41,7 @@ export function requireEnv(...names) {
   }
 }
 
-const SECRET_ENV_VARS = [
-  "SALLA_ACCESS_TOKEN",
-  "SALLA_CLIENT_SECRET",
-  "KV_REST_API_TOKEN",
-];
+const SECRET_ENV_VARS = ["SALLA_ACCESS_TOKEN", "SALLA_CLIENT_SECRET"];
 
 // Salla (Ory) tokens, bearer headers, and credentials inside URLs
 const SECRET_PATTERNS = [

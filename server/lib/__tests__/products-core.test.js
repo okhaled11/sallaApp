@@ -4,7 +4,6 @@ import {
   updateProductRequest,
   validateProductChanges,
   mapProduct,
-  sallaError,
 } from "../products-core.js";
 import { ERROR_CODES } from "../errors.js";
 
@@ -77,7 +76,6 @@ describe("products-core", () => {
       soldQuantity: 5,
       salePrice: null,
       costPrice: null,
-      url: null,
       categories: [
         { id: 11, name: "Men" },
         { id: 12, name: "Shirts" },
@@ -273,59 +271,6 @@ describe("products-core", () => {
     const res = await call({ token: "t", appId: "a" });
     expect(res.statusCode).toBe(500);
     expect(res.json.error).toBe("Internal server error");
-  });
-
-  describe("sallaError", () => {
-    const response = (status) => ({ status });
-
-    it("surfaces per-field validation details instead of a bare error code", () => {
-      const result = {
-        success: false,
-        error: {
-          message: "alert.invalid_fields",
-          fields: { "buy.type": ["The selected buy.type is invalid."] },
-        },
-      };
-      const error = sallaError(result, response(422), "fallback");
-      expect(error.message).toContain(
-        "buy.type: The selected buy.type is invalid.",
-      );
-      expect(error.message).not.toContain("alert.invalid_fields");
-    });
-
-    it("checks the other shapes Salla is known to use for field errors", () => {
-      expect(
-        sallaError({ errors: { name: ["required"] } }, response(422), "x")
-          .message,
-      ).toContain("name: required");
-      expect(
-        sallaError(
-          { data: { errors: { date: "invalid" } } },
-          response(422),
-          "x",
-        ).message,
-      ).toContain("date: invalid");
-    });
-
-    it("falls back to error.message when there are no field details", () => {
-      const error = sallaError(
-        { error: { message: "Offer not found" } },
-        response(404),
-        "fallback",
-      );
-      expect(error.message).toContain("Offer not found");
-    });
-
-    it("redacts secrets even inside field error details", () => {
-      process.env.SALLA_ACCESS_TOKEN = "super-secret-token";
-      const error = sallaError(
-        { error: { fields: { token: ["super-secret-token is invalid"] } } },
-        response(422),
-        "x",
-      );
-      expect(error.message).not.toContain("super-secret-token");
-      delete process.env.SALLA_ACCESS_TOKEN;
-    });
   });
 
   describe("validateProductChanges", () => {

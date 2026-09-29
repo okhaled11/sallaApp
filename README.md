@@ -52,14 +52,12 @@ Access tokens expire after 14 days, and reinstalling the app issues a new one. W
 
 Environment variables (Vercel → Project → Settings → Environment Variables). Do not use the `VITE_` prefix: these must stay server-side.
 
-| Variable              | Required  | Description                                                                    |
-| --------------------- | --------- | ------------------------------------------------------------------------------ |
-| `SALLA_ACCESS_TOKEN`  | Yes       | Merchant OAuth access token for your store (needs `products.read_write` scope) |
-| `KV_REST_API_URL`     | For popup | Upstash Redis (Vercel Marketplace), stores the promo campaign snapshot         |
-| `KV_REST_API_TOKEN`   | For popup | Upstash Redis token, added alongside `KV_REST_API_URL`                         |
-| `SALLA_CLIENT_ID`     | No        | App Client ID. Not read by the code yet (kept for future OAuth work)           |
-| `SALLA_CLIENT_SECRET` | No        | App Client Secret. Not read by the code yet (kept for future OAuth work)       |
-| `ENV`                 | No        | `prod` (default) or `dev`, selects the Salla embedded token service            |
+| Variable              | Required | Description                                                                    |
+| --------------------- | -------- | ------------------------------------------------------------------------------ |
+| `SALLA_ACCESS_TOKEN`  | Yes      | Merchant OAuth access token for your store (needs `products.read_write` scope) |
+| `SALLA_CLIENT_ID`     | No       | App Client ID. Not read by the code yet (kept for future OAuth work)           |
+| `SALLA_CLIENT_SECRET` | No       | App Client Secret. Not read by the code yet (kept for future OAuth work)       |
+| `ENV`                 | No       | `prod` (default) or `dev`, selects the Salla embedded token service            |
 
 No database is needed. The app URL must contain `?app_id=YOUR_APP_ID` (used to verify the embedded token). See `.env.example`.
 
@@ -69,46 +67,6 @@ No database is needed. The app URL must contain `?app_id=YOUR_APP_ID` (used to v
 2. Enable **Products → Read & Write** in App Scopes, install the app on your demo store
 3. Set `SALLA_ACCESS_TOKEN` (see above) and redeploy
 4. Open the app from the merchant dashboard; use **Refresh** to reload products
-
-## Promo Popup (boost unsold products)
-
-The **Boost unsold products** card builds a popup that shows in the store with a **real discount** and a **countdown**, to move products that never sold.
-
-```
-Dashboard builder (live preview = the real storefront script)
-   │  Publish (confirmed with embedded.ui.confirm)
-   ▼
-POST /api/campaign
-   ├─ Special Offer in Salla (percentage on the chosen products, ends with the countdown)
-   └─ Snapshot saved in Upstash Redis, key `promo_campaign` (no SQL database)
-   ▼
-Store: App Snippet loads /storefront/campaign.js
-   │  store id: salla.config.get('store.id')
-   ▼
-GET /api/storefront-campaign?store=<id>   (public, edge-cached 60s)
-   ▼
-Popup: Shadow DOM, RTL, accessible dialog, text rendered as text only
-```
-
-- **Merchant controls:** up to 6 products (never-sold products suggested first), discount 1–90%, countdown end (up to 90 days), title, message, button text, accent color, light/dark, center or bottom sheet, delay, and frequency (every page / once per visit / once a day).
-- **Validation** lives in `shared/campaign.js` and runs in both the dashboard and the server.
-- **Stop** turns off the Special Offer and hides the popup.
-
-> **Not Salla App Settings.** App Settings (Partners Portal → App Settings) are a form the _merchant_ fills in by hand when installing or configuring the app — Salla shows it to them as a plain input field. They are not a private storage slot for the app's own data. The campaign snapshot is saved in Upstash Redis instead, so the merchant never sees it.
-
-### One-time setup
-
-1. **Salla Partners → App Scopes:** enable Special Offers → Read & Write (plus Products → Read & Write), then reinstall the app and update `SALLA_ACCESS_TOKEN`.
-2. **Vercel → Storage:** add **Upstash for Redis** (Marketplace) and connect it to this project — this sets `KV_REST_API_URL` / `KV_REST_API_TOKEN` for you. Redeploy.
-3. **Salla Partners → App Snippet:** paste the code shown under "Store setup" in the dashboard card (the copy button includes your domain). The Snippet field only accepts JavaScript, not an HTML `<script>` tag, so it creates the tag from code instead:
-   ```js
-   (function () {
-     var s = document.createElement("script");
-     s.src = "https://YOUR-DOMAIN/storefront/campaign.js";
-     s.defer = true;
-     document.head.appendChild(s);
-   })();
-   ```
 
 ## Development
 

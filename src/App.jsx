@@ -4,7 +4,6 @@ import { useAppBootstrap } from "./hooks/useAppBootstrap.js";
 import { useIframeAutoBootstrap } from "./hooks/useIframeAutoBootstrap.js";
 import { useProducts } from "./hooks/useProducts.js";
 import { useDashboardChrome } from "./hooks/useDashboardChrome.js";
-import { useCampaign } from "./hooks/useCampaign.js";
 import { ToastProvider, useToast } from "./contexts/ToastContext.jsx";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import StatusBar from "./components/StatusBar.jsx";
@@ -12,7 +11,6 @@ import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
 import ProfitInsights from "./components/ProfitInsights.jsx";
 import ActionPlan from "./components/ActionPlan.jsx";
-import CampaignBuilder from "./components/Campaign/CampaignBuilder.jsx";
 import { DEFAULT_LOW_STOCK_LIMIT } from "./utils/categoryInsights.js";
 
 function AppContent() {
@@ -46,24 +44,6 @@ function AppContent() {
     reload,
     updateProduct,
   } = useProducts(token, isReady && !!token);
-
-  const promo = useCampaign(token, isReady && !!token);
-  const { publish: publishCampaign, stop: stopCampaign } = promo;
-
-  const handlePublishCampaign = useCallback(
-    async (draft) => {
-      const result = await publishCampaign(draft);
-      if (result.success) showToast("Popup published to your store", "success");
-      return result;
-    },
-    [publishCampaign, showToast],
-  );
-
-  const handleStopCampaign = useCallback(async () => {
-    const result = await stopCampaign();
-    if (result.success) showToast("Popup stopped", "success");
-    return result;
-  }, [stopCampaign, showToast]);
 
   const [lowStockLimit, setLowStockLimit] = useState(DEFAULT_LOW_STOCK_LIMIT);
   const [categoryFilter, setCategoryFilter] = useState(null);
@@ -179,18 +159,6 @@ function AppContent() {
                   />
                 </div>
               </div>
-            )}
-            {!productsError && products.length > 0 && (
-              <CampaignBuilder
-                products={products}
-                campaign={promo.campaign}
-                isLoading={promo.isLoading}
-                isSaving={promo.isSaving}
-                error={promo.error}
-                onPublish={handlePublishCampaign}
-                onStop={handleStopCampaign}
-                embedded={embedded}
-              />
             )}
             <ProductsSales
               products={products}
