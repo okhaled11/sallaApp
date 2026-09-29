@@ -1,5 +1,5 @@
 import { useId, useMemo } from "react";
-import { Trophy, AlertTriangle, PackageX, MoonStar } from "lucide-react";
+import Icon from "./Icon.jsx";
 import Button from "./forms/Button.jsx";
 import { buildCategoryInsights } from "../utils/categoryInsights.js";
 
@@ -84,7 +84,7 @@ function CategoryCard({ category, onSelect, isSelected }) {
 
       <section className="category-section">
         <h4 className="category-section-title">
-          <Trophy size={14} /> Top sellers
+          <Icon name="trophy" size={14} /> Top sellers
         </h4>
         {topSellers.length ? (
           <ol className="category-top-list">
@@ -104,13 +104,14 @@ function CategoryCard({ category, onSelect, isSelected }) {
 
       <section className="category-section">
         <h4 className="category-section-title">
-          <AlertTriangle size={14} /> Stock alerts
+          <Icon name="alert" size={14} /> Stock alerts
         </h4>
         {!hasAlerts && <p className="category-empty">All in stock</p>}
         {outOfStock.length > 0 && (
           <div className="category-alert category-alert-out">
             <span className="category-alert-label">
-              <PackageX size={14} /> {outOfStock.length} out of stock
+              <Icon name="outOfStock" size={14} /> {outOfStock.length} out of
+              stock
             </span>
             <ProductNames items={outOfStock} />
           </div>
@@ -118,7 +119,7 @@ function CategoryCard({ category, onSelect, isSelected }) {
         {runningLow.length > 0 && (
           <div className="category-alert category-alert-low">
             <span className="category-alert-label">
-              <AlertTriangle size={14} /> {runningLow.length} running low
+              <Icon name="alert" size={14} /> {runningLow.length} running low
             </span>
             <ProductNames
               items={runningLow}
@@ -128,7 +129,7 @@ function CategoryCard({ category, onSelect, isSelected }) {
         )}
         {neverSold.length > 0 && (
           <p className="category-never-sold">
-            <MoonStar size={14} /> {neverSold.length} never sold
+            <Icon name="sleeping" size={14} /> {neverSold.length} never sold
           </p>
         )}
       </section>

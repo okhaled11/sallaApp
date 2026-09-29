@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Package, Pencil, RefreshCw, X } from "lucide-react";
+import Icon from "./Icon.jsx";
 import Button from "./forms/Button.jsx";
 import ProductEditForm from "./ProductEditForm.jsx";
 import { UNCATEGORIZED_ID } from "../utils/categoryInsights.js";
@@ -113,12 +113,6 @@ export default function ProductsSales({
             How many times each product has been sold · edit price and stock
           </span>
         </div>
-        <div className="panel-actions">
-          <Button onClick={onReload} disabled={isLoading}>
-            <RefreshCw size={16} />
-            Refresh
-          </Button>
-        </div>
       </div>
 
       {error ? (
@@ -170,7 +164,7 @@ export default function ProductsSales({
                 aria-label={`Clear category filter ${categoryFilter.name}`}
               >
                 Category: {categoryFilter.name}
-                <X size={14} />
+                <Icon name="close" size={14} />
               </button>
             )}
           </div>
@@ -193,7 +187,7 @@ export default function ProductsSales({
                     {product.image ? (
                       <img src={product.image} alt="" loading="lazy" />
                     ) : (
-                      <Package size={20} />
+                      <Icon name="package" size={20} />
                     )}
                   </div>
                   <div className="product-info">
@@ -238,7 +232,7 @@ export default function ProductsSales({
                         )
                       }
                     >
-                      <Pencil size={16} />
+                      <Icon name="edit" />
                     </Button>
                   )}
                   {editingId === product.id && (
