@@ -41,29 +41,11 @@ describe("App", () => {
     Object.assign(productsState, { products: [], totalSold: 0 });
   });
 
-  it("has no header of its own (the dashboard shows the title)", () => {
+  it("renders the header", () => {
     render(<App />);
-    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument();
-  });
-
-  it("shows the developer status bar only outside the dashboard", () => {
-    render(<App />);
-    // jsdom runs top-level (standalone)
-    expect(screen.getByText("Mode:")).toBeInTheDocument();
-    expect(document.querySelector(".app")).toHaveClass("app-standalone");
-  });
-
-  it("hides the status bar inside the dashboard iframe", () => {
-    const parent = {};
-    const spy = vi.spyOn(window, "parent", "get").mockReturnValue(parent);
-    try {
-      render(<App />);
-      expect(screen.queryByText("Mode:")).not.toBeInTheDocument();
-      expect(document.querySelector(".app")).not.toHaveClass("app-standalone");
-    } finally {
-      spy.mockRestore();
-    }
+    expect(
+      screen.getByRole("heading", { name: "Product Sales", level: 1 }),
+    ).toBeInTheDocument();
   });
 
   it("asks to open from the dashboard when running standalone", () => {

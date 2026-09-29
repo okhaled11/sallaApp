@@ -3,9 +3,9 @@ import { useTheme } from "./contexts/ThemeContext.jsx";
 import { useAppBootstrap } from "./hooks/useAppBootstrap.js";
 import { useIframeAutoBootstrap } from "./hooks/useIframeAutoBootstrap.js";
 import { useProducts } from "./hooks/useProducts.js";
-import { useDashboardChrome } from "./hooks/useDashboardChrome.js";
 import { ToastProvider, useToast } from "./contexts/ToastContext.jsx";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
+import Header from "./components/Header.jsx";
 import StatusBar from "./components/StatusBar.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
@@ -16,7 +16,7 @@ import { DEFAULT_LOW_STOCK_LIMIT } from "./utils/categoryInsights.js";
 function AppContent() {
   const { setTheme } = useTheme();
   const { showToast } = useToast();
-  const hasSyncedTheme = useRef(false);
+  const hasShownConnectedToast = useRef(false);
 
   const handleSdkThemeChange = useCallback(
     (newTheme) => {
@@ -25,7 +25,7 @@ function AppContent() {
     [setTheme],
   );
 
-  const { embedded, isReady, layout, token, verifyStatus, error, bootstrap } =
+  const { isReady, layout, token, verifyStatus, error, bootstrap } =
     useAppBootstrap({
       debug: true,
       autoInit: false, // We trigger manually after iframe detection
@@ -72,29 +72,16 @@ function AppContent() {
     [updateProduct, showToast],
   );
 
-  // Sync the host theme once on connect (later changes: onThemeChange)
+  // Show toast on initial connection (once only) and sync host theme
   useEffect(() => {
-    if (isReady && layout && !hasSyncedTheme.current) {
-      hasSyncedTheme.current = true;
+    if (isReady && layout && !hasShownConnectedToast.current) {
+      hasShownConnectedToast.current = true;
+      showToast("Connected to Salla dashboard", "success");
       if (layout.theme) {
         setTheme(layout.theme);
       }
     }
-  }, [isReady, layout, setTheme]);
-
-  // No header inside the iframe: title and Refresh live in the dashboard chrome
-  useDashboardChrome({
-    embedded,
-    enabled: isReady,
-    title: "Product Sales",
-    action: {
-      title: "Refresh",
-      value: "refresh-products",
-      icon: "hgi hgi-stroke hgi-refresh",
-      disabled: isLoading,
-    },
-    onAction: reload,
-  });
+  }, [isReady, layout, showToast, setTheme]);
 
   // Update parent origin from the first embedded:: message
   useEffect(() => {
@@ -122,17 +109,13 @@ function AppContent() {
   }
 
   return (
-    <div
-      className={`app ${iframeMode === "standalone" ? "app-standalone" : ""}`}
-    >
-      {/* Developer aid only: never shown inside the Salla dashboard */}
-      {iframeMode === "standalone" && (
-        <StatusBar
-          isConnected={isReady}
-          parentOrigin={parentOrigin}
-          iframeMode={iframeMode}
-        />
-      )}
+    <div className="app">
+      <Header />
+      <StatusBar
+        isConnected={isReady}
+        parentOrigin={parentOrigin}
+        iframeMode={iframeMode}
+      />
       <main className="main-content">
         {notice ? (
           <div className="panel products-state">{notice}</div>

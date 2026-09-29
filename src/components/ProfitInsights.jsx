@@ -1,5 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import Icon from "./Icon.jsx";
+import { Coins, TrendingDown, CircleHelp } from "lucide-react";
 import Button from "./forms/Button.jsx";
 import { buildProfitInsights } from "../utils/profitInsights.js";
 
@@ -94,7 +94,7 @@ export default function ProfitInsights({ products, onEditProduct }) {
 
         <section className="category-section">
           <h3 className="category-section-title">
-            <Icon name="coins" size={14} /> Earns the most
+            <Coins size={14} /> Earns the most
           </h3>
           {visibleRows.length ? (
             <>
@@ -138,7 +138,7 @@ export default function ProfitInsights({ products, onEditProduct }) {
         {lowMargin.length > 0 && (
           <section className="category-section">
             <h3 className="category-section-title">
-              <Icon name="trendDown" size={14} /> Thin margins
+              <TrendingDown size={14} /> Thin margins
             </h3>
             <ul className="category-alert-items">
               {lowMargin.map(({ product, margin, unitProfit }) => (
@@ -169,7 +169,7 @@ export default function ProfitInsights({ products, onEditProduct }) {
         {missingCost.length > 0 && (
           <section className="category-section">
             <h3 className="category-section-title">
-              <Icon name="help" size={14} /> Missing cost ({missingCost.length})
+              <CircleHelp size={14} /> Missing cost ({missingCost.length})
             </h3>
             <ul className="category-alert-items">
               {missingCost.slice(0, MAX_MISSING_LISTED).map((product) => (
