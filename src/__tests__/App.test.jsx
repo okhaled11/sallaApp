@@ -72,34 +72,4 @@ describe("App", () => {
       screen.getByText(/Open this app from the Salla merchant dashboard/),
     ).toBeInTheDocument();
   });
-
-  it("renders GrowthCopilotHub when products are loaded in dashboard mode", () => {
-    const parent = {};
-    const spy = vi.spyOn(window, "parent", "get").mockReturnValue(parent);
-    Object.assign(bootstrapState, {
-      isReady: true,
-      token: "test-token",
-      layout: { currency: "SAR", theme: "light" },
-      verifyStatus: "verified",
-    });
-    Object.assign(productsState, {
-      products: [
-        {
-          id: 1,
-          name: "قهوة سعودية مختصة",
-          price: 50,
-          soldQuantity: 15,
-          quantity: 20,
-        },
-      ],
-      totalSold: 15,
-    });
-
-    try {
-      render(<App />);
-      expect(screen.getByText("مساعد النمو الذكي للكتالوج")).toBeInTheDocument();
-    } finally {
-      spy.mockRestore();
-    }
-  });
 });

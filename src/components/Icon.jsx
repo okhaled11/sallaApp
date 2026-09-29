@@ -23,12 +23,6 @@ import {
   SnowIcon,
   Store01Icon,
   Tag01Icon,
-  AiSparklesIcon,
-  AiIdeaIcon,
-  AiBrain01Icon,
-  Copy01Icon,
-  CheckmarkBadge01Icon,
-  AiMagicIcon,
 } from "@hugeicons/core-free-icons";
 
 /**
@@ -36,23 +30,18 @@ import {
  * Components use semantic names so icons can be swapped in one place.
  */
 const ICONS = {
-  ai: AiBrain01Icon,
   alert: Alert02Icon,
   analytics: Analytics01Icon,
   analyticsUp: AnalyticsUpIcon,
   barChart: BarChartIcon,
-  checkBadge: CheckmarkBadge01Icon,
   checklist: CheckListIcon,
   close: Cancel01Icon,
   coins: Coins01Icon,
-  copy: Copy01Icon,
   download: Download01Icon,
   edit: PencilEdit02Icon,
   file: File01Icon,
   help: HelpCircleIcon,
-  idea: AiIdeaIcon,
   invoice: Invoice01Icon,
-  magic: AiMagicIcon,
   money: Money01Icon,
   outOfStock: PackageRemoveIcon,
   package: PackageIcon,
@@ -60,7 +49,6 @@ const ICONS = {
   restock: PackageAddIcon,
   sleeping: SleepingIcon,
   snow: SnowIcon,
-  sparkles: AiSparklesIcon,
   store: Store01Icon,
   tag: Tag01Icon,
   trendDown: ChartDecreaseIcon,

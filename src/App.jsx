@@ -12,7 +12,6 @@ import CategoryInsights from "./components/CategoryInsights.jsx";
 import ProfitInsights from "./components/ProfitInsights.jsx";
 import ActionPlan from "./components/ActionPlan.jsx";
 import StoreStatistics from "./components/StoreStatistics.jsx";
-import GrowthCopilotHub from "./components/GrowthCopilot/GrowthCopilotHub.jsx";
 import { DEFAULT_LOW_STOCK_LIMIT } from "./utils/categoryInsights.js";
 
 function AppContent() {
@@ -148,12 +147,6 @@ function AppContent() {
                   onEditProduct={handleEditProduct}
                   onSelectCategory={handleSelectCategory}
                   selectedCategoryId={categoryFilter?.id ?? null}
-                />
-                <GrowthCopilotHub
-                  products={products}
-                  currency={layout?.currency}
-                  onUpdateProduct={handleUpdateProduct}
-                  onEditProduct={handleEditProduct}
                 />
                 <div className="insights-grid">
                   <CategoryInsights
