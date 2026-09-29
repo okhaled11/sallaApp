@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from "react";
+import { useEffect, useCallback, useMemo, useRef, useState } from "react";
 import { useTheme } from "./contexts/ThemeContext.jsx";
 import { useAppBootstrap } from "./hooks/useAppBootstrap.js";
 import { useIframeAutoBootstrap } from "./hooks/useIframeAutoBootstrap.js";
@@ -7,12 +7,15 @@ import { useDashboardChrome } from "./hooks/useDashboardChrome.js";
 import { ToastProvider, useToast } from "./contexts/ToastContext.jsx";
 import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import StatusBar from "./components/StatusBar.jsx";
+import Navbar from "./components/Navigation/Navbar.jsx";
+import ContentStudio from "./components/ContentStudio/ContentStudio.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
 import ProfitInsights from "./components/ProfitInsights.jsx";
 import ActionPlan from "./components/ActionPlan.jsx";
 import StoreStatistics from "./components/StoreStatistics.jsx";
 import { DEFAULT_LOW_STOCK_LIMIT } from "./utils/categoryInsights.js";
+import { calculateCatalogContentStats } from "./utils/contentEngine.js";
 
 function AppContent() {
   const { setTheme } = useTheme();
@@ -46,9 +49,14 @@ function AppContent() {
     updateProduct,
   } = useProducts(token, isReady && !!token);
 
+  const [activeTab, setActiveTab] = useState("sales");
   const [lowStockLimit, setLowStockLimit] = useState(DEFAULT_LOW_STOCK_LIMIT);
   const [categoryFilter, setCategoryFilter] = useState(null);
   const [editingProductId, setEditingProductId] = useState(null);
+
+  const contentIssuesCount = useMemo(() => {
+    return calculateCatalogContentStats(products).needsAttentionCount;
+  }, [products]);
 
   // "Add cost" / "Edit" in the profit card opens that product's edit form
   const handleEditProduct = useCallback((product) => {
@@ -87,7 +95,7 @@ function AppContent() {
   useDashboardChrome({
     embedded,
     enabled: isReady,
-    title: "Product Sales",
+    title: activeTab === "content" ? "Content & SEO Studio" : "Product Sales",
     action: {
       title: "Refresh",
       value: "refresh-products",
@@ -139,49 +147,60 @@ function AppContent() {
           <div className="panel products-state">{notice}</div>
         ) : (
           <>
-            {!productsError && products.length > 0 && (
-              <>
-                <StoreStatistics
-                  products={products}
-                  currency={layout?.currency}
-                  onEditProduct={handleEditProduct}
-                  onSelectCategory={handleSelectCategory}
-                  selectedCategoryId={categoryFilter?.id ?? null}
-                />
-                <div className="insights-grid">
-                  <CategoryInsights
-                    products={products}
-                    lowStockLimit={lowStockLimit}
-                    onLowStockLimitChange={setLowStockLimit}
-                    selectedCategoryId={categoryFilter?.id ?? null}
-                    onSelectCategory={handleSelectCategory}
-                  />
-                  <div className="insights-side">
-                    <ProfitInsights
-                      products={products}
-                      onEditProduct={handleEditProduct}
-                    />
-                    <ActionPlan
-                      products={products}
-                      lowStockLimit={lowStockLimit}
-                      onEditProduct={handleEditProduct}
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-            <ProductsSales
-              products={products}
-              totalSold={totalSold}
-              isLoading={isLoading}
-              error={productsError}
-              onReload={reload}
-              onUpdateProduct={handleUpdateProduct}
-              categoryFilter={categoryFilter}
-              onClearCategory={() => setCategoryFilter(null)}
-              editingId={editingProductId}
-              onEditingChange={setEditingProductId}
+            <Navbar
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              contentIssuesCount={contentIssuesCount}
             />
+            {activeTab === "sales" ? (
+              <>
+                {!productsError && products.length > 0 && (
+                  <>
+                    <StoreStatistics
+                      products={products}
+                      currency={layout?.currency}
+                      onEditProduct={handleEditProduct}
+                      onSelectCategory={handleSelectCategory}
+                      selectedCategoryId={categoryFilter?.id ?? null}
+                    />
+                    <div className="insights-grid">
+                      <CategoryInsights
+                        products={products}
+                        lowStockLimit={lowStockLimit}
+                        onLowStockLimitChange={setLowStockLimit}
+                        selectedCategoryId={categoryFilter?.id ?? null}
+                        onSelectCategory={handleSelectCategory}
+                      />
+                      <div className="insights-side">
+                        <ProfitInsights
+                          products={products}
+                          onEditProduct={handleEditProduct}
+                        />
+                        <ActionPlan
+                          products={products}
+                          lowStockLimit={lowStockLimit}
+                          onEditProduct={handleEditProduct}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+                <ProductsSales
+                  products={products}
+                  totalSold={totalSold}
+                  isLoading={isLoading}
+                  error={productsError}
+                  onReload={reload}
+                  onUpdateProduct={handleUpdateProduct}
+                  categoryFilter={categoryFilter}
+                  onClearCategory={() => setCategoryFilter(null)}
+                  editingId={editingProductId}
+                  onEditingChange={setEditingProductId}
+                />
+              </>
+            ) : (
+              <ContentStudio products={products} />
+            )}
           </>
         )}
       </main>
