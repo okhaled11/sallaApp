@@ -487,12 +487,12 @@ export default function CampaignBuilder({
                   </div>
                 </li>
                 <li>
-                  <strong>App Settings</strong>: add a text field with the key{" "}
-                  <code>promo_campaign</code>
-                </li>
-                <li>
                   <strong>App Scopes</strong>: Special Offers → Read &amp;
                   Write, then reinstall the app
+                </li>
+                <li>
+                  <strong>Vercel → Storage</strong>: add Upstash for Redis and
+                  connect it to this project
                 </li>
               </ol>
             </details>

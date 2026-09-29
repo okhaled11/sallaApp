@@ -235,7 +235,9 @@ describe("CampaignBuilder", () => {
     const code = within(setup).getByText(/createElement\("script"\)/);
     expect(code.textContent).toMatch(/\/storefront\/campaign\.js/);
     expect(code.textContent).not.toMatch(/<script/);
-    expect(within(setup).getByText("promo_campaign")).toBeInTheDocument();
+    // Not Salla App Settings (that's a merchant-facing form, not app storage)
+    expect(within(setup).queryByText(/App Settings/)).not.toBeInTheDocument();
+    expect(within(setup).getByText(/Upstash for Redis/)).toBeInTheDocument();
   });
 
   it("shows a loading state", () => {

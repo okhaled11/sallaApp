@@ -2,13 +2,20 @@
  * Promo campaign: a storefront popup that pushes unsold products with a real
  * discount and a countdown.
  *
- * Where things live (no database needed):
+ * Where things live (no SQL database needed):
  *   - The discount   -> a Salla Special Offer (percentage on the products),
  *                       so the price is really discounted at checkout.
- *   - The campaign   -> the app's App Settings, key `promo_campaign`
- *                       (define that field in Salla Partners -> App Settings).
+ *   - The campaign   -> a JSON snapshot in Upstash Redis (KV_REST_API_URL /
+ *                       KV_REST_API_TOKEN), key CAMPAIGN_KEY.
  *   - The popup      -> public/storefront/campaign.js, injected into the store
  *                       by the App Snippet. It reads GET /api/storefront-campaign.
+ *
+ * NOTE: this does NOT use Salla "App Settings". Those are a form the
+ * merchant fills in by hand during install/configure (Partners Portal ->
+ * App Settings defines the fields; the merchant sees and edits them in the
+ * dashboard) — not a private key-value store for the app's own data. Using
+ * them here would show the merchant a raw JSON field to type into, which is
+ * exactly what happened when we tried it.
  *
  * Endpoints:
  *   POST /api/campaign            { token, appId, action: get | save | stop, campaign? }
@@ -22,7 +29,8 @@ import {
   mapProduct,
   sallaError,
 } from "./products-core.js";
-import { ERROR_CODES, SallaAuthError, logError, requireEnv } from "./errors.js";
+import { logError } from "./errors.js";
+import { getKV } from "./kv.js";
 import { toCampaignProducts, validateCampaign } from "../../shared/campaign.js";
 
 export {
@@ -33,7 +41,8 @@ export {
 } from "../../shared/campaign.js";
 
 const SALLA_API = "https://api.salla.dev/admin/v2";
-export const CAMPAIGN_SETTING_KEY = "promo_campaign";
+// Single-merchant setup: one fixed key is enough (no store/app namespacing).
+export const CAMPAIGN_KEY = "promo_campaign";
 
 // ---------------------------------------------------------------------------
 // Salla API helpers
@@ -70,13 +79,6 @@ export async function getStoreId(accessToken) {
   return data?.id != null ? String(data.id) : null;
 }
 
-async function readSettings(accessToken, appId) {
-  const data = await sallaFetch(accessToken, `/apps/${appId}/settings`);
-  return data?.settings && typeof data.settings === "object"
-    ? data.settings
-    : {};
-}
-
 export function parseCampaign(value) {
   if (!value) return null;
   if (typeof value === "object") return value;
@@ -87,18 +89,12 @@ export function parseCampaign(value) {
   }
 }
 
-export async function readCampaign(accessToken, appId) {
-  const settings = await readSettings(accessToken, appId);
-  return parseCampaign(settings[CAMPAIGN_SETTING_KEY]);
+export async function readCampaign() {
+  return parseCampaign(await getKV().get(CAMPAIGN_KEY));
 }
 
-async function writeCampaign(accessToken, appId, snapshot) {
-  // Salla replaces ALL settings on update: keep the other fields as they are
-  const settings = await readSettings(accessToken, appId);
-  await sallaFetch(accessToken, `/apps/${appId}/settings`, {
-    method: "POST",
-    body: { ...settings, [CAMPAIGN_SETTING_KEY]: JSON.stringify(snapshot) },
-  });
+async function writeCampaign(snapshot) {
+  await getKV().set(CAMPAIGN_KEY, JSON.stringify(snapshot));
 }
 
 function offerBody({ productIds, discountPercent, endsAt, name }) {
@@ -199,18 +195,6 @@ export function toPublicCampaign(snapshot) {
 // Request handlers
 // ---------------------------------------------------------------------------
 
-function settingsAppId(data) {
-  const appId = process.env.SALLA_APP_ID || data.appId;
-  if (!appId) {
-    throw new SallaAuthError(
-      ERROR_CODES.CONFIG_MISSING,
-      "Server is missing configuration: SALLA_APP_ID",
-      500,
-    );
-  }
-  return appId;
-}
-
 /**
  * POST /api/campaign  { token, appId, action, campaign? }
  */
@@ -219,16 +203,15 @@ export async function campaignRequest(request) {
     const { response, data, accessToken } = await authorizeRequest(request);
     if (response) return response;
 
-    const appId = settingsAppId(data);
     const action = data.action || "get";
 
     if (action === "get") {
-      const campaign = await readCampaign(accessToken, appId);
+      const campaign = await readCampaign();
       return respond(200, { success: true, data: { campaign } });
     }
 
     if (action === "stop") {
-      const current = await readCampaign(accessToken, appId);
+      const current = await readCampaign();
       if (!current) {
         return respond(200, { success: true, data: { campaign: null } });
       }
@@ -238,7 +221,7 @@ export async function campaignRequest(request) {
         enabled: false,
         updatedAt: new Date().toISOString(),
       };
-      await writeCampaign(accessToken, appId, stopped);
+      await writeCampaign(stopped);
       return respond(200, { success: true, data: { campaign: stopped } });
     }
 
@@ -256,7 +239,7 @@ export async function campaignRequest(request) {
         });
       }
 
-      const current = await readCampaign(accessToken, appId);
+      const current = await readCampaign();
       const offerId = await upsertSpecialOffer(
         accessToken,
         current?.offerId,
@@ -269,7 +252,7 @@ export async function campaignRequest(request) {
         storeId,
         offerId,
       });
-      await writeCampaign(accessToken, appId, snapshot);
+      await writeCampaign(snapshot);
 
       return respond(200, { success: true, data: { campaign: snapshot } });
     }
@@ -315,11 +298,7 @@ export async function storefrontCampaignRequest({ method, query }) {
   }
 
   try {
-    requireEnv("SALLA_ACCESS_TOKEN", "SALLA_APP_ID");
-    const snapshot = await readCampaign(
-      process.env.SALLA_ACCESS_TOKEN,
-      process.env.SALLA_APP_ID,
-    );
+    const snapshot = await readCampaign();
 
     const active =
       snapshot?.enabled &&

@@ -1,9 +1,26 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+// In-memory stand-in for Upstash Redis (get/set only, that's all campaign-core uses)
+const fakeKV = vi.hoisted(() => {
+  const store = new Map();
+  return {
+    store,
+    reset: () => store.clear(),
+    get: vi.fn(async (key) => store.get(key) ?? null),
+    set: vi.fn(async (key, value) => {
+      store.set(key, value);
+      return "OK";
+    }),
+  };
+});
+
+vi.mock("../kv.js", () => ({ getKV: () => fakeKV }));
+
 import {
   campaignRequest,
   storefrontCampaignRequest,
   toSallaDate,
-  CAMPAIGN_SETTING_KEY,
+  CAMPAIGN_KEY,
   DEFAULT_DESIGN,
 } from "../campaign-core.js";
 
@@ -18,15 +35,10 @@ const jsonResponse = (status, payload) => ({
 
 /**
  * Tiny fake of the Salla API, routed by method + path.
- * `settings` holds the app settings, `offers` the special offers.
+ * `offers` holds the special offers.
  */
-function fakeSalla({ settings = {}, verified = true } = {}) {
-  const state = {
-    settings: { ...settings },
-    offers: new Map(),
-    nextOfferId: 500,
-    calls: [],
-  };
+function fakeSalla({ verified = true } = {}) {
+  const state = { offers: new Map(), nextOfferId: 500, calls: [] };
 
   const fetchMock = vi.fn(async (url, options = {}) => {
     const method = options.method || "GET";
@@ -62,16 +74,6 @@ function fakeSalla({ settings = {}, verified = true } = {}) {
     }
     if (path === "/store/info") {
       return jsonResponse(200, { success: true, data: { id: 777 } });
-    }
-    if (path === "/apps/app-1/settings" && method === "GET") {
-      return jsonResponse(200, {
-        success: true,
-        data: { settings: state.settings },
-      });
-    }
-    if (path === "/apps/app-1/settings" && method === "POST") {
-      state.settings = body;
-      return jsonResponse(200, { success: true, data: body });
     }
     if (path === "/specialoffers" && method === "POST") {
       const id = state.nextOfferId++;
@@ -115,16 +117,19 @@ const call = (body) =>
     body: JSON.stringify({ token: "t", appId: "app-1", ...body }),
   }).then((res) => ({ ...res, json: JSON.parse(res.body) }));
 
+const savedCampaign = () => JSON.parse(fakeKV.store.get(CAMPAIGN_KEY));
+
 describe("campaign-core", () => {
   beforeEach(() => {
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     process.env.SALLA_ACCESS_TOKEN = ACCESS_TOKEN;
+    fakeKV.reset();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
     delete process.env.SALLA_ACCESS_TOKEN;
-    delete process.env.SALLA_APP_ID;
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -148,10 +153,15 @@ describe("campaign-core", () => {
       expect(res.json.data.campaign).toBe(null);
     });
 
-    it("publishes: creates the offer and saves the snapshot in App Settings", async () => {
-      const { state, fetchMock } = fakeSalla({
-        settings: { other_setting: "keep me" },
-      });
+    it("never talks to Salla App Settings (not the storage mechanism)", async () => {
+      const { state, fetchMock } = fakeSalla();
+      vi.stubGlobal("fetch", fetchMock);
+      await call({ action: "get" });
+      expect(state.calls.some((c) => c.path.includes("/settings"))).toBe(false);
+    });
+
+    it("publishes: creates the offer and saves the snapshot in Redis", async () => {
+      const { state, fetchMock } = fakeSalla();
       vi.stubGlobal("fetch", fetchMock);
 
       const res = await call({ action: "save", campaign: draft() });
@@ -165,9 +175,7 @@ describe("campaign-core", () => {
         get: { discount_amount: 25 },
       });
 
-      // Other app settings are preserved (Salla replaces all settings)
-      expect(state.settings.other_setting).toBe("keep me");
-      const saved = JSON.parse(state.settings[CAMPAIGN_SETTING_KEY]);
+      const saved = savedCampaign();
       expect(saved).toMatchObject({
         enabled: true,
         storeId: "777",
@@ -184,12 +192,11 @@ describe("campaign-core", () => {
         ],
       });
 
-      // Uses the merchant token, never returns it
-      const settingsCall = state.calls.find(
-        (c) => c.path === "/apps/app-1/settings",
-      );
-      expect(settingsCall.headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
+      // Uses the merchant token for the Salla calls, never returns it
+      const offerCall = state.calls.find((c) => c.path === "/specialoffers");
+      expect(offerCall.headers.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
       expect(res.body).not.toContain(ACCESS_TOKEN);
+      expect(fakeKV.set).toHaveBeenCalledWith(CAMPAIGN_KEY, expect.any(String));
     });
 
     it("updates the same offer when republishing", async () => {
@@ -210,9 +217,7 @@ describe("campaign-core", () => {
 
       await call({ action: "save", campaign: draft() });
       expect(state.offers.has(501)).toBe(true);
-      expect(JSON.parse(state.settings[CAMPAIGN_SETTING_KEY]).offerId).toBe(
-        501,
-      );
+      expect(savedCampaign().offerId).toBe(501);
     });
 
     it("validates the campaign before touching Salla", async () => {
@@ -246,22 +251,12 @@ describe("campaign-core", () => {
       const res = await call({ action: "stop" });
       expect(res.json.data.campaign.enabled).toBe(false);
       expect(state.offers.get(500).status).toBe("inactive");
-      expect(JSON.parse(state.settings[CAMPAIGN_SETTING_KEY]).enabled).toBe(
-        false,
-      );
-    });
-
-    it("prefers SALLA_APP_ID for the settings API", async () => {
-      process.env.SALLA_APP_ID = "app-1";
-      const { fetchMock } = fakeSalla();
-      vi.stubGlobal("fetch", fetchMock);
-      const res = await call({ action: "get", appId: "from-browser" });
-      expect(res.statusCode).toBe(200);
+      expect(savedCampaign().enabled).toBe(false);
     });
   });
 
   describe("GET /api/storefront-campaign", () => {
-    async function publish(state, fetchMock, overrides) {
+    async function publish(fetchMock, overrides) {
       vi.stubGlobal("fetch", fetchMock);
       await call({ action: "save", campaign: draft(overrides) });
     }
@@ -274,13 +269,10 @@ describe("campaign-core", () => {
         }),
       );
 
-    beforeEach(() => {
-      process.env.SALLA_APP_ID = "app-1";
-    });
-
-    it("serves the public campaign for the right store, cached at the edge", async () => {
-      const { state, fetchMock } = fakeSalla();
-      await publish(state, fetchMock);
+    it("serves the public campaign for the right store, cached at the edge, with no Salla calls", async () => {
+      const { fetchMock } = fakeSalla();
+      await publish(fetchMock);
+      vi.mocked(fetchMock).mockClear();
 
       const res = await get("777");
       expect(res.statusCode).toBe(200);
@@ -294,22 +286,27 @@ describe("campaign-core", () => {
       expect(res.json.campaign.offerId).toBeUndefined();
       expect(res.json.campaign.storeId).toBeUndefined();
       expect(res.body).not.toContain(ACCESS_TOKEN);
+      // Reads straight from Redis: no Salla API round trip on the public path
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("returns null for another store, a stopped or an expired campaign", async () => {
-      const { state, fetchMock } = fakeSalla();
-      await publish(state, fetchMock);
+      const { fetchMock } = fakeSalla();
+      await publish(fetchMock);
       expect((await get("123")).json.campaign).toBe(null);
 
       await call({ action: "stop" });
       expect((await get("777")).json.campaign).toBe(null);
 
-      const saved = JSON.parse(state.settings[CAMPAIGN_SETTING_KEY]);
-      state.settings[CAMPAIGN_SETTING_KEY] = JSON.stringify({
-        ...saved,
-        enabled: true,
-        endsAt: new Date(Date.now() - 1000).toISOString(),
-      });
+      const saved = savedCampaign();
+      fakeKV.store.set(
+        CAMPAIGN_KEY,
+        JSON.stringify({
+          ...saved,
+          enabled: true,
+          endsAt: new Date(Date.now() - 1000).toISOString(),
+        }),
+      );
       expect((await get("777")).json.campaign).toBe(null);
     });
 
@@ -323,18 +320,9 @@ describe("campaign-core", () => {
     });
 
     it("never fails loudly for shoppers", async () => {
-      vi.stubGlobal(
-        "fetch",
-        vi.fn().mockRejectedValue(new Error("Salla down")),
-      );
+      fakeKV.get.mockRejectedValueOnce(new Error("Redis down"));
       const res = await get("777");
       expect(res.statusCode).toBe(200);
-      expect(res.json.campaign).toBe(null);
-    });
-
-    it("returns null when not configured", async () => {
-      delete process.env.SALLA_APP_ID;
-      const res = await get("777");
       expect(res.json.campaign).toBe(null);
     });
   });

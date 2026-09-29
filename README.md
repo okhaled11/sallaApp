@@ -55,7 +55,8 @@ Environment variables (Vercel → Project → Settings → Environment Variables
 | Variable              | Required  | Description                                                                    |
 | --------------------- | --------- | ------------------------------------------------------------------------------ |
 | `SALLA_ACCESS_TOKEN`  | Yes       | Merchant OAuth access token for your store (needs `products.read_write` scope) |
-| `SALLA_APP_ID`        | For popup | App ID. The public storefront endpoint reads the campaign from App Settings    |
+| `KV_REST_API_URL`     | For popup | Upstash Redis (Vercel Marketplace), stores the promo campaign snapshot         |
+| `KV_REST_API_TOKEN`   | For popup | Upstash Redis token, added alongside `KV_REST_API_URL`                         |
 | `SALLA_CLIENT_ID`     | No        | App Client ID. Not read by the code yet (kept for future OAuth work)           |
 | `SALLA_CLIENT_SECRET` | No        | App Client Secret. Not read by the code yet (kept for future OAuth work)       |
 | `ENV`                 | No        | `prod` (default) or `dev`, selects the Salla embedded token service            |
@@ -79,7 +80,7 @@ Dashboard builder (live preview = the real storefront script)
    ▼
 POST /api/campaign
    ├─ Special Offer in Salla (percentage on the chosen products, ends with the countdown)
-   └─ Snapshot saved in App Settings, key `promo_campaign` (no database)
+   └─ Snapshot saved in Upstash Redis, key `promo_campaign` (no SQL database)
    ▼
 Store: App Snippet loads /storefront/campaign.js
    │  store id: salla.config.get('store.id')
@@ -93,11 +94,13 @@ Popup: Shadow DOM, RTL, accessible dialog, text rendered as text only
 - **Validation** lives in `shared/campaign.js` and runs in both the dashboard and the server.
 - **Stop** turns off the Special Offer and hides the popup.
 
-### One-time setup in Salla Partners
+> **Not Salla App Settings.** App Settings (Partners Portal → App Settings) are a form the _merchant_ fills in by hand when installing or configuring the app — Salla shows it to them as a plain input field. They are not a private storage slot for the app's own data. The campaign snapshot is saved in Upstash Redis instead, so the merchant never sees it.
 
-1. **App Scopes:** Special Offers → Read & Write (plus Products → Read & Write), then reinstall the app and update `SALLA_ACCESS_TOKEN`.
-2. **App Settings:** add a text field with the key `promo_campaign`.
-3. **App Snippet:** paste the code shown under "Store setup" in the dashboard card (the exact copy button also includes your domain). The Snippet field only accepts JavaScript, not an HTML `<script>` tag, so it creates the tag from code instead:
+### One-time setup
+
+1. **Salla Partners → App Scopes:** enable Special Offers → Read & Write (plus Products → Read & Write), then reinstall the app and update `SALLA_ACCESS_TOKEN`.
+2. **Vercel → Storage:** add **Upstash for Redis** (Marketplace) and connect it to this project — this sets `KV_REST_API_URL` / `KV_REST_API_TOKEN` for you. Redeploy.
+3. **Salla Partners → App Snippet:** paste the code shown under "Store setup" in the dashboard card (the copy button includes your domain). The Snippet field only accepts JavaScript, not an HTML `<script>` tag, so it creates the tag from code instead:
    ```js
    (function () {
      var s = document.createElement("script");
@@ -106,7 +109,6 @@ Popup: Shadow DOM, RTL, accessible dialog, text rendered as text only
      document.head.appendChild(s);
    })();
    ```
-4. Set `SALLA_APP_ID` in Vercel and redeploy.
 
 ## Development
 
