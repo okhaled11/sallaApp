@@ -40,9 +40,10 @@
     "vitest": "^2.1.8"
   },
   "dependencies": {
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
     "@salla.sa/embedded-sdk": "v0.2.6",
     "@upstash/redis": "^1.39.0",
-    "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   }

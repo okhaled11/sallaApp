@@ -1,12 +1,5 @@
 import { useId, useMemo, useState } from "react";
-import {
-  ListChecks,
-  PackagePlus,
-  Tag,
-  Receipt,
-  Snowflake,
-  TrendingDown,
-} from "lucide-react";
+import Icon from "./Icon.jsx";
 import Button from "./forms/Button.jsx";
 import { buildActionPlan, idleStockValue } from "../utils/actionPlan.js";
 
@@ -24,11 +17,11 @@ const FILTERS = [
 ];
 
 const TYPE_ICONS = {
-  restock: PackagePlus,
-  loss: TrendingDown,
-  "thin-margin": Tag,
-  "missing-cost": Receipt,
-  "dead-stock": Snowflake,
+  restock: "restock",
+  loss: "trendDown",
+  "thin-margin": "tag",
+  "missing-cost": "invoice",
+  "dead-stock": "snow",
 };
 
 // What the "Fix" button does in the edit form, spelled out for the merchant
@@ -72,7 +65,7 @@ export default function ActionPlan({ products, lowStockLimit, onEditProduct }) {
       <div className="panel-header">
         <div>
           <h2 id={titleId} className="panel-title">
-            <ListChecks size={16} className="panel-title-icon" />
+            <Icon name="checklist" className="panel-title-icon" />
             Action plan
           </h2>
           <span className="panel-subtitle">
@@ -135,14 +128,13 @@ export default function ActionPlan({ products, lowStockLimit, onEditProduct }) {
         ) : (
           <ol id={listId} className="action-list">
             {visible.map((action) => {
-              const Icon = TYPE_ICONS[action.type];
               return (
                 <li
                   key={action.id}
                   className={`action-item action-${action.severity}`}
                 >
                   <span className="action-icon" aria-hidden="true">
-                    <Icon size={16} />
+                    <Icon name={TYPE_ICONS[action.type]} />
                   </span>
                   <div className="action-text">
                     <span className="action-title">

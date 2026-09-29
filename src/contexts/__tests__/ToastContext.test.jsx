@@ -2,6 +2,20 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, act, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ToastProvider, useToast } from "../ToastContext.jsx";
+import { embedded } from "@salla.sa/embedded-sdk";
+
+vi.mock("@salla.sa/embedded-sdk", () => ({
+  embedded: {
+    ui: {
+      toast: {
+        success: vi.fn(),
+        error: vi.fn(),
+        warning: vi.fn(),
+        info: vi.fn(),
+      },
+    },
+  },
+}));
 
 function TestConsumer() {
   const { toasts, showToast, removeToast } = useToast();
@@ -70,5 +84,50 @@ describe("ToastContext", () => {
     expect(() => render(<TestConsumer />)).toThrow(
       "useToast must be used within ToastProvider",
     );
+  });
+
+  describe("inside the Salla dashboard", () => {
+    function HostConsumer({ type }) {
+      const { toasts, showToast } = useToast();
+      return (
+        <>
+          <button type="button" onClick={() => showToast("Saved", type)}>
+            Show
+          </button>
+          <span data-testid="local-count">{toasts.length}</span>
+        </>
+      );
+    }
+
+    function renderInIframe(type) {
+      const spy = vi.spyOn(window, "parent", "get").mockReturnValue({});
+      render(
+        <ToastProvider>
+          <HostConsumer type={type} />
+        </ToastProvider>,
+      );
+      return spy;
+    }
+
+    it("uses the dashboard's native toast (embedded.ui.toast)", async () => {
+      const spy = renderInIframe("success");
+      try {
+        await userEvent.click(screen.getByRole("button", { name: "Show" }));
+        expect(embedded.ui.toast.success).toHaveBeenCalledWith("Saved");
+        expect(screen.getByTestId("local-count")).toHaveTextContent("0");
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it("maps unknown types to info", async () => {
+      const spy = renderInIframe("weird");
+      try {
+        await userEvent.click(screen.getByRole("button", { name: "Show" }));
+        expect(embedded.ui.toast.info).toHaveBeenCalledWith("Saved");
+      } finally {
+        spy.mockRestore();
+      }
+    });
   });
 });

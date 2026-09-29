@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { useToast } from "../contexts/ToastContext.jsx";
 
 /**
  * useIframeAutoBootstrap
@@ -11,8 +10,6 @@ import { useToast } from "../contexts/ToastContext.jsx";
  * @returns {{ iframeMode: string, parentOrigin: string|null, setParentOrigin: function }}
  */
 export function useIframeAutoBootstrap(bootstrap) {
-  const { showToast } = useToast();
-
   const [iframeMode, setIframeMode] = useState("standalone");
   const [parentOrigin, setParentOrigin] = useState(null);
 
@@ -54,11 +51,10 @@ export function useIframeAutoBootstrap(bootstrap) {
       bootstrapInitiatedRef.current = true;
       // Small delay to ensure UI is ready
       setTimeout(() => {
-        showToast("Initializing SDK...", "info");
         bootstrap();
       }, 500);
     }
-  }, [bootstrap, showToast]);
+  }, [bootstrap]);
 
   return { iframeMode, parentOrigin, setParentOrigin };
 }
