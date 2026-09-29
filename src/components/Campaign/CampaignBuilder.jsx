@@ -154,7 +154,9 @@ export default function CampaignBuilder({
   const isLive =
     campaign?.enabled && new Date(campaign.endsAt).getTime() > Date.now();
   const selectedCount = draft.productIds.length;
-  const snippet = `<script src="${window.location.origin}${STOREFRONT_SCRIPT_PATH}" defer></script>`;
+  // The App Snippet field only accepts JavaScript, not an HTML <script> tag,
+  // so this creates the tag from code instead of pasting one directly.
+  const snippet = `(function(){var s=document.createElement("script");s.src=${JSON.stringify(`${window.location.origin}${STOREFRONT_SCRIPT_PATH}`)};s.defer=true;document.head.appendChild(s);})();`;
 
   const toggleProduct = (id) =>
     setDraft((prev) => ({
@@ -476,7 +478,7 @@ export default function CampaignBuilder({
               <ol>
                 <li>
                   Salla Partners → your app → <strong>App Snippet</strong>: add
-                  this code
+                  this code (it must be JavaScript, not an HTML tag)
                   <div className="snippet-box">
                     <code>{snippet}</code>
                     <Button size="small" onClick={copySnippet}>

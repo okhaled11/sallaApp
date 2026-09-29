@@ -97,9 +97,14 @@ Popup: Shadow DOM, RTL, accessible dialog, text rendered as text only
 
 1. **App Scopes:** Special Offers → Read & Write (plus Products → Read & Write), then reinstall the app and update `SALLA_ACCESS_TOKEN`.
 2. **App Settings:** add a text field with the key `promo_campaign`.
-3. **App Snippet:** add
-   ```html
-   <script src="https://YOUR-DOMAIN/storefront/campaign.js" defer></script>
+3. **App Snippet:** paste the code shown under "Store setup" in the dashboard card (the exact copy button also includes your domain). The Snippet field only accepts JavaScript, not an HTML `<script>` tag, so it creates the tag from code instead:
+   ```js
+   (function () {
+     var s = document.createElement("script");
+     s.src = "https://YOUR-DOMAIN/storefront/campaign.js";
+     s.defer = true;
+     document.head.appendChild(s);
+   })();
    ```
 4. Set `SALLA_APP_ID` in Vercel and redeploy.
 

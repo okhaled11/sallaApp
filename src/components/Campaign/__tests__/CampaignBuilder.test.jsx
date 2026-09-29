@@ -228,15 +228,13 @@ describe("CampaignBuilder", () => {
     expect(onStop).toHaveBeenCalled();
   });
 
-  it("shows the snippet to add in Salla Partners", async () => {
+  it("shows a JavaScript snippet (not an HTML tag) to add in Salla Partners", async () => {
     renderBuilder();
     await userEvent.click(screen.getByText("Store setup (one time)"));
     const setup = screen.getByText("Store setup (one time)").closest("details");
-    expect(
-      within(setup).getByText(
-        /<script src=".*\/storefront\/campaign\.js" defer><\/script>/,
-      ),
-    ).toBeInTheDocument();
+    const code = within(setup).getByText(/createElement\("script"\)/);
+    expect(code.textContent).toMatch(/\/storefront\/campaign\.js/);
+    expect(code.textContent).not.toMatch(/<script/);
     expect(within(setup).getByText("promo_campaign")).toBeInTheDocument();
   });
 
