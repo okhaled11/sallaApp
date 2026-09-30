@@ -653,7 +653,6 @@ export default function VisitorIncentivesStudio({
                 onClick={handleResetDefaults}
                 title="استعادة النصوص والألوان الأصلية"
               >
-                <Icon name="refresh" size={14} />
                 <span>استعادة الافتراضي ↺</span>
               </button>
             </div>
@@ -710,7 +709,7 @@ export default function VisitorIncentivesStudio({
                   <input
                     id="captionInput"
                     type="text"
-                    value={config.couponCaption || "كود الخصم الحصري لك:"}
+                    value={config.couponCaption ?? "كود الخصم الحصري لك:"}
                     onChange={(e) =>
                       handleConfigChange("couponCaption", e.target.value)
                     }
@@ -783,7 +782,7 @@ export default function VisitorIncentivesStudio({
                     <input
                       id="dismissInput"
                       type="text"
-                      value={config.dismissText || "متابعة التصفح"}
+                      value={config.dismissText ?? "متابعة التصفح"}
                       onChange={(e) =>
                         handleConfigChange("dismissText", e.target.value)
                       }
@@ -932,6 +931,7 @@ export default function VisitorIncentivesStudio({
                           }`}
                           onClick={() => handleConfigChange("giftEmoji", em)}
                           title={`اختر الأيقونة ${em}`}
+                          aria-label={`اختر الأيقونة ${em}`}
                         >
                           {em}
                         </button>
@@ -984,9 +984,7 @@ export default function VisitorIncentivesStudio({
                         className="form-input"
                         style={{ width: 80 }}
                       />
-                      <span className="input-unit">
-                        دقائق حتى ينتهي الخصم
-                      </span>
+                      <span className="input-unit">دقائق حتى ينتهي الخصم</span>
                     </div>
                   )}
                 </div>
@@ -1090,14 +1088,17 @@ export default function VisitorIncentivesStudio({
                     onShowToast?.("تمت تجربة إغلاق النافذة بنجاح", "info")
                   }
                   onApplyDiscount={(code) =>
-                    onShowToast?.(`تم تجربة نسخ الكود (${code}) بنجاح`, "success")
+                    onShowToast?.(
+                      `تم تجربة نسخ الكود (${code}) بنجاح`,
+                      "success",
+                    )
                   }
                 />
 
                 <span className="live-preview-hint">
-                  ✨ تتغير ألوان ونصوص المعاينة فوراً في الوقت الحقيقي أثناء قيامك
-                  بالتعديل. انقر على &quot;حفظ التعديلات وتحديث المتجر&quot; لتطبيقها
-                  على واجهة المتجر فوراً.
+                  ✨ تتغير ألوان ونصوص المعاينة فوراً في الوقت الحقيقي أثناء
+                  قيامك بالتعديل. انقر على &quot;حفظ التعديلات وتحديث
+                  المتجر&quot; لتطبيقها على واجهة المتجر فوراً.
                 </span>
               </div>
             </div>

@@ -156,10 +156,12 @@
       var alreadyShown = sessionStorage.getItem(MODAL_SHOWN_KEY);
 
       // Connect to Ably Realtime Presence
-      loadScript(ACTIVE_CONFIG.ablyCdn || "https://cdn.ably.com/lib/ably.min-2.js")
+      loadScript(
+        ACTIVE_CONFIG.ablyCdn || "https://cdn.ably.com/lib/ably.min-2.js",
+      )
         .then(function () {
           var realtime = new Ably.Realtime({
-            authCallback: function (tokenParams, callback) {
+            authCallback: function (_tokenParams, callback) {
               fetch(ACTIVE_CONFIG.tokenEndpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -167,6 +169,7 @@
                   storeId: storeId,
                   productId: productId,
                   clientId: clientId,
+                  tokenParams: _tokenParams || {},
                 }),
               })
                 .then(function (res) {

@@ -78,9 +78,12 @@ const ICONS = {
 };
 
 export default function Icon({ name, size = 16, className }) {
+  const icon = ICONS[name];
+  if (!icon) return null;
+
   return (
     <HugeiconsIcon
-      icon={ICONS[name]}
+      icon={icon}
       size={size}
       strokeWidth={1.5}
       className={className}

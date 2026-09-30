@@ -85,7 +85,7 @@ export default function StorefrontModalPreview({
             }}
           >
             <span className="storefront-coupon-caption">
-              {config.couponCaption || "كود الخصم الحصري لك:"}
+              {config.couponCaption ?? "كود الخصم الحصري لك:"}
             </span>
             <div className="storefront-coupon-row">
               <span
@@ -144,7 +144,7 @@ export default function StorefrontModalPreview({
             className="btn-storefront-dismiss"
             onClick={onClose}
           >
-            {config.dismissText || "متابعة التصفح"}
+            {config.dismissText ?? "متابعة التصفح"}
           </button>
 
           {/* Brand trust watermark */}
