@@ -16,8 +16,12 @@ export function ThemeProvider({ children }) {
     if (darkParam !== null) {
       return darkParam === "true" || darkParam === "1";
     }
-    // Check localStorage
-    return localStorage.getItem("theme") === "dark";
+    // Check localStorage (default to Salla's official dark mode)
+    const saved = localStorage.getItem("theme");
+    if (saved !== null) {
+      return saved === "dark";
+    }
+    return true;
   });
 
   useEffect(() => {

@@ -206,4 +206,21 @@ describe("VisitorIncentivesStudio", () => {
     expect(screen.getByText("عرض خاص لزائرنا الغالي!")).toBeInTheDocument();
     expect(screen.getByText("استخدم الكود عند الدفع:")).toBeInTheDocument();
   });
+
+  it("switches to the rules sub-tab and displays smart incentive rules with product selection", async () => {
+    const user = userEvent.setup();
+    render(<VisitorIncentivesStudio products={mockProducts} />);
+
+    const rulesTab = screen.getByRole("tab", {
+      name: /قواعد التحفيز المتعددة/i,
+    });
+    await user.click(rulesTab);
+
+    expect(
+      screen.getByText(/قواعد التحفيز الذكية/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/إضافة قاعدة جديدة/i),
+    ).toBeInTheDocument();
+  });
 });

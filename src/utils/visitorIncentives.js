@@ -64,6 +64,176 @@ export function saveIncentiveConfig(config) {
   }
 }
 
+// ============================================================
+//  MULTI-RULE INCENTIVE SYSTEM
+//  Each rule has an independent trigger + incentive type + modal
+// ============================================================
+
+/** @typedef {'store_visits'|'product_visits'|'category_visits'|'cart_abandon'} TriggerType */
+/** @typedef {'coupon_discount'|'free_shipping'|'free_product'|'custom'} IncentiveType */
+
+export const INCENTIVE_RULES_STORAGE_KEY = "_salla_incentive_rules_v2";
+
+/**
+ * Creates a blank rule template ready for editing
+ * @param {Partial<object>} overrides
+ * @returns {object}
+ */
+export function createBlankRule(overrides = {}) {
+  const id = `rule_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  return {
+    id,
+    name: "قاعدة تحفيز جديدة",
+    enabled: true,
+    priority: 99,
+    trigger: {
+      type: "store_visits",       // TriggerType
+      minVisits: 3,
+      timeWindowMinutes: 60,
+      productId: null,            // for product_visits
+      productName: "",
+      categoryName: "",
+    },
+    incentive: {
+      type: "coupon_discount",    // IncentiveType
+      discountValue: 15,
+      discountType: "percentage", // "percentage"|"fixed"
+      couponCode: `SALLA${Math.floor(Math.random() * 900 + 100)}`,
+      freeShippingThreshold: 0,
+    },
+    modal: {
+      headline: "لاحظنا اهتمامك بمتجرنا!",
+      message: "يسعدنا تقديم عرض حصري لك كزائر مميز.",
+      ctaText: "استفد من العرض الآن",
+      dismissText: "متابعة التصفح",
+      couponCaption: "رمز العرض الحصري لك:",
+      primaryColor: "#004d5b",
+      accentColor: "#73fcd7",
+      giftIcon: "gift",
+      showCountdown: true,
+      countdownMinutes: 15,
+    },
+    ...overrides,
+  };
+}
+
+/**
+ * Returns the 3 default starter rules (store visits, product repeat, cart abandon)
+ * @returns {Array<object>}
+ */
+export function getDefaultRules() {
+  return [
+    createBlankRule({
+      id: "rule_default_store",
+      name: "خصم الزائر المتكرر للمتجر",
+      priority: 1,
+      trigger: { type: "store_visits", minVisits: 3, timeWindowMinutes: 60, productId: null, productName: "", categoryName: "" },
+      incentive: { type: "coupon_discount", discountValue: 15, discountType: "percentage", couponCode: "LOYAL3X", freeShippingThreshold: 0 },
+      modal: {
+        headline: "سعداء بزيارتك المتكررة لمتجرنا!",
+        message: "لاحظنا اهتمامك بمنتجاتنا! يسعدنا تقديم خصم 15% حصري لك لتكمل طلبك.",
+        ctaText: "تطبيق الخصم وإكمال الطلب",
+        dismissText: "متابعة التصفح",
+        couponCaption: "كود الخصم الحصري لك:",
+        primaryColor: "#004d5b", accentColor: "#73fcd7", giftIcon: "gift",
+        showCountdown: true, countdownMinutes: 15,
+      },
+    }),
+    createBlankRule({
+      id: "rule_default_product",
+      name: "توصيل مجاني لزائر المنتج",
+      priority: 2,
+      trigger: { type: "product_visits", minVisits: 2, timeWindowMinutes: 120, productId: null, productName: "أي منتج", categoryName: "" },
+      incentive: { type: "free_shipping", discountValue: 0, discountType: "percentage", couponCode: "FREESHIP", freeShippingThreshold: 0 },
+      modal: {
+        headline: "اشتر الآن واحصل على توصيل مجاني!",
+        message: "لاحظنا اهتمامك بهذا المنتج عدة مرات. احصل على توصيل مجاني عند إضافته للسلة الآن.",
+        ctaText: "إضافة للسلة مع توصيل مجاني",
+        dismissText: "لاحقاً",
+        couponCaption: "كود التوصيل المجاني:",
+        primaryColor: "#0f4c81", accentColor: "#fbbf24", giftIcon: "shoppingBag",
+        showCountdown: true, countdownMinutes: 20,
+      },
+    }),
+    createBlankRule({
+      id: "rule_default_cart",
+      name: "استعادة السلة المتروكة",
+      priority: 3,
+      trigger: { type: "cart_abandon", minVisits: 1, timeWindowMinutes: 30, productId: null, productName: "", categoryName: "" },
+      incentive: { type: "coupon_discount", discountValue: 10, discountType: "percentage", couponCode: "COMEBACK10", freeShippingThreshold: 0 },
+      modal: {
+        headline: "نسيت شيئاً في سلتك!",
+        message: "لديك منتجات في سلة مشترياتك. أكمل طلبك الآن واحصل على خصم 10% كمكافأة خاصة.",
+        ctaText: "إكمال الشراء مع الخصم",
+        dismissText: "إلغاء",
+        couponCaption: "خصم العودة:",
+        primaryColor: "#6d28d9", accentColor: "#a78bfa", giftIcon: "cart",
+        showCountdown: false, countdownMinutes: 10,
+      },
+    }),
+  ];
+}
+
+/**
+ * Load incentive rules from localStorage
+ * @returns {Array<object>}
+ */
+export function loadIncentiveRules() {
+  if (typeof window === "undefined" || !window.localStorage) return getDefaultRules();
+  try {
+    const raw = window.localStorage.getItem(INCENTIVE_RULES_STORAGE_KEY);
+    if (!raw) return getDefaultRules();
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : getDefaultRules();
+  } catch {
+    return getDefaultRules();
+  }
+}
+
+/**
+ * Save incentive rules to localStorage
+ * @param {Array<object>} rules
+ */
+export function saveIncentiveRules(rules) {
+  if (typeof window === "undefined" || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(INCENTIVE_RULES_STORAGE_KEY, JSON.stringify(rules));
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Human-readable label for a trigger type
+ * @param {TriggerType} type
+ * @returns {string}
+ */
+export function getTriggerLabel(type) {
+  const map = {
+    store_visits: "زيارات المتجر",
+    product_visits: "زيارات منتج معين",
+    category_visits: "زيارات فئة محددة",
+    cart_abandon: "سلة متروكة",
+  };
+  return map[type] || type;
+}
+
+/**
+ * Human-readable label for an incentive type
+ * @param {IncentiveType} type
+ * @returns {string}
+ */
+export function getIncentiveLabel(type) {
+  const map = {
+    coupon_discount: "كود خصم",
+    free_shipping: "توصيل مجاني",
+    free_product: "منتج مجاني",
+    custom: "رسالة مخصصة",
+  };
+  return map[type] || type;
+}
+
+
 /**
  * Checks whether a visitor qualifies for the incentive modal
  * @param {object} visitor
@@ -346,8 +516,11 @@ export function generateStorefrontTrackingScript(
   config = DEFAULT_INCENTIVE_CONFIG,
   targetStoreId = "apptest",
   includeHtmlTags = false,
+  rules = null,
 ) {
+  const effectiveRules = rules || loadIncentiveRules();
   const safeConfig = JSON.stringify(config);
+  const safeRules = JSON.stringify(effectiveRules);
   const safeStoreId = JSON.stringify(String(targetStoreId || "apptest"));
 
   const jsLines = [
@@ -359,8 +532,9 @@ export function generateStorefrontTrackingScript(
     '  "use strict";',
     "",
     "  var CONFIG = " + safeConfig + ";",
+    "  var RULES = " + safeRules + ";",
     "  var TARGET_STORE_ID = " + safeStoreId + ";",
-    "  if (!CONFIG.enabled) return;",
+    "  if (!CONFIG.enabled && (!RULES || !RULES.length)) return;",
     "",
     "  function loadScript(src) {",
     "    return new Promise(function(resolve, reject) {",
@@ -376,6 +550,34 @@ export function generateStorefrontTrackingScript(
     "  function getProductIdFromUrl() {",
     "    var match = location.pathname.match(/\\/p(\\d+)/);",
     "    return match ? match[1] : null;",
+    "  }",
+    "",
+    "  function getProductInfo() {",
+    "    var pId = null;",
+    '    var pName = "";',
+    "    try {",
+    "      if (window.salla && window.salla.config && window.salla.config.product) {",
+    "        pId = window.salla.config.product.id;",
+    '        pName = window.salla.config.product.name || "";',
+    "      }",
+    "      if (!pId && window.sallaProduct) {",
+    "        pId = window.sallaProduct.id;",
+    '        pName = window.sallaProduct.name || "";',
+    "      }",
+    "      if (!pId) {",
+    "        var match = location.pathname.match(/\\/p(\\d+)/);",
+    "        if (match) pId = match[1];",
+    "      }",
+    "      if (!pId) {",
+    '        var el = document.querySelector(\'[data-product-id], meta[property="product:id"]\');',
+    "        if (el) pId = el.getAttribute('data-product-id') || el.getAttribute('content');",
+    "      }",
+    "      if (!pName) {",
+    '        var h1 = document.querySelector("h1.product-title, .product-details__title, h1");',
+    '        if (h1 && (location.pathname.indexOf("/p") !== -1 || pId)) pName = (h1.innerText || "").trim();',
+    "      }",
+    "    } catch (e) {}",
+    '    return { id: pId ? String(pId) : null, name: pName || "" };',
     "  }",
     "",
     "  var hasStarted = false;",
@@ -409,7 +611,10 @@ export function generateStorefrontTrackingScript(
     '    var MODAL_SHOWN_KEY = "_salla_modal_shown_" + storeId;',
     '    var CONFIG_STORAGE_KEY = "_salla_incentive_config_" + storeId;',
     "    var now = Date.now();",
-    "    var productId = getProductIdFromUrl();",
+    "    var pInfo = getProductInfo();",
+    "    var productId = pInfo.id;",
+    "    var productName = pInfo.name;",
+    "    var pVisits = 0;",
     "",
     "    // Persistent visitor UUID per device/browser so repeat visits accumulate",
     '    var CLIENT_UUID_KEY = "_salla_visitor_uuid_" + storeId;',
@@ -455,6 +660,20 @@ export function generateStorefrontTrackingScript(
     "    history = history.filter(function(ts) { return (now - ts) <= windowMs; });",
     "    history.push(now);",
     "    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch (e) {}",
+    "",
+    "    // Record product visits if on a specific product page",
+    "    if (productId) {",
+    '      var P_STORE_KEY = "_salla_pvisits_" + storeId + "_" + productId;',
+    "      var pHist = [];",
+    "      try {",
+    "        var rawP = localStorage.getItem(P_STORE_KEY);",
+    "        if (rawP) pHist = JSON.parse(rawP);",
+    "      } catch (e) { pHist = []; }",
+    "      pHist = pHist.filter(function(ts) { return (now - ts) <= windowMs; });",
+    "      pHist.push(now);",
+    "      try { localStorage.setItem(P_STORE_KEY, JSON.stringify(pHist)); } catch (e) {}",
+    "      pVisits = pHist.length;",
+    "    }",
     "",
     "    // Sync into merchant dashboard real visitors log (cross-tab)",
     "    try {",
@@ -547,21 +766,68 @@ export function generateStorefrontTrackingScript(
     '        console.warn("[Salla-Incentives] Ably load error:", err);',
     "      });",
     "",
-    "    // Check if visitor entered 3 times in close proximity without buying",
-    "    if (visitCount >= (ACTIVE_CONFIG.minVisits || 3) && !hasPurchased && !alreadyShown) {",
-    "      setTimeout(function() { showIncentiveModal(); }, 1800);",
+    "    // Evaluate active multi-rules in priority order",
+    "    var ACTIVE_RULES = [].concat(RULES || []);",
+    "    try {",
+    '      var rawCustomRules = localStorage.getItem("_salla_incentive_rules_v2");',
+    "      if (rawCustomRules) {",
+    "        var parsedRules = JSON.parse(rawCustomRules);",
+    "        if (Array.isArray(parsedRules) && parsedRules.length > 0) ACTIVE_RULES = parsedRules;",
+    "      }",
+    "    } catch (e) {}",
+    "",
+    "    var matchedRule = null;",
+    "    for (var rIdx = 0; rIdx < ACTIVE_RULES.length; rIdx++) {",
+    "      var r = ACTIVE_RULES[rIdx];",
+    "      if (!r || !r.enabled) continue;",
+    "      if (r.trigger && r.trigger.type === 'product_visits' && productId) {",
+    "        var rTargetId = r.trigger.productId ? String(r.trigger.productId) : null;",
+    "        var rTargetName = r.trigger.productName ? r.trigger.productName.toLowerCase().trim() : '';",
+    "        var prodMatches = !rTargetId && !rTargetName;",
+    "        if (rTargetId && rTargetId === String(productId)) prodMatches = true;",
+    "        if (rTargetName && productName && productName.toLowerCase().indexOf(rTargetName) !== -1) prodMatches = true;",
+    "        if (prodMatches && pVisits >= (r.trigger.minVisits || 2)) {",
+    "          matchedRule = r;",
+    "          break;",
+    "        }",
+    "      } else if (r.trigger && r.trigger.type === 'store_visits') {",
+    "        if (visitCount >= (r.trigger.minVisits || 3)) {",
+    "          matchedRule = r;",
+    "          break;",
+    "        }",
+    "      }",
     "    }",
     "",
-    "    function showIncentiveModal(customCoupon) {",
+    "    var shouldTrigger = (matchedRule !== null) || (visitCount >= (ACTIVE_CONFIG.minVisits || 3));",
+    "    if (shouldTrigger && !hasPurchased && !alreadyShown) {",
+    "      setTimeout(function() { showIncentiveModal(matchedRule); }, 1800);",
+    "    }",
+    "",
+    "    function showIncentiveModal(rule) {",
     '      sessionStorage.setItem(MODAL_SHOWN_KEY, "true");',
     '      var existing = document.getElementById("salla-freq-visitor-modal");',
     "      if (existing) existing.remove();",
     "",
-    "      var activeCoupon = customCoupon || ACTIVE_CONFIG.couponCode;",
-    "      var primaryCol = ACTIVE_CONFIG.primaryColor || '#004d5b';",
-    "      var accentCol = ACTIVE_CONFIG.accentColor || '#73fcd7';",
-    "      var emoji = ACTIVE_CONFIG.giftEmoji || '🎁';",
-    '      var caption = ACTIVE_CONFIG.couponCaption || "كود الخصم الحصري لك:";',
+    "      var activeCoupon = (rule && rule.incentive && rule.incentive.couponCode) || ACTIVE_CONFIG.couponCode;",
+    "      var primaryCol   = (rule && rule.modal && rule.modal.primaryColor)       || ACTIVE_CONFIG.primaryColor || '#004d5b';",
+    "      var accentCol    = (rule && rule.modal && rule.modal.accentColor)        || ACTIVE_CONFIG.accentColor  || '#73fcd7';",
+    "      var emoji        = (rule && rule.modal && rule.modal.giftIcon)           ? '🎁' : (ACTIVE_CONFIG.giftEmoji || '🎁');",
+    "      var caption      = (rule && rule.modal && rule.modal.couponCaption)     || ACTIVE_CONFIG.couponCaption || 'كود الخصم الحصري لك:';",
+    "      var headline     = (rule && rule.modal && rule.modal.headline)          || ACTIVE_CONFIG.headline;",
+    "      var message      = (rule && rule.modal && rule.modal.message)           || ACTIVE_CONFIG.message;",
+    "      var ctaText      = (rule && rule.modal && rule.modal.ctaText)           || ACTIVE_CONFIG.ctaText;",
+    "      var dismissText  = (rule && rule.modal && rule.modal.dismissText)       || ACTIVE_CONFIG.dismissText;",
+    "      var incType      = (rule && rule.incentive && rule.incentive.type)      || 'coupon_discount';",
+    "      var discType     = (rule && rule.incentive && rule.incentive.discountType) || ACTIVE_CONFIG.discountType || 'percentage';",
+    "      var discVal      = (rule && rule.incentive && rule.incentive.discountValue !== undefined) ? rule.incentive.discountValue : (ACTIVE_CONFIG.discountValue || 15);",
+    "",
+    "      var targetLabel = productName || (rule && rule.trigger && rule.trigger.productName) || '';",
+    "      if (targetLabel) {",
+    "        headline = headline.replace(/{product_name}|{product}/gi, targetLabel);",
+    "        message  = message.replace(/{product_name}|{product}/gi, targetLabel);",
+    "      }",
+    "",
+    "      var badgeText = incType === 'free_shipping' ? 'توصيل مجاني 🚚' : (incType === 'free_product' ? 'هدية مجانية 🎁' : ('خصم ' + discVal + (discType === 'fixed' ? ' ر.س' : '%')));",
     '      var overlay = document.createElement("div");',
     '      overlay.id = "salla-freq-visitor-modal";',
     '      overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,30,36,0.65);backdrop-filter:blur(5px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:PingARLT,system-ui,sans-serif;direction:rtl;";',
@@ -572,20 +838,21 @@ export function generateStorefrontTrackingScript(
     "      card.innerHTML = '<div style=\"background:' + primaryCol + ';padding:24px 20px;text-align:center;color:#ffffff;position:relative;\">' +",
     '        \'<button id="salla-modal-close" style="position:absolute;top:14px;left:14px;background:none;border:none;color:#ffffff;font-size:20px;cursor:pointer;opacity:0.8;">✕</button>\' +',
     "        '<div style=\"width:52px;height:52px;border-radius:50%;background:' + accentCol + ';color:' + primaryCol + ';display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:12px;font-weight:bold;\">' + emoji + '</div>' +",
-    '        \'<h3 style="margin:0 0 8px;font-size:18px;font-weight:700;color:#ffffff;">\' + ACTIVE_CONFIG.headline + "</h3>" +',
-    '        \'<p style="margin:0;font-size:13px;opacity:0.92;line-height:1.5;color:#ffffff;">\' + ACTIVE_CONFIG.message + "</p>" +',
+    '        \'<h3 style="margin:0 0 8px;font-size:18px;font-weight:700;color:#ffffff;">\' + headline + "</h3>" +',
+    '        \'<p style="margin:0;font-size:13px;opacity:0.92;line-height:1.5;color:#ffffff;">\' + message + "</p>" +',
     "        '</div>' +",
     "        '<div style=\"padding:20px;background:#f8f8f8;text-align:center;\">' +",
     "        '<div style=\"background:#ffffff;border:2px dashed ' + primaryCol + ';border-radius:12px;padding:12px;margin-bottom:16px;\">' +",
     '        \'<span style="font-size:12px;color:#374151;font-weight:600;display:block;margin-bottom:4px;">\' + caption + "</span>" +',
     "        '<span style=\"font-size:22px;font-weight:800;letter-spacing:2px;color:' + primaryCol + ';font-family:monospace;\">' + activeCoupon + \"</span>\" +",
-    "        '<span style=\"display:inline-block;background:' + accentCol + ';color:' + primaryCol + ';font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:8px;\">خصم ' + ACTIVE_CONFIG.discountValue + \"%</span>\" +",
+    "        '<span style=\"display:inline-block;background:' + accentCol + ';color:' + primaryCol + ';font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:8px;\">' + badgeText + \"</span>\" +",
+    "        (targetLabel ? '<div style=\"margin-top:6px;font-size:12px;font-weight:700;color:' + primaryCol + ';\">🎯 خاص بمنتج: ' + targetLabel + '</div>' : '') +",
     "        '</div>' +",
     "        '<button id=\"salla-modal-apply\" style=\"width:100%;padding:14px;background:' + primaryCol + ';color:#ffffff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,77,91,0.25);\">' +",
-    "        ACTIVE_CONFIG.ctaText +",
+    "        ctaText +",
     "        '</button>' +",
     '        \'<button id="salla-modal-dismiss" style="margin-top:10px;background:none;border:none;color:#374151;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;">\' +',
-    "        ACTIVE_CONFIG.dismissText +",
+    "        dismissText +",
     "        '</button>' +",
     "        '</div>';",
     "",
@@ -608,8 +875,8 @@ export function generateStorefrontTrackingScript(
     "        }",
     "",
     "        dismiss();",
-    '        showToast("🎉 تم تفعيل خصمك بنجاح! سيُطبّق تلقائياً على أول منتج تضيفه إلى السلة.");',
-    "        showFloatingPill(activeCoupon, ACTIVE_CONFIG.discountValue || 15);",
+    '        showToast("🎉 تم تفعيل العرض بنجاح! سيُطبّق تلقائياً على أول منتج تضيفه إلى السلة.");',
+    "        showFloatingPill(activeCoupon, discVal);",
     "      };",
     "    }",
     "",

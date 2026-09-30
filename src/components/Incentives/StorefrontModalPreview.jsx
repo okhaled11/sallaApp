@@ -103,9 +103,32 @@ export default function StorefrontModalPreview({
                   color: config.primaryColor || "#004d5b",
                 }}
               >
-                خصم {config.discountValue}%
+                {config.incentiveType === "free_shipping"
+                  ? "توصيل مجاني 🚚"
+                  : config.incentiveType === "free_product"
+                  ? "هدية مجانية 🎁"
+                  : config.incentiveType === "custom"
+                  ? "عرض حصري ✨"
+                  : `خصم ${config.discountValue || 0}${config.discountType === "fixed" ? " ر.س" : "%"}`}
               </span>
             </div>
+            {config.productName && (
+              <div
+                style={{
+                  marginTop: "6px",
+                  fontSize: "12px",
+                  color: config.primaryColor || "#004d5b",
+                  fontWeight: "700",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "4px",
+                }}
+              >
+                <Icon name="tag" size={13} />
+                <span>عرض مخصص لمنتج: {config.productName}</span>
+              </div>
+            )}
             {config.showCountdown && (
               <div className="storefront-countdown-hint">
                 <span className="countdown-pulse-dot" />

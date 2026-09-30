@@ -129,42 +129,81 @@ export default function StoreStatistics({
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="store-stats-kpi-grid">
+      {/* KPI Cards Grid - Matches Salla Official Dashboard Cards */}
+      <div className="store-stats-kpi-grid salla-dashboard-grid">
         {/* KPI 1: Revenue */}
-        <div className="stats-kpi-card">
-          <div className="stats-kpi-header">
-            <span className="stats-kpi-title">إجمالي المبيعات</span>
-            <div className="stats-kpi-icon revenue-icon">
-              <Icon name="coins" size={18} />
+        <div className="stats-kpi-card salla-metric-card">
+          <div className="stats-kpi-header salla-card-header">
+            <div className="salla-card-title-group">
+              <span className="stats-kpi-title salla-metric-title">إجمالي المبيعات</span>
+              <span className="salla-tooltip-trigger" title="إجمالي مبيعات منتجات المتجر خلال الفترة">?</span>
             </div>
+            <button type="button" className="salla-card-refresh-btn" title="تحديث البيانات">
+              <Icon name="refresh" size={13} />
+            </button>
           </div>
-          <div className="stats-kpi-value">
-            {formatMoney(kpis.totalRevenue, resolvedCurrency)}
-          </div>
-          <div className="stats-kpi-footer">
-            <span className="stats-kpi-sub">
-              تم بيع <strong>{numberFormat.format(kpis.totalSoldUnits)}</strong>{" "}
-              وحدة
+
+          <div className="salla-metric-value-row">
+            <span className="stats-kpi-value salla-big-number">
+              {formatMoney(kpis.totalRevenue, resolvedCurrency)}
             </span>
+            <span className="salla-metric-badge salla-badge-neutral">▲ 0%</span>
+          </div>
+
+          <div className="salla-metric-progress-track">
+            <div className="salla-metric-progress-fill" style={{ width: kpis.totalRevenue > 0 ? "100%" : "0%" }} />
+          </div>
+
+          <div className="stats-kpi-footer salla-card-footer">
+            <span className="stats-kpi-sub salla-metric-subtext">
+              تم بيع <strong>{numberFormat.format(kpis.totalSoldUnits)}</strong> وحدة
+            </span>
+            <button
+              type="button"
+              className="salla-card-action-pill"
+              onClick={() => setActiveTab("drivers")}
+            >
+              عرض المبيعات
+            </button>
           </div>
         </div>
 
         {/* KPI 2: Net Profit */}
-        <div className="stats-kpi-card highlight-profit">
-          <div className="stats-kpi-header">
-            <span className="stats-kpi-title">صافي الربح المتوقع</span>
-            <div className="stats-kpi-icon profit-icon">
-              <Icon name="analyticsUp" size={18} />
+        <div className="stats-kpi-card salla-metric-card">
+          <div className="stats-kpi-header salla-card-header">
+            <div className="salla-card-title-group">
+              <span className="stats-kpi-title salla-metric-title">صافي الربح المتوقع</span>
+              <span className="salla-tooltip-trigger" title="الأرباح الصافية المحسوبة بعد خصم تكلفة المنتجات">?</span>
             </div>
+            <button type="button" className="salla-card-refresh-btn" title="تحديث البيانات">
+              <Icon name="refresh" size={13} />
+            </button>
           </div>
-          <div className="stats-kpi-value profit-number">
-            {kpis.withCostCount > 0
-              ? formatMoney(kpis.totalProfit, resolvedCurrency)
-              : "—"}
+
+          <div className="salla-metric-value-row">
+            <span className="stats-kpi-value salla-big-number">
+              {kpis.withCostCount > 0
+                ? formatMoney(kpis.totalProfit, resolvedCurrency)
+                : "0 " + resolvedCurrency}
+            </span>
+            {kpis.overallMargin !== null ? (
+              <span className="salla-metric-badge salla-badge-good">
+                ▲ {percentFormat.format(kpis.overallMargin)}
+              </span>
+            ) : (
+              <span className="salla-metric-badge salla-badge-neutral">▲ 0%</span>
+            )}
           </div>
-          <div className="stats-kpi-footer">
-            <span className="stats-kpi-sub">
+
+          <div className="salla-metric-progress-track">
+            <div
+              className="salla-metric-progress-fill"
+              style={{ width: `${Math.min(100, Math.max(10, (kpis.overallMargin || 0) * 100))}%` }}
+            />
+          </div>
+
+          <div className="stats-kpi-footer salla-card-footer">
+            <span className="stats-kpi-sub salla-metric-subtext">
               متوسط الهامش:{" "}
               {kpis.overallMargin !== null ? (
                 <MarginBadge margin={kpis.overallMargin} />
@@ -172,44 +211,112 @@ export default function StoreStatistics({
                 "—"
               )}
             </span>
+            <button
+              type="button"
+              className="salla-card-action-pill"
+              onClick={() => setIsReportOpen(true)}
+            >
+              تقرير الأرباح
+            </button>
           </div>
         </div>
 
         {/* KPI 3: Top Category */}
-        <div className="stats-kpi-card">
-          <div className="stats-kpi-header">
-            <span className="stats-kpi-title">القسم الأعلى أرباحاً</span>
-            <div className="stats-kpi-icon trophy-icon">
-              <Icon name="trophy" size={18} />
+        <div className="stats-kpi-card salla-metric-card">
+          <div className="stats-kpi-header salla-card-header">
+            <div className="salla-card-title-group">
+              <span className="stats-kpi-title salla-metric-title">القسم الأعلى أرباحاً</span>
+              <span className="salla-tooltip-trigger" title="أكثر تصنيف تحقيقاً للأرباح والمبيعات بالمتجر">?</span>
             </div>
+            <button type="button" className="salla-card-refresh-btn" title="تحديث البيانات">
+              <Icon name="refresh" size={13} />
+            </button>
           </div>
-          <div className="stats-kpi-value">
-            {topCategory ? topCategory.name : "—"}
-          </div>
-          <div className="stats-kpi-footer">
-            <span className="stats-kpi-sub">
-              {topCategory
-                ? `${formatMoney(topCategory.profit, resolvedCurrency)} (${percentFormat.format(topCategory.profitShare / 100)})`
-                : "لا توجد بيانات"}
-            </span>
-          </div>
+
+          {topCategory ? (
+            <>
+              <div className="salla-metric-value-row">
+                <span className="stats-kpi-value salla-big-number category-name-val">
+                  {topCategory.name}
+                </span>
+                <span className="salla-metric-badge salla-badge-good">
+                  {percentFormat.format(topCategory.profitShare / 100)}
+                </span>
+              </div>
+              <div className="salla-metric-progress-track">
+                <div
+                  className="salla-metric-progress-fill"
+                  style={{ width: `${Math.min(100, topCategory.profitShare)}%` }}
+                />
+              </div>
+              <div className="stats-kpi-footer salla-card-footer">
+                <span className="stats-kpi-sub salla-metric-subtext">
+                  أرباح: {formatMoney(topCategory.profit, resolvedCurrency)}
+                </span>
+                <button
+                  type="button"
+                  className="salla-card-action-pill"
+                  onClick={() => setActiveTab("categories")}
+                >
+                  أرباح الأقسام
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="salla-card-empty-state">
+              <div className="salla-empty-circle">
+                <Icon name="barChart" size={24} />
+              </div>
+              <span className="salla-empty-title">لا توجد بيانات بعد</span>
+              <span className="salla-empty-sub">جرّب تحديد فترة زمنية أخرى.</span>
+            </div>
+          )}
         </div>
 
         {/* KPI 4: Idle Capital */}
-        <div className="stats-kpi-card">
-          <div className="stats-kpi-header">
-            <span className="stats-kpi-title">رأس المال في المخزون الراكد</span>
-            <div className="stats-kpi-icon idle-icon">
-              <Icon name="snow" size={18} />
+        <div className="stats-kpi-card salla-metric-card">
+          <div className="stats-kpi-header salla-card-header">
+            <div className="salla-card-title-group">
+              <span className="stats-kpi-title salla-metric-title">رأس المال بالمخزون الراكد</span>
+              <span className="salla-tooltip-trigger" title="قيمة المنتجات المتوفرة بالمخزون والتي لم تحقق مبيعات">?</span>
             </div>
+            <button type="button" className="salla-card-refresh-btn" title="تحديث البيانات">
+              <Icon name="refresh" size={13} />
+            </button>
           </div>
-          <div className="stats-kpi-value">
-            {formatMoney(kpis.idleStockValue, resolvedCurrency)}
-          </div>
-          <div className="stats-kpi-footer">
-            <span className="stats-kpi-sub">
-              في <strong>{kpis.idleStockCount}</strong> منتج بلا أي مبيعات
+
+          <div className="salla-metric-value-row">
+            <span className="stats-kpi-value salla-big-number">
+              {formatMoney(kpis.idleStockValue, resolvedCurrency)}
             </span>
+            <span className="salla-metric-badge salla-badge-neutral">
+              {kpis.idleStockCount} منتج
+            </span>
+          </div>
+
+          <div className="salla-metric-progress-track">
+            <div
+              className="salla-metric-progress-fill"
+              style={{
+                width: `${Math.min(100, (kpis.idleStockCount / Math.max(1, products.length)) * 100)}%`,
+                background: "#f59e0b",
+              }}
+            />
+          </div>
+
+          <div className="stats-kpi-footer salla-card-footer">
+            <span className="stats-kpi-sub salla-metric-subtext">
+              في <strong>{kpis.idleStockCount}</strong> منتج بلا مبيعات
+            </span>
+            {kpis.idleStockCount > 0 ? (
+              <button
+                type="button"
+                className="salla-card-action-pill"
+                onClick={() => setActiveTab("risks")}
+              >
+                فحص المخزون
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

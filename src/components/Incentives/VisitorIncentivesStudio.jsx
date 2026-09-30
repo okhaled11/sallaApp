@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Icon from "../Icon.jsx";
 import StorefrontModalPreview from "./StorefrontModalPreview.jsx";
+import IncentiveRulesManager from "./IncentiveRulesManager.jsx";
 import {
   DEFAULT_INCENTIVE_CONFIG,
   loadSavedIncentiveConfig,
@@ -513,49 +514,175 @@ export default function VisitorIncentivesStudio({
         </div>
       </div>
 
-      {/* KPI Counters Bar */}
-      <div className="incentives-kpi-grid">
-        <div className="kpi-mini-card">
-          <div className="kpi-mini-icon primary">
-            <Icon name="view" size={20} />
+      {/* KPI Counters Bar - Salla Metric Cards Grid */}
+      <div className="incentives-kpi-grid salla-dashboard-grid">
+        {/* KPI 1: Frequent Visitors */}
+        <div className="stats-kpi-card salla-metric-card kpi-mini-card">
+          <div className="salla-card-header">
+            <div className="salla-card-title-group">
+              <span className="salla-metric-title kpi-mini-lbl">إجمالي الزوار المتكررين</span>
+              <span className="salla-tooltip-trigger" title="عملاء تصفحوا المتجر عدة مرات دون إتمام طلب">?</span>
+            </div>
+            <button type="button" className="salla-card-refresh-btn" title="تحديث السجل" onClick={() => window.dispatchEvent(new Event("storage"))}>
+              <Icon name="refresh" size={13} />
+            </button>
           </div>
-          <div className="kpi-mini-body">
-            <span className="kpi-mini-val">{visitors.length}</span>
-            <span className="kpi-mini-lbl">إجمالي الزوار المتكررين</span>
-          </div>
-        </div>
 
-        <div className="kpi-mini-card">
-          <div className="kpi-mini-icon secondary">
-            <Icon name="tag" size={20} />
-          </div>
-          <div className="kpi-mini-body">
-            <span className="kpi-mini-val">{qualifiedCount}</span>
-            <span className="kpi-mini-lbl">
-              مؤهلون للخصم ({config.minVisits}+ زيارات دون شراء)
+          <div className="salla-metric-value-row">
+            <span className="salla-big-number kpi-mini-val">{visitors.length}</span>
+            <span className="salla-metric-badge salla-badge-good">
+              {visitors.filter((v) => v.isOnline).length > 0
+                ? `${visitors.filter((v) => v.isOnline).length} متصل الآن`
+                : "▲ نشط بالمتجر"}
             </span>
           </div>
+
+          <div className="salla-metric-progress-track">
+            <div
+              className="salla-metric-progress-fill"
+              style={{ width: `${Math.min(100, Math.max(15, visitors.length * 10))}%` }}
+            />
+          </div>
+
+          <div className="salla-card-footer">
+            <span className="salla-metric-subtext">
+              تم رصد <strong>{visitors.length}</strong> جلسة تصفح متكررة
+            </span>
+            <button
+              type="button"
+              className="salla-card-action-pill"
+              onClick={() => setActiveSubTab("visitors")}
+            >
+              عرض الزوار
+            </button>
+          </div>
         </div>
 
-        <div className="kpi-mini-card">
-          <div className="kpi-mini-icon success">
-            <Icon name="checkCircle" size={20} />
+        {/* KPI 2: Qualified for Discount */}
+        <div className="stats-kpi-card salla-metric-card kpi-mini-card">
+          <div className="salla-card-header">
+            <div className="salla-card-title-group">
+              <span className="salla-metric-title kpi-mini-lbl">
+                مؤهلون للخصم ({config.minVisits}+ زيارات دون شراء)
+              </span>
+              <span className="salla-tooltip-trigger" title="زوار حققوا شرط عدد الزيارات ومؤهلون لإطلاق الخصم">?</span>
+            </div>
+            <button type="button" className="salla-card-refresh-btn" title="تحديث البيانات">
+              <Icon name="refresh" size={13} />
+            </button>
           </div>
-          <div className="kpi-mini-body">
-            <span className="kpi-mini-val">{convertedCount}</span>
-            <span className="kpi-mini-lbl">أتموا الشراء بعد الخصم</span>
+
+          <div className="salla-metric-value-row">
+            <span className="salla-big-number kpi-mini-val">{qualifiedCount}</span>
+            <span className="salla-metric-badge salla-badge-good">▲ فرصة بيع</span>
+          </div>
+
+          <div className="salla-metric-progress-track">
+            <div
+              className="salla-metric-progress-fill"
+              style={{
+                width: `${visitors.length > 0 ? (qualifiedCount / visitors.length) * 100 : 0}%`,
+              }}
+            />
+          </div>
+
+          <div className="salla-card-footer">
+            <span className="salla-metric-subtext">
+              جاهزون لإطلاق النافذة المنبثقة
+            </span>
+            <button
+              type="button"
+              className="salla-card-action-pill"
+              onClick={() => setActiveSubTab("customizer")}
+            >
+              شروط الخصم
+            </button>
           </div>
         </div>
 
-        <div className="kpi-mini-card">
-          <div className="kpi-mini-icon warning">
-            <Icon name="coins" size={20} />
+        {/* KPI 3: Converted */}
+        <div className="stats-kpi-card salla-metric-card kpi-mini-card">
+          <div className="salla-card-header">
+            <div className="salla-card-title-group">
+              <span className="salla-metric-title kpi-mini-lbl">أتموا الشراء بعد الخصم</span>
+              <span className="salla-tooltip-trigger" title="زوار تحولوا إلى مشترين حقيقيين بعد رؤية الخصم">?</span>
+            </div>
+            <button type="button" className="salla-card-refresh-btn" title="تحديث البيانات">
+              <Icon name="refresh" size={13} />
+            </button>
           </div>
-          <div className="kpi-mini-body">
-            <span className="kpi-mini-val">
+
+          <div className="salla-metric-value-row">
+            <span className="salla-big-number kpi-mini-val">{convertedCount}</span>
+            <span className="salla-metric-badge salla-badge-good">
+              {qualifiedCount > 0
+                ? `${Math.round((convertedCount / Math.max(1, qualifiedCount)) * 100)}% تحويل`
+                : "▲ مبيعات مستعادة"}
+            </span>
+          </div>
+
+          <div className="salla-metric-progress-track">
+            <div
+              className="salla-metric-progress-fill"
+              style={{
+                width: `${qualifiedCount > 0 ? (convertedCount / qualifiedCount) * 100 : 0}%`,
+              }}
+            />
+          </div>
+
+          <div className="salla-card-footer">
+            <span className="salla-metric-subtext">
+              طلبات تم إنقاذها بنجاح
+            </span>
+            <button
+              type="button"
+              className="salla-card-action-pill"
+              onClick={() => setActiveSubTab("preview")}
+            >
+              المعاينة الحية
+            </button>
+          </div>
+        </div>
+
+        {/* KPI 4: Active Code */}
+        <div className="stats-kpi-card salla-metric-card kpi-mini-card">
+          <div className="salla-card-header">
+            <div className="salla-card-title-group">
+              <span className="salla-metric-title kpi-mini-lbl">الكود النشط للزوار</span>
+              <span className="salla-tooltip-trigger" title="كود الخصم ونسبة التخفيض المفعّلة حالياً">?</span>
+            </div>
+            <button type="button" className="salla-card-refresh-btn" title="تحديث الكود">
+              <Icon name="refresh" size={13} />
+            </button>
+          </div>
+
+          <div className="salla-metric-value-row">
+            <span className="salla-big-number kpi-mini-val" style={{ fontSize: "28px" }}>
               {config.couponCode} ({config.discountValue}%)
             </span>
-            <span className="kpi-mini-lbl">الكود النشط للزوار</span>
+            <span className="salla-metric-badge salla-badge-neutral">
+              {config.enabled ? "يعمل بالمتجر" : "معطل"}
+            </span>
+          </div>
+
+          <div className="salla-metric-progress-track">
+            <div
+              className="salla-metric-progress-fill"
+              style={{ width: `${Math.min(100, config.discountValue * 2)}%` }}
+            />
+          </div>
+
+          <div className="salla-card-footer">
+            <span className="salla-metric-subtext">
+              خصم <strong>{config.discountValue}%</strong> للمترددين
+            </span>
+            <button
+              type="button"
+              className="salla-card-action-pill secondary"
+              onClick={() => setActiveSubTab("rules")}
+            >
+              قواعد التحفيز
+            </button>
           </div>
         </div>
       </div>
@@ -599,6 +726,19 @@ export default function VisitorIncentivesStudio({
         >
           <Icon name="sparkles" size={16} />
           <span>المعاينة الحية ومحاكاة الدخول</span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeSubTab === "rules"}
+          className={`studio-tab-btn ${
+            activeSubTab === "rules" ? "active" : ""
+          }`}
+          onClick={() => setActiveSubTab("rules")}
+        >
+          <Icon name="flash" size={16} />
+          <span>قواعد التحفيز المتعددة</span>
         </button>
 
         <button
@@ -1532,6 +1672,16 @@ export default function VisitorIncentivesStudio({
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 3.5: Multi-Rule Incentive Studio */}
+      {activeSubTab === "rules" && (
+        <div className="panel studio-panel" style={{ padding: 0, background: "transparent", border: "none" }}>
+          <IncentiveRulesManager
+            products={products}
+            onShowToast={onShowToast}
+          />
         </div>
       )}
 
