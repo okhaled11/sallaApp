@@ -13,6 +13,7 @@ import {
   saveRealStoredVisitors,
   recordRealVisitorSession,
   clearRealStoredVisitors,
+  deduplicateVisitors,
 } from "../../utils/visitorIncentives.js";
 
 /**
@@ -48,9 +49,9 @@ export default function VisitorIncentivesStudio({
 
   const [scriptFormat, setScriptFormat] = useState("pureJs"); // pureJs | htmlTag
   const [visitors, setVisitors] = useState(() => {
-    if (initialVisitors !== undefined) return initialVisitors;
+    if (initialVisitors !== undefined) return deduplicateVisitors(initialVisitors);
     const real = getRealStoredVisitors();
-    return real;
+    return deduplicateVisitors(real);
   });
   const [filterType, setFilterType] = useState("all"); // all | qualified | watching | converted | online
   const [searchQuery, setSearchQuery] = useState("");
@@ -104,21 +105,11 @@ export default function VisitorIncentivesStudio({
       const real = getRealStoredVisitors();
       if (real && real.length > 0) {
         setVisitors((prev) => {
-          const map = new Map(prev.map((v) => [v.id, v]));
-          let changed = false;
-          real.forEach((r) => {
-            const ex = map.get(r.id);
-            if (
-              !ex ||
-              ex.visitCount !== r.visitCount ||
-              ex.isOnline !== r.isOnline ||
-              ex.status !== r.status
-            ) {
-              map.set(r.id, { ...ex, ...r });
-              changed = true;
-            }
-          });
-          return changed ? Array.from(map.values()) : prev;
+          const merged = deduplicateVisitors([...real, ...prev]);
+          if (merged.length !== prev.length || JSON.stringify(merged) !== JSON.stringify(prev)) {
+            return merged;
+          }
+          return prev;
         });
       }
     };
@@ -186,23 +177,42 @@ export default function VisitorIncentivesStudio({
             : "واجهة المتجر";
 
           setVisitors((prev) => {
-            const idx = prev.findIndex((v) => v.id === cId);
+            let idx = prev.findIndex((v) => v.id === cId);
+            if (idx === -1) {
+              idx = prev.findIndex(
+                (v) =>
+                  (v.city === "متصفح حقيقي" || (v.name && v.name.includes("زائر متجر سلة (#"))) &&
+                  (v.purchasesCount || 0) === 0,
+              );
+            }
+
             let updatedList;
             if (idx !== -1) {
               const updated = [...prev];
+              const existingItem = updated[idx];
+              const newCount = Math.max(existingItem.visitCount || 1, vCount);
+              const existingProducts = existingItem.viewedProducts || [];
+              const viewedProducts = existingProducts.includes(pName)
+                ? existingProducts
+                : [...existingProducts, pName];
+
               updated[idx] = {
-                ...updated[idx],
-                visitCount: Math.max(updated[idx].visitCount, vCount),
+                ...existingItem,
+                id: cId,
+                name: `زائر متجر سلة (#${cId.slice(-4)})`,
+                visitCount: newCount,
                 isOnline,
+                viewedProducts,
                 lastVisitedAgo: isOnline ? `متصل الآن (${path})` : "منذ قليل",
+                timeSpanText: `${newCount} زيارات خلال وقت متقارب`,
                 status:
-                  vCount >= (config.minVisits || 3)
+                  newCount >= (config.minVisits || 3)
                     ? "qualified"
-                    : updated[idx].status,
+                    : existingItem.status,
               };
-              updatedList = updated;
+              updatedList = deduplicateVisitors(updated);
             } else if (isOnline) {
-              updatedList = [
+              updatedList = deduplicateVisitors([
                 {
                   id: cId,
                   name: `زائر متجر سلة (#${cId.slice(-4)})`,
@@ -224,7 +234,7 @@ export default function VisitorIncentivesStudio({
                   timeSpanText: `${vCount} زيارات خلال وقت متقارب`,
                 },
                 ...prev,
-              ];
+              ]);
             } else {
               return prev;
             }
@@ -344,6 +354,16 @@ export default function VisitorIncentivesStudio({
     setScriptCopied(true);
     onShowToast?.("تم نسخ كود التتبع لواجهة المتجر بنجاح", "success");
     setTimeout(() => setScriptCopied(false), 2500);
+  };
+
+  // Deduplicate and collapse test sessions
+  const handleDeduplicateVisitors = () => {
+    setVisitors((prev) => {
+      const deduped = deduplicateVisitors(prev);
+      saveRealStoredVisitors(deduped);
+      return deduped;
+    });
+    onShowToast?.("تم دمج الزيارات المكررة بنجاح", "success");
   };
 
   // Clear tracked visitors log
@@ -816,15 +836,26 @@ export default function VisitorIncentivesStudio({
               </button>
 
               {visitors.length > 0 && (
-                <button
-                  type="button"
-                  className="filter-btn btn-clear-log"
-                  onClick={handleClearVisitors}
-                  title="مسح جميع الزيارات المسجلة"
-                >
-                  <Icon name="trash" size={14} />
-                  <span>مسح السجل</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    className="filter-btn btn-merge-duplicates"
+                    onClick={handleDeduplicateVisitors}
+                    title="دمج الزيارات المكررة لنفس الجلسة"
+                  >
+                    <Icon name="refresh" size={14} />
+                    <span>دمج التكرار</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="filter-btn btn-clear-log"
+                    onClick={handleClearVisitors}
+                    title="مسح جميع الزيارات المسجلة"
+                  >
+                    <Icon name="trash" size={14} />
+                    <span>مسح السجل</span>
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -1006,7 +1037,9 @@ export default function VisitorIncentivesStudio({
                           ) : (
                             <span className="visitor-status-tag watching">
                               <Icon name="clock" size={13} />
-                              <span>بانتظار الزيارة الثالثة</span>
+                              <span>
+                                بانتظار الزيارة ({visitor.visitCount || 1} / {config.minVisits || 3})
+                              </span>
                             </span>
                           )}
                         </td>

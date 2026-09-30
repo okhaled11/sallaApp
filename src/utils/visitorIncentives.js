@@ -247,19 +247,92 @@ export function checkVisitorEligibility(
   config = DEFAULT_INCENTIVE_CONFIG,
 ) {
   if (!config.enabled) return false;
-  if (!visitor || !Array.isArray(visitor.visitTimestamps)) return false;
+  if (!visitor) return false;
   if ((visitor.purchasesCount || 0) > 0) return false;
 
-  const now = Date.now();
-  const windowMs = (config.timeWindowMinutes || 60) * 60 * 1000;
-  const recentVisits = visitor.visitTimestamps.filter(
-    (timestamp) => now - timestamp <= windowMs,
-  );
+  const min = config.minVisits || 3;
 
-  return recentVisits.length >= (config.minVisits || 3);
+  // Direct check: if visitor has recorded visit count >= threshold
+  if ((visitor.visitCount || 0) >= min) return true;
+
+  if (Array.isArray(visitor.visitTimestamps)) {
+    const now = Date.now();
+    const windowMs = (config.timeWindowMinutes || 60) * 60 * 1000;
+    const recentVisits = visitor.visitTimestamps.filter(
+      (timestamp) => now - timestamp <= windowMs,
+    );
+    return recentVisits.length >= min;
+  }
+
+  return false;
 }
 
 export const REAL_VISITORS_STORAGE_KEY = "_salla_frequent_visitors_log";
+
+/**
+ * Deduplicates and collapses duplicate test sessions into a single visitor entry
+ * @param {Array<object>} list
+ * @returns {Array<object>}
+ */
+export function deduplicateVisitors(list) {
+  if (!Array.isArray(list) || list.length <= 1) return list || [];
+
+  const map = new Map();
+  for (const v of list) {
+    if (!v || !v.id) continue;
+    if (!map.has(v.id)) {
+      map.set(v.id, { ...v });
+    } else {
+      const existing = map.get(v.id);
+      map.set(v.id, {
+        ...existing,
+        visitCount: Math.max(existing.visitCount || 1, v.visitCount || 1),
+        isOnline: existing.isOnline || v.isOnline,
+        lastVisitedAgo: v.isOnline ? v.lastVisitedAgo : existing.lastVisitedAgo,
+        viewedProducts: Array.from(
+          new Set([...(existing.viewedProducts || []), ...(v.viewedProducts || [])]),
+        ),
+        status:
+          (existing.visitCount || 0) >= 3 || (v.visitCount || 0) >= 3
+            ? "qualified"
+            : existing.status,
+      });
+    }
+  }
+
+  const deduped = Array.from(map.values());
+
+  // Collapse duplicate test visitor rows created during the same test session
+  const testVisitors = deduped.filter(
+    (v) =>
+      (v.city === "متصفح حقيقي" || (v.name && v.name.includes("زائر متجر سلة (#"))) &&
+      (v.purchasesCount || 0) === 0,
+  );
+
+  if (testVisitors.length > 1) {
+    let best = testVisitors[0];
+    const allProducts = new Set();
+    let anyOnline = false;
+    for (const tv of testVisitors) {
+      if ((tv.visitCount || 0) >= (best.visitCount || 0)) {
+        best = tv;
+      }
+      if (tv.isOnline) anyOnline = true;
+      (tv.viewedProducts || []).forEach((p) => allProducts.add(p));
+    }
+    const mergedBest = {
+      ...best,
+      isOnline: anyOnline,
+      viewedProducts: Array.from(allProducts),
+      status: (best.visitCount || 0) >= 3 ? "qualified" : best.status,
+      timeSpanText: `${best.visitCount || 1} زيارات خلال وقت متقارب`,
+    };
+    const nonTest = deduped.filter((v) => !testVisitors.includes(v));
+    return [mergedBest, ...nonTest];
+  }
+
+  return deduped;
+}
 
 /**
  * Loads real tracked visitors from browser storage
@@ -271,7 +344,12 @@ export function getRealStoredVisitors() {
     const raw = window.localStorage.getItem(REAL_VISITORS_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    const cleanList = deduplicateVisitors(parsed);
+    if (cleanList.length !== parsed.length) {
+      saveRealStoredVisitors(cleanList);
+    }
+    return cleanList;
   } catch {
     return [];
   }
@@ -616,18 +694,34 @@ export function generateStorefrontTrackingScript(
     "    var productName = pInfo.name;",
     "    var pVisits = 0;",
     "",
-    "    // Persistent visitor UUID per device/browser so repeat visits accumulate",
-    '    var CLIENT_UUID_KEY = "_salla_visitor_uuid_" + storeId;',
+    "    // Robust Persistent visitor UUID per device/browser so repeat visits accumulate",
+    '    var VISITOR_STORAGE_KEY = "_salla_vid";',
     '    var clientId = "";',
-    "    try {",
-    "      clientId = localStorage.getItem(CLIENT_UUID_KEY);",
-    "    } catch (e) {}",
+    "    try { clientId = localStorage.getItem(VISITOR_STORAGE_KEY); } catch (e) {}",
     "    if (!clientId) {",
-    '      clientId = "vis_" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);',
     "      try {",
-    "        localStorage.setItem(CLIENT_UUID_KEY, clientId);",
+    '        var cookieMatch = document.cookie.match(/(?:^|;\\s*)_salla_vid=([^;]+)/);',
+    "        if (cookieMatch && cookieMatch[1]) clientId = decodeURIComponent(cookieMatch[1]);",
     "      } catch (e) {}",
     "    }",
+    "    if (!clientId) {",
+    '      try { clientId = localStorage.getItem("_salla_visitor_uuid_" + storeId); } catch (e) {}',
+    "    }",
+    "    if (!clientId) {",
+    "      try {",
+    "        if (window.salla && window.salla.config && window.salla.config.user && window.salla.config.user.id) {",
+    '          clientId = "usr_" + window.salla.config.user.id;',
+    "        }",
+    "      } catch (e) {}",
+    "    }",
+    "    if (!clientId) {",
+    '      clientId = "vis_" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-4);',
+    "    }",
+    "    try { localStorage.setItem(VISITOR_STORAGE_KEY, clientId); } catch (e) {}",
+    '    try { localStorage.setItem("_salla_visitor_uuid_" + storeId, clientId); } catch (e) {}',
+    "    try {",
+    '      document.cookie = "_salla_vid=" + encodeURIComponent(clientId) + ";path=/;max-age=31536000;SameSite=Lax" + (location.protocol === "https:" ? ";Secure" : "");',
+    "    } catch (e) {}",
     "",
     "    // Expose reset helper for testing in browser console",
     "    window.resetSallaVisits = function() {",
@@ -680,14 +774,21 @@ export function generateStorefrontTrackingScript(
     '      var DASH_LOG_KEY = "_salla_frequent_visitors_log";',
     "      var rawLog = localStorage.getItem(DASH_LOG_KEY);",
     "      var dashList = rawLog ? JSON.parse(rawLog) : [];",
-    "      var existingV = dashList.find(function(item) { return item.id === clientId; });",
+    '      var existingV = dashList.find(function(item) { return item.id === clientId || (item.city === "متصفح حقيقي" && !item.purchasesCount); });',
     "      if (existingV) {",
-    "        existingV.visitCount = history.length;",
+    "        existingV.id = clientId;",
+    '        existingV.name = "زائر متجر سلة (#" + clientId.slice(-4) + ")";',
+    "        existingV.visitCount = Math.max(existingV.visitCount || 1, history.length);",
     "        existingV.visitTimestamps = history;",
     "        existingV.isOnline = true;",
     '        existingV.lastVisitedAgo = "متصل الآن (واجهة المتجر)";',
-    '        existingV.timeSpanText = history.length + " زيارات خلال وقت متقارب";',
-    "        if (history.length >= (ACTIVE_CONFIG.minVisits || 3)) {",
+    '        existingV.timeSpanText = existingV.visitCount + " زيارات خلال وقت متقارب";',
+    "        if (productId) {",
+    "          existingV.viewedProducts = existingV.viewedProducts || [];",
+    '          var pLabel = "منتج رقم " + productId;',
+    "          if (existingV.viewedProducts.indexOf(pLabel) === -1) existingV.viewedProducts.push(pLabel);",
+    "        }",
+    "        if (existingV.visitCount >= (ACTIVE_CONFIG.minVisits || 3)) {",
     '          existingV.status = "qualified";',
     "        }",
     "      } else {",
@@ -697,18 +798,26 @@ export function generateStorefrontTrackingScript(
     '          visitorType: "guest",',
     '          city: "متصفح حقيقي",',
     '          device: /Mobile|Android|iPhone/i.test(navigator.userAgent) ? "جوال (سلة)" : "متصفح ويب",',
-    "          visitCount: 1,",
+    "          visitCount: history.length || 1,",
     "          isOnline: true,",
     "          visitTimestamps: history,",
     "          purchasesCount: 0,",
     "          cartItemsCount: 0,",
     "          cartValue: 0,",
     '          viewedProducts: [productId ? "منتج رقم " + productId : "تصفح المتجر"],',
-    '          status: "watching",',
+    '          status: (history.length >= (ACTIVE_CONFIG.minVisits || 3)) ? "qualified" : "watching",',
     '          lastVisitedAgo: "متصل الآن",',
-    '          timeSpanText: "زيارة أولى بالمتجر"',
+    '          timeSpanText: history.length + " زيارات خلال وقت متقارب"',
     "        });",
     "      }",
+    "      var firstTestSeen = false;",
+    "      dashList = dashList.filter(function(item) {",
+    '        if (item.city === "متصفح حقيقي" && !item.purchasesCount) {',
+    "          if (firstTestSeen) return false;",
+    "          firstTestSeen = true;",
+    "        }",
+    "        return true;",
+    "      });",
     "      localStorage.setItem(DASH_LOG_KEY, JSON.stringify(dashList.slice(0, 50)));",
     "    } catch (e) {}",
     "",
@@ -724,6 +833,7 @@ export function generateStorefrontTrackingScript(
     "    loadScript(ACTIVE_CONFIG.ablyCdn || 'https://cdn.ably.com/lib/ably.min-2.js')",
     "      .then(function() {",
     "        var realtime = new Ably.Realtime({",
+    "          clientId: clientId,",
     "          authCallback: function(_tokenParams, callback) {",
     "            fetch(ACTIVE_CONFIG.tokenEndpoint, {",
     '              method: "POST",',
