@@ -14,6 +14,7 @@ import {
   recordRealVisitorSession,
   clearRealStoredVisitors,
   deduplicateVisitors,
+  loadIncentiveRules,
 } from "../../utils/visitorIncentives.js";
 
 /**
@@ -58,6 +59,16 @@ export default function VisitorIncentivesStudio({
   const [simulationStep, setSimulationStep] = useState(0); // 0 = idle, 1, 2, 3 = show modal
   const [isSimulating, setIsSimulating] = useState(false);
   const [scriptCopied, setScriptCopied] = useState(false);
+  const [rules, setRules] = useState(() => loadIncentiveRules());
+
+  useEffect(() => {
+    const handleRulesUpdate = (e) => {
+      if (e.detail && Array.isArray(e.detail)) setRules(e.detail);
+      else setRules(loadIncentiveRules());
+    };
+    window.addEventListener("salla-incentive-rules-updated", handleRulesUpdate);
+    return () => window.removeEventListener("salla-incentive-rules-updated", handleRulesUpdate);
+  }, []);
 
   // Update visitors eligibility based on current config
   const qualifiedCount = useMemo(() => {
@@ -345,10 +356,12 @@ export default function VisitorIncentivesStudio({
 
   // Copy tracking script to clipboard
   const handleCopyScript = () => {
+    const latestRules = loadIncentiveRules();
     const script = generateStorefrontTrackingScript(
       config,
       activeStoreId,
       scriptFormat === "htmlTag",
+      latestRules,
     );
     navigator.clipboard?.writeText?.(script);
     setScriptCopied(true);
@@ -1805,6 +1818,7 @@ export default function VisitorIncentivesStudio({
                   config,
                   activeStoreId,
                   scriptFormat === "htmlTag",
+                  rules,
                 )}
               </code>
             </pre>

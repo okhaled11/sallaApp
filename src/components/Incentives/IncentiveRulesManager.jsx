@@ -602,6 +602,13 @@ export default function IncentiveRulesManager({ products = [], onShowToast }) {
   const persistRules = useCallback((updated) => {
     setRules(updated);
     saveIncentiveRules(updated);
+    if (typeof window !== "undefined") {
+      try {
+        window.dispatchEvent(
+          new CustomEvent("salla-incentive-rules-updated", { detail: updated }),
+        );
+      } catch {}
+    }
   }, []);
 
   const handleSaveRule = (savedDraft) => {
