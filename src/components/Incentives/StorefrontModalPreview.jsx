@@ -61,13 +61,13 @@ export default function StorefrontModalPreview({
               color: config.primaryColor || "#004d5b",
             }}
           >
-            <span style={{ fontSize: 24, lineHeight: 1 }}>
-              {config.giftEmoji || "🎁"}
-            </span>
+            <Icon name={config.giftIcon || "gift"} size={26} />
           </div>
 
           <h3 id="storefront-modal-title" className="storefront-modal-headline">
-            {config.headline || "سعداء بزيارتك المتكررة لمتجرنا! ✨"}
+            {(config.headline || "سعداء بزيارتك المتكررة لمتجرنا!")
+              .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
+              .trim()}
           </h3>
           <p className="storefront-modal-message">
             {config.message ||
@@ -128,12 +128,16 @@ export default function StorefrontModalPreview({
             {copied ? (
               <>
                 <Icon name="checkCircle" size={18} />
-                <span>تم نسخ الكود وتطبيقه بنجاح! 🎉</span>
+                <span>تم نسخ الكود وتطبيقه بنجاح!</span>
               </>
             ) : (
               <>
-                <Icon name="tag" size={18} />
-                <span>{config.ctaText || "تطبيق الخصم وإكمال الطلب 🛍️"}</span>
+                <Icon name="bag" size={18} />
+                <span>
+                  {(config.ctaText || "تطبيق الخصم وإكمال الطلب")
+                    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
+                    .trim()}
+                </span>
               </>
             )}
           </button>

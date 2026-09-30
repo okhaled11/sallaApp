@@ -181,11 +181,11 @@ describe("VisitorIncentivesStudio", () => {
     await user.clear(couponInput);
     await user.type(couponInput, "VIP50");
 
-    // Select an emoji (e.g. 🔥)
-    const fireEmojiBtn = screen.getByRole("button", {
-      name: /اختر الأيقونة 🔥/i,
+    // Select a Hugeicon (e.g. flash icon for "عرض سريع")
+    const flashIconBtn = screen.getByRole("button", {
+      name: /عرض سريع/i,
     });
-    await user.click(fireEmojiBtn);
+    await user.click(flashIconBtn);
 
     // Select a preset color palette chip (e.g. بنفسجي فاخر)
     const violetChip = screen.getByRole("button", { name: /بنفسجي فاخر/i });

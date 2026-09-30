@@ -429,7 +429,8 @@ export default function VisitorIncentivesStudio({
             <span>نظام استعادة وتحفيز الزوار المتكررين في متجر سلة</span>
           </div>
           <h2 className="incentives-hero-title">
-            تحويل الزوار المترددين إلى مشترين حقيقيين 🎯
+            <Icon name="target" size={20} className="inline-icon-prefix" />
+            <span>تحويل الزوار المترددين إلى مشترين حقيقيين</span>
           </h2>
           <p className="incentives-hero-desc">
             رصد تلقائي للعملاء الذين يترددون على متجرك ({config.minVisits} مرات
@@ -542,7 +543,7 @@ export default function VisitorIncentivesStudio({
           </div>
           <div className="kpi-mini-body">
             <span className="kpi-mini-val">{convertedCount}</span>
-            <span className="kpi-mini-lbl">أتموا الشراء بعد الخصم 🎉</span>
+            <span className="kpi-mini-lbl">أتموا الشراء بعد الخصم</span>
           </div>
         </div>
 
@@ -681,7 +682,8 @@ export default function VisitorIncentivesStudio({
                   onClick={handleClearVisitors}
                   title="مسح جميع الزيارات المسجلة"
                 >
-                  مسح السجل 🗑️
+                  <Icon name="trash" size={14} />
+                  <span>مسح السجل</span>
                 </button>
               )}
             </div>
@@ -698,7 +700,8 @@ export default function VisitorIncentivesStudio({
                 presence:store:{activeStoreId}
               </code>
               <span className="channel-badge-connected">
-                🟢 متصل عبر Ably Realtime
+                <span className="pulse-dot-inline" />
+                <span>متصل عبر Ably Realtime</span>
               </span>
             </div>
             <div className="channel-info-right">
@@ -733,23 +736,24 @@ export default function VisitorIncentivesStudio({
                       startSimulation();
                     }}
                   >
-                    <Icon name="sparkles" size={16} />
-                    <span>تشغيل محاكاة الزيارات والخصم 🚀</span>
+                    <Icon name="flash" size={16} />
+                    <span>تشغيل محاكاة الزيارات والخصم</span>
                   </button>
                   <button
                     type="button"
                     className="btn-copy-script"
                     onClick={() => setActiveSubTab("script")}
                   >
-                    <Icon name="copy" size={16} />
-                    <span>كود تثبيت الإضافة بالمتجر 📋</span>
+                    <Icon name="code" size={16} />
+                    <span>كود تثبيت الإضافة بالمتجر</span>
                   </button>
                   <button
                     type="button"
                     className="btn-seed-sample"
                     onClick={handleSeedSampleVisitors}
                   >
-                    <span>تجربة بيانات توضيحية 🧪</span>
+                    <Icon name="refresh" size={16} />
+                    <span>تجربة بيانات توضيحية</span>
                   </button>
                 </div>
               )}
@@ -846,19 +850,23 @@ export default function VisitorIncentivesStudio({
                         <td>
                           {visitor.status === "converted" ? (
                             <span className="visitor-status-tag converted">
-                              ✅ اشترى بعد العرض
+                              <Icon name="checkCircle" size={13} />
+                              <span>اشترى بعد العرض</span>
                             </span>
                           ) : visitor.status === "offered" ? (
                             <span className="visitor-status-tag offered">
-                              📩 تم عرض المودال
+                              <Icon name="file" size={13} />
+                              <span>تم عرض المودال</span>
                             </span>
                           ) : isQualified ? (
                             <span className="visitor-status-tag qualified">
-                              🎯 مؤهل لخصم الـ {config.minVisits} زيارات
+                              <Icon name="target" size={13} />
+                              <span>مؤهل لخصم الـ {config.minVisits} زيارات</span>
                             </span>
                           ) : (
                             <span className="visitor-status-tag watching">
-                              ⏳ بانتظار الزيارة الثالثة
+                              <Icon name="clock" size={13} />
+                              <span>بانتظار الزيارة الثالثة</span>
                             </span>
                           )}
                         </td>
@@ -871,9 +879,14 @@ export default function VisitorIncentivesStudio({
                             disabled={visitor.status === "converted"}
                             title="عرض النافذة فوراً للزائر وتطبيق الخصم"
                           >
-                            {visitor.status === "converted"
-                              ? "مكتمل"
-                              : "تفعيل الخصم 🎁"}
+                            {visitor.status === "converted" ? (
+                              <span>مكتمل</span>
+                            ) : (
+                              <>
+                                <Icon name="gift" size={13} />
+                                <span>تفعيل الخصم</span>
+                              </>
+                            )}
                           </button>
                         </td>
                       </tr>
@@ -906,7 +919,7 @@ export default function VisitorIncentivesStudio({
                 title="حفظ التعديلات ونشرها لواجهة المتجر فوراً"
               >
                 <Icon name="checkCircle" size={16} />
-                <span>حفظ التعديلات وتحديث المتجر 💾</span>
+                <span>حفظ التعديلات وتحديث المتجر</span>
               </button>
               <button
                 type="button"
@@ -914,7 +927,8 @@ export default function VisitorIncentivesStudio({
                 onClick={handleResetDefaults}
                 title="استعادة النصوص والألوان الأصلية"
               >
-                <span>استعادة الافتراضي ↺</span>
+                <Icon name="refresh" size={15} />
+                <span>استعادة الافتراضي</span>
               </button>
             </div>
           </div>
@@ -1179,25 +1193,36 @@ export default function VisitorIncentivesStudio({
                 {/* Emoji Selector */}
                 <div className="form-field-group">
                   <label className="form-label">
-                    أيقونة العرض والهدية (Gift Emoji):
+                    أيقونة العرض والهدية (Hugeicons):
                   </label>
                   <div className="emoji-picker-grid">
-                    {["🎁", "✨", "🏷️", "🔥", "🛍️", "🎉", "💎", "⚡"].map(
-                      (em) => (
-                        <button
-                          key={em}
-                          type="button"
-                          className={`emoji-btn ${
-                            (config.giftEmoji || "🎁") === em ? "active" : ""
-                          }`}
-                          onClick={() => handleConfigChange("giftEmoji", em)}
-                          title={`اختر الأيقونة ${em}`}
-                          aria-label={`اختر الأيقونة ${em}`}
-                        >
-                          {em}
-                        </button>
-                      ),
-                    )}
+                    {[
+                      { name: "gift", label: "هدية" },
+                      { name: "sparkles", label: "بريق" },
+                      { name: "tag", label: "كود خصم" },
+                      { name: "flash", label: "عرض سريع" },
+                      { name: "bag", label: "حقيبة تسوق" },
+                      { name: "star", label: "نجمة مميزة" },
+                      { name: "coins", label: "مكافأة" },
+                      { name: "percent", label: "نسبة خصم" },
+                    ].map((iconItem) => (
+                      <button
+                        key={iconItem.name}
+                        type="button"
+                        className={`emoji-btn ${
+                          (config.giftIcon || "gift") === iconItem.name
+                            ? "active"
+                            : ""
+                        }`}
+                        onClick={() =>
+                          handleConfigChange("giftIcon", iconItem.name)
+                        }
+                        title={iconItem.label}
+                        aria-label={iconItem.label}
+                      >
+                        <Icon name={iconItem.name} size={22} />
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -1357,9 +1382,12 @@ export default function VisitorIncentivesStudio({
                 />
 
                 <span className="live-preview-hint">
-                  ✨ تتغير ألوان ونصوص المعاينة فوراً في الوقت الحقيقي أثناء
-                  قيامك بالتعديل. انقر على &quot;حفظ التعديلات وتحديث
-                  المتجر&quot; لتطبيقها على واجهة المتجر فوراً.
+                  <Icon name="sparkles" size={13} />
+                  <span>
+                    تتغير ألوان ونصوص المعاينة فوراً في الوقت الحقيقي أثناء
+                    قيامك بالتعديل. انقر على &quot;حفظ التعديلات وتحديث
+                    المتجر&quot; لتطبيقها على واجهة المتجر فوراً.
+                  </span>
                 </span>
               </div>
             </div>
@@ -1388,11 +1416,11 @@ export default function VisitorIncentivesStudio({
                 onClick={startSimulation}
                 disabled={isSimulating}
               >
-                <Icon name="sparkles" size={16} />
+                <Icon name="flash" size={16} />
                 <span>
                   {isSimulating
                     ? "جارٍ تشغيل محاكاة الزيارات..."
-                    : "بدء محاكاة دخول زائر 3 مرات 🚀"}
+                    : "بدء محاكاة دخول زائر 3 مرات"}
                 </span>
               </button>
 
@@ -1438,7 +1466,7 @@ export default function VisitorIncentivesStudio({
                 >
                   <span className="step-num">3</span>
                   <span className="step-txt">
-                    الزيارة الثالثة (الآن): تحقق الشرط وانبثاق المودال! 🎁
+                    الزيارة الثالثة (الآن): تحقق الشرط وانبثاق المودال!
                   </span>
                 </div>
               </div>
@@ -1571,7 +1599,8 @@ export default function VisitorIncentivesStudio({
                 }`}
                 onClick={() => setScriptFormat("pureJs")}
               >
-                JavaScript مباشر (لتطبيق مقتطفات الرموز) ⭐
+                <Icon name="star" size={14} />
+                <span>JavaScript مباشر (لتطبيق مقتطفات الرموز)</span>
               </button>
               <button
                 type="button"
@@ -1580,7 +1609,8 @@ export default function VisitorIncentivesStudio({
                 }`}
                 onClick={() => setScriptFormat("htmlTag")}
               >
-                كامل مع وسم &lt;script&gt; (للقوالب)
+                <Icon name="code" size={14} />
+                <span>كامل مع وسم &lt;script&gt; (للقوالب)</span>
               </button>
             </div>
           </div>
