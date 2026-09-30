@@ -9,6 +9,7 @@ import { ThemeProvider } from "./contexts/ThemeContext.jsx";
 import StatusBar from "./components/StatusBar.jsx";
 import Navbar from "./components/Navigation/Navbar.jsx";
 import ContentStudio from "./components/ContentStudio/ContentStudio.jsx";
+import VisitorIncentivesStudio from "./components/Incentives/VisitorIncentivesStudio.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
 import ProfitInsights from "./components/ProfitInsights.jsx";
@@ -99,6 +100,8 @@ function AppContent() {
         setActiveTab("content");
       } else if (actionValue === "nav-sales") {
         setActiveTab("sales");
+      } else if (actionValue === "nav-incentives") {
+        setActiveTab("incentives");
       }
     },
     [reload],
@@ -107,17 +110,16 @@ function AppContent() {
   const chromeAction = useMemo(() => {
     if (activeTab === "sales") {
       return {
-        title: "ستوديو المحتوى والسيو",
-        value: "nav-content",
-        icon: "hgi hgi-stroke hgi-sparkles",
+        title: "تحفيز الزوار والخصومات",
+        value: "nav-incentives",
+        icon: "hgi hgi-stroke hgi-tag",
         disabled: false,
         extendedActions: [
           {
-            title: "تحديث البيانات",
-            value: "refresh-products",
-            icon: "hgi hgi-stroke hgi-refresh",
-            subTitle: "إعادة تحميل بيانات المنتجات والمبيعات",
-            disabled: isLoading,
+            title: "تحفيز الزوار والخصومات",
+            value: "nav-incentives",
+            icon: "hgi hgi-stroke hgi-tag",
+            subTitle: "استهداف المتكررين وخصم 3 زيارات",
           },
           {
             title: "ستوديو المحتوى والسيو",
@@ -127,6 +129,42 @@ function AppContent() {
               contentIssuesCount > 0
                 ? `${contentIssuesCount} منتجات بحاجة لتحسين`
                 : "فحص السيو وجودة المحتوى",
+          },
+          {
+            title: "تحديث البيانات",
+            value: "refresh-products",
+            icon: "hgi hgi-stroke hgi-refresh",
+            subTitle: "إعادة تحميل بيانات المنتجات والمبيعات",
+            disabled: isLoading,
+          },
+        ],
+      };
+    }
+    if (activeTab === "content") {
+      return {
+        title: "تحفيز الزوار والخصومات",
+        value: "nav-incentives",
+        icon: "hgi hgi-stroke hgi-tag",
+        disabled: false,
+        extendedActions: [
+          {
+            title: "تحفيز الزوار والخصومات",
+            value: "nav-incentives",
+            icon: "hgi hgi-stroke hgi-tag",
+            subTitle: "استهداف المتكررين وخصم 3 زيارات",
+          },
+          {
+            title: "المبيعات والأرباح",
+            value: "nav-sales",
+            icon: "hgi hgi-stroke hgi-chart-line",
+            subTitle: "المؤشرات المالية والمخزون",
+          },
+          {
+            title: "تحديث البيانات",
+            value: "refresh-products",
+            icon: "hgi hgi-stroke hgi-refresh",
+            subTitle: "إعادة تحميل بيانات المنتجات",
+            disabled: isLoading,
           },
         ],
       };
@@ -144,6 +182,12 @@ function AppContent() {
           subTitle: "المؤشرات المالية والمخزون",
         },
         {
+          title: "ستوديو المحتوى والسيو",
+          value: "nav-content",
+          icon: "hgi hgi-stroke hgi-sparkles",
+          subTitle: "تحسين المنتجات والسيو",
+        },
+        {
           title: "تحديث البيانات",
           value: "refresh-products",
           icon: "hgi hgi-stroke hgi-refresh",
@@ -159,7 +203,11 @@ function AppContent() {
     embedded,
     enabled: isReady,
     title:
-      activeTab === "content" ? "ستوديو المحتوى والسيو" : "المبيعات والأرباح",
+      activeTab === "content"
+        ? "ستوديو المحتوى والسيو"
+        : activeTab === "incentives"
+          ? "تحفيز الزوار والخصومات الذكية"
+          : "المبيعات والأرباح",
     action: chromeAction,
     onAction: handleDashboardAction,
   });
@@ -258,8 +306,14 @@ function AppContent() {
                     onEditingChange={setEditingProductId}
                   />
                 </>
-              ) : (
+              ) : activeTab === "content" ? (
                 <ContentStudio products={products} />
+              ) : (
+                <VisitorIncentivesStudio
+                  products={products}
+                  currency={layout?.currency || "SAR"}
+                  onShowToast={showToast}
+                />
               )}
             </>
           )}

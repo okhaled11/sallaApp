@@ -23,6 +23,12 @@ export default function Navbar({
       icon: "aiSparkles",
       badge: contentIssuesCount > 0 ? contentIssuesCount : null,
     },
+    {
+      id: "incentives",
+      label: "تحفيز الزوار والخصومات",
+      subtitle: "خصم الـ 3 زيارات بدون شراء",
+      icon: "tag",
+    },
   ];
 
   return (

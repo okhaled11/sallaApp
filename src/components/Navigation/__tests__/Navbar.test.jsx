@@ -4,11 +4,12 @@ import userEvent from "@testing-library/user-event";
 import Navbar from "../Navbar.jsx";
 
 describe("Navbar", () => {
-  it("renders both navigation tabs", () => {
+  it("renders navigation tabs including incentives tab", () => {
     render(<Navbar activeTab="sales" onTabChange={vi.fn()} />);
 
     expect(screen.getByText("المبيعات والأرباح")).toBeInTheDocument();
     expect(screen.getByText("ستوديو المحتوى والسيو")).toBeInTheDocument();
+    expect(screen.getByText("تحفيز الزوار والخصومات")).toBeInTheDocument();
   });
 
   it("marks the active tab appropriately with aria-selected", () => {
