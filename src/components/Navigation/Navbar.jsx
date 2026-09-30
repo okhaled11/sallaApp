@@ -61,6 +61,12 @@ export default function Navbar({
             );
           })}
         </div>
+        <div className="navbar-chrome-hint" title="مربوط مع شريط سلة العلوي">
+          <span className="navbar-hint-dot" />
+          <span className="navbar-hint-text">
+            متزامن مع إجراءات شريط سلة العلوي
+          </span>
+        </div>
       </div>
     </nav>
   );

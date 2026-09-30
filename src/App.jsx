@@ -91,18 +91,79 @@ function AppContent() {
     }
   }, [isReady, layout, setTheme]);
 
-  // No header inside the iframe: title and Refresh live in the dashboard chrome
+  const handleDashboardAction = useCallback(
+    (actionValue) => {
+      if (actionValue === "refresh-products") {
+        reload();
+      } else if (actionValue === "nav-content") {
+        setActiveTab("content");
+      } else if (actionValue === "nav-sales") {
+        setActiveTab("sales");
+      }
+    },
+    [reload],
+  );
+
+  const chromeAction = useMemo(() => {
+    if (activeTab === "sales") {
+      return {
+        title: "ستوديو المحتوى والسيو",
+        value: "nav-content",
+        icon: "hgi hgi-stroke hgi-sparkles",
+        disabled: false,
+        extendedActions: [
+          {
+            title: "تحديث البيانات",
+            value: "refresh-products",
+            icon: "hgi hgi-stroke hgi-refresh",
+            subTitle: "إعادة تحميل بيانات المنتجات والمبيعات",
+            disabled: isLoading,
+          },
+          {
+            title: "ستوديو المحتوى والسيو",
+            value: "nav-content",
+            icon: "hgi hgi-stroke hgi-sparkles",
+            subTitle:
+              contentIssuesCount > 0
+                ? `${contentIssuesCount} منتجات بحاجة لتحسين`
+                : "فحص السيو وجودة المحتوى",
+          },
+        ],
+      };
+    }
+    return {
+      title: "المبيعات والأرباح",
+      value: "nav-sales",
+      icon: "hgi hgi-stroke hgi-chart-line",
+      disabled: false,
+      extendedActions: [
+        {
+          title: "المبيعات والأرباح",
+          value: "nav-sales",
+          icon: "hgi hgi-stroke hgi-chart-line",
+          subTitle: "المؤشرات المالية والمخزون",
+        },
+        {
+          title: "تحديث البيانات",
+          value: "refresh-products",
+          icon: "hgi hgi-stroke hgi-refresh",
+          subTitle: "إعادة تحميل بيانات المنتجات",
+          disabled: isLoading,
+        },
+      ],
+    };
+  }, [activeTab, isLoading, contentIssuesCount]);
+
+  // Salla Embedded: Page title & primary action bar with extended actions dropdown
   useDashboardChrome({
     embedded,
     enabled: isReady,
-    title: activeTab === "content" ? "Content & SEO Studio" : "Product Sales",
-    action: {
-      title: "Refresh",
-      value: "refresh-products",
-      icon: "hgi hgi-stroke hgi-refresh",
-      disabled: isLoading,
-    },
-    onAction: reload,
+    title:
+      activeTab === "content"
+        ? "ستوديو المحتوى والسيو"
+        : "المبيعات والأرباح",
+    action: chromeAction,
+    onAction: handleDashboardAction,
   });
 
   // Update parent origin from the first embedded:: message
@@ -142,68 +203,70 @@ function AppContent() {
           iframeMode={iframeMode}
         />
       )}
-      <main className="main-content">
-        {notice ? (
-          <div className="panel products-state">{notice}</div>
-        ) : (
-          <>
-            <Navbar
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              contentIssuesCount={contentIssuesCount}
-            />
-            {activeTab === "sales" ? (
-              <>
-                {!productsError && products.length > 0 && (
-                  <>
-                    <StoreStatistics
-                      products={products}
-                      currency={layout?.currency}
-                      onEditProduct={handleEditProduct}
-                      onSelectCategory={handleSelectCategory}
-                      selectedCategoryId={categoryFilter?.id ?? null}
-                    />
-                    <div className="insights-grid">
-                      <CategoryInsights
+      <div className="app-container">
+        <main className="main-content">
+          {notice ? (
+            <div className="panel products-state">{notice}</div>
+          ) : (
+            <>
+              <Navbar
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                contentIssuesCount={contentIssuesCount}
+              />
+              {activeTab === "sales" ? (
+                <>
+                  {!productsError && products.length > 0 && (
+                    <>
+                      <StoreStatistics
                         products={products}
-                        lowStockLimit={lowStockLimit}
-                        onLowStockLimitChange={setLowStockLimit}
-                        selectedCategoryId={categoryFilter?.id ?? null}
+                        currency={layout?.currency}
+                        onEditProduct={handleEditProduct}
                         onSelectCategory={handleSelectCategory}
+                        selectedCategoryId={categoryFilter?.id ?? null}
                       />
-                      <div className="insights-side">
-                        <ProfitInsights
-                          products={products}
-                          onEditProduct={handleEditProduct}
-                        />
-                        <ActionPlan
+                      <div className="insights-grid">
+                        <CategoryInsights
                           products={products}
                           lowStockLimit={lowStockLimit}
-                          onEditProduct={handleEditProduct}
+                          onLowStockLimitChange={setLowStockLimit}
+                          selectedCategoryId={categoryFilter?.id ?? null}
+                          onSelectCategory={handleSelectCategory}
                         />
+                        <div className="insights-side">
+                          <ProfitInsights
+                            products={products}
+                            onEditProduct={handleEditProduct}
+                          />
+                          <ActionPlan
+                            products={products}
+                            lowStockLimit={lowStockLimit}
+                            onEditProduct={handleEditProduct}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  </>
-                )}
-                <ProductsSales
-                  products={products}
-                  totalSold={totalSold}
-                  isLoading={isLoading}
-                  error={productsError}
-                  onReload={reload}
-                  onUpdateProduct={handleUpdateProduct}
-                  categoryFilter={categoryFilter}
-                  onClearCategory={() => setCategoryFilter(null)}
-                  editingId={editingProductId}
-                  onEditingChange={setEditingProductId}
-                />
-              </>
-            ) : (
-              <ContentStudio products={products} />
-            )}
-          </>
-        )}
-      </main>
+                    </>
+                  )}
+                  <ProductsSales
+                    products={products}
+                    totalSold={totalSold}
+                    isLoading={isLoading}
+                    error={productsError}
+                    onReload={reload}
+                    onUpdateProduct={handleUpdateProduct}
+                    categoryFilter={categoryFilter}
+                    onClearCategory={() => setCategoryFilter(null)}
+                    editingId={editingProductId}
+                    onEditingChange={setEditingProductId}
+                  />
+                </>
+              ) : (
+                <ContentStudio products={products} />
+              )}
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

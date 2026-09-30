@@ -103,6 +103,36 @@ describe("useDashboardChrome", () => {
     );
   });
 
+  it("handles extendedActions and triggers onAction callback when clicked", () => {
+    const onAction = vi.fn();
+    const actionWithExtended = {
+      ...action,
+      extendedActions: [
+        { title: "SEO Studio", value: "nav-content" },
+        { title: "Refresh", value: "refresh-products" },
+      ],
+    };
+
+    renderHook(() =>
+      useDashboardChrome({
+        embedded,
+        enabled: true,
+        title: "Sales",
+        action: actionWithExtended,
+        onAction,
+      }),
+    );
+
+    expect(embedded.nav.setAction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        extendedActions: actionWithExtended.extendedActions,
+      }),
+    );
+
+    embedded.listeners[0]("nav-content");
+    expect(onAction).toHaveBeenCalledWith("nav-content");
+  });
+
   it("clears the action and unsubscribes on unmount", () => {
     const { unmount } = renderHook(() =>
       useDashboardChrome({ embedded, enabled: true, action }),

@@ -33,24 +33,44 @@ export function useDashboardChrome({
   const actionValue = action?.value;
   const actionIcon = action?.icon;
   const actionDisabled = action?.disabled ?? false;
+  const actionExtendedActions = action?.extendedActions;
 
   useEffect(() => {
     const nav = embedded?.nav;
     if (!enabled || !actionValue || !nav?.setAction) return;
 
-    nav.setAction({
+    const actionConfig = {
       title: actionTitle,
       value: actionValue,
       icon: actionIcon,
       disabled: actionDisabled,
-    });
+    };
+    if (actionExtendedActions && actionExtendedActions.length > 0) {
+      actionConfig.extendedActions = actionExtendedActions;
+    }
+
+    nav.setAction(actionConfig);
     const unsubscribe = nav.onActionClick?.((value) => {
-      if (value === actionValue) onActionRef.current?.();
+      const isMatchingAction =
+        value === actionValue ||
+        actionExtendedActions?.some((ext) => ext.value === value);
+
+      if (isMatchingAction) {
+        onActionRef.current?.(value);
+      }
     });
 
     return () => {
       unsubscribe?.();
       nav.clearAction?.();
     };
-  }, [embedded, enabled, actionTitle, actionValue, actionIcon, actionDisabled]);
+  }, [
+    embedded,
+    enabled,
+    actionTitle,
+    actionValue,
+    actionIcon,
+    actionDisabled,
+    actionExtendedActions,
+  ]);
 }
