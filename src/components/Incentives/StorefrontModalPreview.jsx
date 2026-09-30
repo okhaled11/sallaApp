@@ -30,9 +30,19 @@ export default function StorefrontModalPreview({
       aria-modal="true"
       aria-labelledby="storefront-modal-title"
     >
-      <div className="storefront-modal-card">
+      <div
+        className="storefront-modal-card"
+        style={{
+          borderColor: config.accentColor || "#73fcd7",
+        }}
+      >
         {/* Header Header Banner */}
-        <div className="storefront-modal-header">
+        <div
+          className="storefront-modal-header"
+          style={{
+            backgroundColor: config.primaryColor || "#004d5b",
+          }}
+        >
           {onClose && (
             <button
               type="button"
@@ -44,8 +54,16 @@ export default function StorefrontModalPreview({
             </button>
           )}
 
-          <div className="storefront-modal-gift-icon">
-            <Icon name="sparkles" size={24} />
+          <div
+            className="storefront-modal-gift-icon"
+            style={{
+              backgroundColor: config.accentColor || "#73fcd7",
+              color: config.primaryColor || "#004d5b",
+            }}
+          >
+            <span style={{ fontSize: 24, lineHeight: 1 }}>
+              {config.giftEmoji || "🎁"}
+            </span>
           </div>
 
           <h3 id="storefront-modal-title" className="storefront-modal-headline">
@@ -60,15 +78,31 @@ export default function StorefrontModalPreview({
         {/* Modal Body */}
         <div className="storefront-modal-body">
           {/* Coupon Display Box */}
-          <div className="storefront-coupon-box">
+          <div
+            className="storefront-coupon-box"
+            style={{
+              borderColor: config.primaryColor || "#004d5b",
+            }}
+          >
             <span className="storefront-coupon-caption">
-              كود الخصم الحصري لك:
+              {config.couponCaption || "كود الخصم الحصري لك:"}
             </span>
             <div className="storefront-coupon-row">
-              <span className="storefront-coupon-code">
+              <span
+                className="storefront-coupon-code"
+                style={{
+                  color: config.primaryColor || "#004d5b",
+                }}
+              >
                 {config.couponCode}
               </span>
-              <span className="storefront-discount-badge">
+              <span
+                className="storefront-discount-badge"
+                style={{
+                  backgroundColor: config.accentColor || "#73fcd7",
+                  color: config.primaryColor || "#004d5b",
+                }}
+              >
                 خصم {config.discountValue}%
               </span>
             </div>
@@ -86,6 +120,9 @@ export default function StorefrontModalPreview({
           <button
             type="button"
             className="btn-storefront-apply"
+            style={{
+              backgroundColor: config.primaryColor || "#004d5b",
+            }}
             onClick={handleCopyOrApply}
           >
             {copied ? (

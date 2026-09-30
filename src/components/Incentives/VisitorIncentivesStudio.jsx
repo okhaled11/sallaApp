@@ -3,9 +3,14 @@ import Icon from "../Icon.jsx";
 import StorefrontModalPreview from "./StorefrontModalPreview.jsx";
 import {
   DEFAULT_INCENTIVE_CONFIG,
+  loadSavedIncentiveConfig,
+  saveIncentiveConfig,
   generateMockFrequentVisitors,
   generateStorefrontTrackingScript,
   checkVisitorEligibility,
+  getRealStoredVisitors,
+  recordRealVisitorSession,
+  clearRealStoredVisitors,
 } from "../../utils/visitorIncentives.js";
 
 /**
@@ -16,14 +21,17 @@ import {
 export default function VisitorIncentivesStudio({
   products = [],
   currency = "SAR",
+  initialVisitors,
   onShowToast,
 }) {
   const [activeSubTab, setActiveSubTab] = useState("visitors"); // visitors | customizer | preview | script
-  const [config, setConfig] = useState(DEFAULT_INCENTIVE_CONFIG);
-  const [visitors, setVisitors] = useState(() =>
-    generateMockFrequentVisitors(products),
-  );
-  const [filterType, setFilterType] = useState("all"); // all | qualified | watching | converted
+  const [config, setConfig] = useState(() => loadSavedIncentiveConfig());
+  const [visitors, setVisitors] = useState(() => {
+    if (initialVisitors !== undefined) return initialVisitors;
+    const real = getRealStoredVisitors();
+    return real;
+  });
+  const [filterType, setFilterType] = useState("all"); // all | qualified | watching | converted | online
   const [searchQuery, setSearchQuery] = useState("");
   const [simulationStep, setSimulationStep] = useState(0); // 0 = idle, 1, 2, 3 = show modal
   const [isSimulating, setIsSimulating] = useState(false);
@@ -38,6 +46,10 @@ export default function VisitorIncentivesStudio({
     return visitors.filter((v) => v.status === "converted").length;
   }, [visitors]);
 
+  const onlineCount = useMemo(() => {
+    return visitors.filter((v) => Boolean(v.isOnline)).length;
+  }, [visitors]);
+
   const filteredVisitors = useMemo(() => {
     return visitors.filter((v) => {
       const matchesSearch =
@@ -46,6 +58,9 @@ export default function VisitorIncentivesStudio({
 
       if (!matchesSearch) return false;
 
+      if (filterType === "online") {
+        return Boolean(v.isOnline);
+      }
       if (filterType === "qualified") {
         return checkVisitorEligibility(v, config);
       }
@@ -62,6 +77,34 @@ export default function VisitorIncentivesStudio({
   // Form field updater
   const handleConfigChange = (field, value) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Save current config to storage and notify
+  const handleSaveConfig = () => {
+    saveIncentiveConfig(config);
+    if (typeof window !== "undefined") {
+      try {
+        window.dispatchEvent(
+          new CustomEvent("salla-incentive-config-updated", { detail: config }),
+        );
+      } catch {
+        // ignore
+      }
+    }
+    onShowToast?.(
+      "تم حفظ إعدادات التصميم والنصوص وتحديث واجهة المتجر بنجاح! ستظهر التعديلات فوراً للزوار. ✓",
+      "success",
+    );
+  };
+
+  // Reset to default Salla template
+  const handleResetDefaults = () => {
+    setConfig(DEFAULT_INCENTIVE_CONFIG);
+    saveIncentiveConfig(DEFAULT_INCENTIVE_CONFIG);
+    onShowToast?.(
+      "تمت استعادة إعدادات التصميم والنصوص الافتراضية لمنصة سلة ↺",
+      "info",
+    );
   };
 
   // Trigger instant manual discount for a visitor from the list
@@ -92,19 +135,74 @@ export default function VisitorIncentivesStudio({
     setTimeout(() => setScriptCopied(false), 2500);
   };
 
-  // Run 3-visits simulation sequence
+  // Clear tracked visitors log
+  const handleClearVisitors = () => {
+    clearRealStoredVisitors();
+    setVisitors([]);
+    onShowToast?.("تم مسح سجل الزيارات بنجاح", "info");
+  };
+
+  // Seed sample data for testing purposes
+  const handleSeedSampleVisitors = () => {
+    const sample = generateMockFrequentVisitors(products);
+    setVisitors(sample);
+    onShowToast?.("تم تحميل عينة زيارات تجريبية للاختبار", "success");
+  };
+
+  // Run 3-visits simulation sequence and record real session
   const startSimulation = useCallback(() => {
     setIsSimulating(true);
     setSimulationStep(1);
 
+    const simId = "vis_storefront_live";
+    const simProduct = products[0]?.name || "عطر مميز من متجرك";
+
+    // Visit 1: First visit
+    const updated1 = recordRealVisitorSession({
+      id: simId,
+      name: "متصفح متجر سلة (جلسة حالية)",
+      visitorType: "guest",
+      city: "متصفح حقيقي",
+      device:
+        typeof navigator !== "undefined" &&
+        /Mobile|Android|iPhone/i.test(navigator.userAgent)
+          ? "جوال (سلة)"
+          : "متصفح ويب",
+      viewedProducts: [simProduct],
+      cartItemsCount: 0,
+      cartValue: 0,
+      status: "watching",
+    });
+    setVisitors(updated1);
+
     setTimeout(() => {
       setSimulationStep(2);
+      // Visit 2: Return visit
+      const updated2 = recordRealVisitorSession({
+        id: simId,
+        name: "متصفح متجر سلة (جلسة حالية)",
+        viewedProducts: [simProduct, products[1]?.name || "ساعة أنيقة"],
+        cartItemsCount: 1,
+        cartValue: 185,
+        status: "watching",
+      });
+      setVisitors(updated2);
+
       setTimeout(() => {
         setSimulationStep(3); // 3rd visit triggers modal!
+        const updated3 = recordRealVisitorSession({
+          id: simId,
+          name: "متصفح متجر سلة (جلسة حالية)",
+          status: "qualified",
+          viewedProducts: [simProduct, products[1]?.name || "ساعة أنيقة"],
+          cartItemsCount: 1,
+          cartValue: 185,
+        });
+        setVisitors(updated3);
         setIsSimulating(false);
       }, 1500);
     }, 1500);
-  }, []);
+  }, [products]);
 
   const resetSimulation = () => {
     setSimulationStep(0);
@@ -281,6 +379,16 @@ export default function VisitorIncentivesStudio({
 
               <button
                 type="button"
+                className={`filter-btn ${
+                  filterType === "online" ? "active" : ""
+                }`}
+                onClick={() => setFilterType("online")}
+              >
+                <span className="pulse-dot-inline" />
+                متصل الآن ({onlineCount})
+              </button>
+              <button
+                type="button"
                 className={`filter-btn ${filterType === "all" ? "active" : ""}`}
                 onClick={() => setFilterType("all")}
               >
@@ -304,120 +412,216 @@ export default function VisitorIncentivesStudio({
               >
                 تم الشراء ({convertedCount})
               </button>
+
+              {visitors.length > 0 && (
+                <button
+                  type="button"
+                  className="filter-btn btn-clear-log"
+                  onClick={handleClearVisitors}
+                  title="مسح جميع الزيارات المسجلة"
+                >
+                  مسح السجل 🗑️
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="table-responsive">
-            <table className="doc-table visitors-table">
-              <thead>
-                <tr>
-                  <th>الزائر / العميل</th>
-                  <th>عدد الزيارات</th>
-                  <th>الفارق الزمني والنشاط</th>
-                  <th>المنتجات المشاهدة</th>
-                  <th>قيمة السلة</th>
-                  <th>حالة العرض</th>
-                  <th>الإجراء</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredVisitors.map((visitor) => {
-                  const isQualified = checkVisitorEligibility(visitor, config);
-
-                  return (
-                    <tr
-                      key={visitor.id}
-                      className={isQualified ? "row-qualified" : ""}
-                    >
-                      <td>
-                        <div className="visitor-identity-cell">
-                          <span className="visitor-name">{visitor.name}</span>
-                          <span className="visitor-sub-info">
-                            {visitor.city} • {visitor.device}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td>
-                        <div className="visit-counter-pill">
-                          <span className="count-number">
-                            {visitor.visitCount}
-                          </span>
-                          <span className="count-text">مرات</span>
-                        </div>
-                      </td>
-
-                      <td>
-                        <div className="activity-cell">
-                          <span className="activity-desc">
-                            {visitor.timeSpanText}
-                          </span>
-                          <span className="activity-ago">
-                            آخر نشاط: {visitor.lastVisitedAgo}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td>
-                        <div className="viewed-products-list">
-                          {visitor.viewedProducts.map((pName, idx) => (
-                            <span key={idx} className="viewed-tag">
-                              {pName}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-
-                      <td>
-                        {visitor.cartValue > 0 ? (
-                          <span className="cart-val-tag">
-                            {visitor.cartValue} {currency} (
-                            {visitor.cartItemsCount} عناصر)
-                          </span>
-                        ) : (
-                          <span className="cart-empty-tag">تصفح فقط</span>
-                        )}
-                      </td>
-
-                      <td>
-                        {visitor.status === "converted" ? (
-                          <span className="visitor-status-tag converted">
-                            ✅ اشترى بعد العرض
-                          </span>
-                        ) : visitor.status === "offered" ? (
-                          <span className="visitor-status-tag offered">
-                            📩 تم عرض المودال
-                          </span>
-                        ) : isQualified ? (
-                          <span className="visitor-status-tag qualified">
-                            🎯 مؤهل لخصم الـ {config.minVisits} زيارات
-                          </span>
-                        ) : (
-                          <span className="visitor-status-tag watching">
-                            ⏳ بانتظار الزيارة الثالثة
-                          </span>
-                        )}
-                      </td>
-
-                      <td>
-                        <button
-                          type="button"
-                          className="btn-trigger-action"
-                          onClick={() => handleOfferDirectDiscount(visitor)}
-                          disabled={visitor.status === "converted"}
-                          title="عرض النافذة فوراً للزائر وتطبيق الخصم"
-                        >
-                          {visitor.status === "converted"
-                            ? "مكتمل"
-                            : "تفعيل الخصم 🎁"}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Ably Realtime Active Channel Banner */}
+          <div className="realtime-channel-bar">
+            <div className="channel-info-left">
+              <span className="channel-live-beacon" />
+              <span className="channel-title">
+                قناة التواجد اللحظي في المتجر:
+              </span>
+              <code className="channel-code">
+                presence:store:salla-store-main
+              </code>
+              <span className="channel-badge-connected">
+                🟢 متصل عبر Ably Realtime
+              </span>
+            </div>
+            <div className="channel-info-right">
+              <span className="channel-online-summary">
+                <strong>{onlineCount}</strong> زوار يتصفحون المتجر في هذه اللحظة
+              </span>
+            </div>
           </div>
+
+          {filteredVisitors.length === 0 ? (
+            <div className="visitors-empty-state">
+              <div className="empty-state-beacon">
+                <Icon name="sparkles" size={26} />
+              </div>
+              <h3 className="empty-state-title">
+                {visitors.length === 0
+                  ? "لا توجد زيارات مسجلة بعد في متجرك"
+                  : "لا توجد نتائج تطابق خيارات البحث"}
+              </h3>
+              <p className="empty-state-desc">
+                {visitors.length === 0
+                  ? "النظام بانتظار رصد زيارات المتجر الحقيقية عبر كود التتبع وقنوات التواجد اللحظي. يمكنك تشغيل المحاكاة الآن لرؤية طريقة عمل النافذة أو نسخ كود التثبيت لمتجرك بسلة."
+                  : "جرب تغيير مصطلح البحث أو اختيار فلتر آخر لعرض الزوار."}
+              </p>
+              {visitors.length === 0 && (
+                <div className="empty-state-actions">
+                  <button
+                    type="button"
+                    className="btn-run-simulation"
+                    onClick={() => {
+                      setActiveSubTab("preview");
+                      startSimulation();
+                    }}
+                  >
+                    <Icon name="sparkles" size={16} />
+                    <span>تشغيل محاكاة الزيارات والخصم 🚀</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-copy-script"
+                    onClick={() => setActiveSubTab("script")}
+                  >
+                    <Icon name="copy" size={16} />
+                    <span>كود تثبيت الإضافة بالمتجر 📋</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-seed-sample"
+                    onClick={handleSeedSampleVisitors}
+                  >
+                    <span>تجربة بيانات توضيحية 🧪</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="doc-table visitors-table">
+                <thead>
+                  <tr>
+                    <th>الزائر / العميل</th>
+                    <th>عدد الزيارات</th>
+                    <th>الفارق الزمني والنشاط</th>
+                    <th>المنتجات المشاهدة</th>
+                    <th>قيمة السلة</th>
+                    <th>حالة العرض</th>
+                    <th>الإجراء</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredVisitors.map((visitor) => {
+                    const isQualified = checkVisitorEligibility(
+                      visitor,
+                      config,
+                    );
+
+                    return (
+                      <tr
+                        key={visitor.id}
+                        className={isQualified ? "row-qualified" : ""}
+                      >
+                        <td>
+                          <div className="visitor-identity-cell">
+                            <div className="visitor-title-line">
+                              <span className="visitor-name">
+                                {visitor.name}
+                              </span>
+                              {visitor.isOnline && (
+                                <span
+                                  className="online-presence-indicator"
+                                  title="يتصفح المتجر حالياً"
+                                >
+                                  <span className="pulse-dot-green" />
+                                  متصل الآن
+                                </span>
+                              )}
+                            </div>
+                            <span className="visitor-sub-info">
+                              {visitor.city} • {visitor.device}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td>
+                          <div className="visit-counter-pill">
+                            <span className="count-number">
+                              {visitor.visitCount}
+                            </span>
+                            <span className="count-text">مرات</span>
+                          </div>
+                        </td>
+
+                        <td>
+                          <div className="activity-cell">
+                            <span className="activity-desc">
+                              {visitor.timeSpanText}
+                            </span>
+                            <span className="activity-ago">
+                              آخر نشاط: {visitor.lastVisitedAgo}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td>
+                          <div className="viewed-products-list">
+                            {visitor.viewedProducts.map((pName, idx) => (
+                              <span key={idx} className="viewed-tag">
+                                {pName}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+
+                        <td>
+                          {visitor.cartValue > 0 ? (
+                            <span className="cart-val-tag">
+                              {visitor.cartValue} {currency} (
+                              {visitor.cartItemsCount} عناصر)
+                            </span>
+                          ) : (
+                            <span className="cart-empty-tag">تصفح فقط</span>
+                          )}
+                        </td>
+
+                        <td>
+                          {visitor.status === "converted" ? (
+                            <span className="visitor-status-tag converted">
+                              ✅ اشترى بعد العرض
+                            </span>
+                          ) : visitor.status === "offered" ? (
+                            <span className="visitor-status-tag offered">
+                              📩 تم عرض المودال
+                            </span>
+                          ) : isQualified ? (
+                            <span className="visitor-status-tag qualified">
+                              🎯 مؤهل لخصم الـ {config.minVisits} زيارات
+                            </span>
+                          ) : (
+                            <span className="visitor-status-tag watching">
+                              ⏳ بانتظار الزيارة الثالثة
+                            </span>
+                          )}
+                        </td>
+
+                        <td>
+                          <button
+                            type="button"
+                            className="btn-trigger-action"
+                            onClick={() => handleOfferDirectDiscount(visitor)}
+                            disabled={visitor.status === "converted"}
+                            title="عرض النافذة فوراً للزائر وتطبيق الخصم"
+                          >
+                            {visitor.status === "converted"
+                              ? "مكتمل"
+                              : "تفعيل الخصم 🎁"}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -433,169 +637,468 @@ export default function VisitorIncentivesStudio({
                 تحكم في شروط الاستهداف وكافة نصوص وألوان كود الخصم في متجرك
               </span>
             </div>
+            <div className="customizer-header-actions">
+              <button
+                type="button"
+                className="btn-save-settings"
+                onClick={handleSaveConfig}
+                title="حفظ التعديلات ونشرها لواجهة المتجر فوراً"
+              >
+                <Icon name="checkCircle" size={16} />
+                <span>حفظ التعديلات وتحديث المتجر 💾</span>
+              </button>
+              <button
+                type="button"
+                className="btn-reset-settings"
+                onClick={handleResetDefaults}
+                title="استعادة النصوص والألوان الأصلية"
+              >
+                <Icon name="refresh" size={14} />
+                <span>استعادة الافتراضي ↺</span>
+              </button>
+            </div>
           </div>
 
-          <div className="customizer-form-grid">
-            {/* Rule 1: Frequency trigger */}
-            <div className="form-section-card">
-              <h4 className="section-card-title">
-                1. قاعدة عدد الزيارات والتوقيت
-              </h4>
-              <p className="section-card-desc">
-                حدد كم مرة يجب أن يزور العميل متجرك وفي أي فترة زمنية ليعتبر
-                زائراً متكرراً.
-              </p>
+          <div className="customizer-workspace">
+            {/* Form Column */}
+            <div className="customizer-form-column">
+              {/* Card 1: Modal Texts & Copy */}
+              <div className="form-section-card">
+                <h4 className="section-card-title">
+                  1. تخصيص محتوى ونصوص النافذة (Modal Texts)
+                </h4>
+                <p className="section-card-desc">
+                  اكتب العنوان والنصوص المقنعة التي تظهر للزائر داخل النافذة
+                  التشجيعية.
+                </p>
 
-              <div className="form-field-group">
-                <label htmlFor="minVisitsInput" className="form-label">
-                  عدد مرات الدخول المطلوبة لإظهار الخصم:
-                </label>
-                <div className="input-number-wrap">
+                <div className="form-field-group">
+                  <label htmlFor="headlineInput" className="form-label">
+                    عنوان النافذة (العنوان الجذاب):
+                  </label>
                   <input
-                    id="minVisitsInput"
-                    type="number"
-                    min="2"
-                    max="10"
-                    value={config.minVisits}
+                    id="headlineInput"
+                    type="text"
+                    value={config.headline}
                     onChange={(e) =>
-                      handleConfigChange(
-                        "minVisits",
-                        parseInt(e.target.value, 10) || 3,
-                      )
+                      handleConfigChange("headline", e.target.value)
                     }
                     className="form-input"
+                    placeholder="سعداء بزيارتك المتكررة..."
                   />
-                  <span className="input-unit">زيارات في وقت متقارب</span>
+                </div>
+
+                <div className="form-field-group">
+                  <label htmlFor="messageInput" className="form-label">
+                    نص الرسالة التشجيعية:
+                  </label>
+                  <textarea
+                    id="messageInput"
+                    rows="3"
+                    value={config.message}
+                    onChange={(e) =>
+                      handleConfigChange("message", e.target.value)
+                    }
+                    className="form-textarea"
+                  />
+                </div>
+
+                <div className="form-field-group">
+                  <label htmlFor="captionInput" className="form-label">
+                    النص التوضيحي فوق كود الخصم:
+                  </label>
+                  <input
+                    id="captionInput"
+                    type="text"
+                    value={config.couponCaption || "كود الخصم الحصري لك:"}
+                    onChange={(e) =>
+                      handleConfigChange("couponCaption", e.target.value)
+                    }
+                    className="form-input"
+                    placeholder="كود الخصم الحصري لك:"
+                  />
+                </div>
+
+                <div className="form-row-dual">
+                  <div className="form-field-group">
+                    <label htmlFor="couponInput" className="form-label">
+                      كود الخصم في متجر سلة:
+                    </label>
+                    <input
+                      id="couponInput"
+                      type="text"
+                      value={config.couponCode}
+                      onChange={(e) =>
+                        handleConfigChange(
+                          "couponCode",
+                          e.target.value.toUpperCase(),
+                        )
+                      }
+                      className="form-input font-mono"
+                      placeholder="SPECIAL3X"
+                    />
+                  </div>
+
+                  <div className="form-field-group">
+                    <label htmlFor="discountValInput" className="form-label">
+                      نسبة الخصم (%):
+                    </label>
+                    <input
+                      id="discountValInput"
+                      type="number"
+                      min="5"
+                      max="90"
+                      value={config.discountValue}
+                      onChange={(e) =>
+                        handleConfigChange(
+                          "discountValue",
+                          parseInt(e.target.value, 10) || 15,
+                        )
+                      }
+                      className="form-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-row-dual">
+                  <div className="form-field-group">
+                    <label htmlFor="ctaInput" className="form-label">
+                      نص زر الشراء وتطبيق الخصم (CTA):
+                    </label>
+                    <input
+                      id="ctaInput"
+                      type="text"
+                      value={config.ctaText}
+                      onChange={(e) =>
+                        handleConfigChange("ctaText", e.target.value)
+                      }
+                      className="form-input"
+                    />
+                  </div>
+
+                  <div className="form-field-group">
+                    <label htmlFor="dismissInput" className="form-label">
+                      نص زر التخطي والإغلاق:
+                    </label>
+                    <input
+                      id="dismissInput"
+                      type="text"
+                      value={config.dismissText || "متابعة التصفح"}
+                      onChange={(e) =>
+                        handleConfigChange("dismissText", e.target.value)
+                      }
+                      className="form-input"
+                      placeholder="متابعة التصفح"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="form-field-group">
-                <label htmlFor="timeWindowInput" className="form-label">
-                  الإطار الزمني لتقارب الزيارات:
-                </label>
-                <select
-                  id="timeWindowInput"
-                  value={config.timeWindowMinutes}
-                  onChange={(e) =>
-                    handleConfigChange(
-                      "timeWindowMinutes",
-                      parseInt(e.target.value, 10),
-                    )
-                  }
-                  className="form-select"
-                >
-                  <option value={15}>خلال 15 دقيقة (تقارب سريع جداً)</option>
-                  <option value={30}>خلال 30 دقيقة (جلسة تصفح واحدة)</option>
-                  <option value={60}>خلال ساعة واحدة (موصى به)</option>
-                  <option value={180}>خلال 3 ساعات</option>
-                  <option value={1440}>خلال 24 ساعة (نفس اليوم)</option>
-                </select>
+              {/* Card 2: Visual Appearance & Colors */}
+              <div className="form-section-card">
+                <h4 className="section-card-title">
+                  2. مظهر وألوان الـ Snippet (Colors & Theme)
+                </h4>
+                <p className="section-card-desc">
+                  خصص ألوان النافذة لتتوافق تماماً مع هوية متجرك وعلامتك
+                  التجارية.
+                </p>
+
+                {/* Primary Color */}
+                <div className="color-picker-group">
+                  <label htmlFor="primaryColorPicker" className="form-label">
+                    اللون الأساسي للنافذة والزر الرئيسي (Primary Color):
+                  </label>
+                  <div className="color-input-row">
+                    <input
+                      id="primaryColorPicker"
+                      type="color"
+                      value={config.primaryColor || "#004d5b"}
+                      onChange={(e) =>
+                        handleConfigChange("primaryColor", e.target.value)
+                      }
+                      className="color-swatch-input"
+                      title="اختر اللون الأساسي"
+                    />
+                    <input
+                      type="text"
+                      value={config.primaryColor || "#004d5b"}
+                      onChange={(e) =>
+                        handleConfigChange("primaryColor", e.target.value)
+                      }
+                      className="form-input font-mono"
+                      style={{ width: "130px" }}
+                      placeholder="#004d5b"
+                    />
+                  </div>
+
+                  {/* Preset chips for primary color */}
+                  <div className="palette-presets">
+                    {[
+                      { name: "سلة الأصلي", color: "#004d5b" },
+                      { name: "بنفسجي فاخر", color: "#3b1a54" },
+                      { name: "أزرق ملكي", color: "#0f3b75" },
+                      { name: "كحلي ليلي", color: "#111827" },
+                      { name: "أخضر زمردي", color: "#064e3b" },
+                      { name: "عنابي أنيق", color: "#831843" },
+                    ].map((preset) => (
+                      <button
+                        key={preset.color}
+                        type="button"
+                        className="palette-chip"
+                        onClick={() =>
+                          handleConfigChange("primaryColor", preset.color)
+                        }
+                      >
+                        <span
+                          className="palette-chip-circle"
+                          style={{ backgroundColor: preset.color }}
+                        />
+                        <span>{preset.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Accent Color */}
+                <div className="color-picker-group">
+                  <label htmlFor="accentColorPicker" className="form-label">
+                    لون التمييز والأيقونة والحدود (Accent Color):
+                  </label>
+                  <div className="color-input-row">
+                    <input
+                      id="accentColorPicker"
+                      type="color"
+                      value={config.accentColor || "#73fcd7"}
+                      onChange={(e) =>
+                        handleConfigChange("accentColor", e.target.value)
+                      }
+                      className="color-swatch-input"
+                      title="اختر لون التمييز"
+                    />
+                    <input
+                      type="text"
+                      value={config.accentColor || "#73fcd7"}
+                      onChange={(e) =>
+                        handleConfigChange("accentColor", e.target.value)
+                      }
+                      className="form-input font-mono"
+                      style={{ width: "130px" }}
+                      placeholder="#73fcd7"
+                    />
+                  </div>
+
+                  {/* Preset chips for accent color */}
+                  <div className="palette-presets">
+                    {[
+                      { name: "مينت سلة", color: "#73fcd7" },
+                      { name: "ذهبي لامع", color: "#f59e0b" },
+                      { name: "وردي نيون", color: "#f472b6" },
+                      { name: "سماوي مبهج", color: "#38bdf8" },
+                      { name: "أخضر فسفوري", color: "#4ade80" },
+                      { name: "برتقالي جذاب", color: "#fb923c" },
+                    ].map((preset) => (
+                      <button
+                        key={preset.color}
+                        type="button"
+                        className="palette-chip"
+                        onClick={() =>
+                          handleConfigChange("accentColor", preset.color)
+                        }
+                      >
+                        <span
+                          className="palette-chip-circle"
+                          style={{ backgroundColor: preset.color }}
+                        />
+                        <span>{preset.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Emoji Selector */}
+                <div className="form-field-group">
+                  <label className="form-label">
+                    أيقونة العرض والهدية (Gift Emoji):
+                  </label>
+                  <div className="emoji-picker-grid">
+                    {["🎁", "✨", "🏷️", "🔥", "🛍️", "🎉", "💎", "⚡"].map(
+                      (em) => (
+                        <button
+                          key={em}
+                          type="button"
+                          className={`emoji-btn ${
+                            (config.giftEmoji || "🎁") === em ? "active" : ""
+                          }`}
+                          onClick={() => handleConfigChange("giftEmoji", em)}
+                          title={`اختر الأيقونة ${em}`}
+                        >
+                          {em}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+
+                {/* Countdown Option */}
+                <div className="form-field-group">
+                  <label
+                    className="form-label"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={Boolean(config.showCountdown)}
+                      onChange={(e) =>
+                        handleConfigChange("showCountdown", e.target.checked)
+                      }
+                      style={{ width: 18, height: 18 }}
+                    />
+                    <span>
+                      تفعيل العداد التنازلي لإثارة الحماس وسرعة الشراء (FOMO
+                      Timer)
+                    </span>
+                  </label>
+
+                  {config.showCountdown && (
+                    <div
+                      className="input-number-wrap"
+                      style={{ marginTop: "6px" }}
+                    >
+                      <input
+                        type="number"
+                        min="1"
+                        max="120"
+                        value={config.countdownMinutes || 15}
+                        onChange={(e) =>
+                          handleConfigChange(
+                            "countdownMinutes",
+                            parseInt(e.target.value, 10) || 15,
+                          )
+                        }
+                        className="form-input"
+                        style={{ width: 80 }}
+                      />
+                      <span className="input-unit">
+                        دقائق حتى ينتهي الخصم
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="rule-badge-note">
-                <Icon name="checkCircle" size={16} />
-                <span>
-                  الشرط الحالي: إذا دخل الزائر {config.minVisits} مرات خلال{" "}
-                  {config.timeWindowMinutes} دقيقة ولم يسبق له الشراء، تنبثق
-                  النافذة فوراً.
-                </span>
+              {/* Card 3: Frequency & Connection Rules */}
+              <div className="form-section-card">
+                <h4 className="section-card-title">
+                  3. قواعد الاستهداف والربط اللحظي
+                </h4>
+                <p className="section-card-desc">
+                  حدد متى تنبثق النافذة للزائر تلقائياً وقناة التواجد اللحظي.
+                </p>
+
+                <div className="form-field-group">
+                  <label htmlFor="minVisitsInput" className="form-label">
+                    عدد مرات الدخول المطلوبة لإظهار الخصم:
+                  </label>
+                  <div className="input-number-wrap">
+                    <input
+                      id="minVisitsInput"
+                      type="number"
+                      min="2"
+                      max="10"
+                      value={config.minVisits}
+                      onChange={(e) =>
+                        handleConfigChange(
+                          "minVisits",
+                          parseInt(e.target.value, 10) || 3,
+                        )
+                      }
+                      className="form-input"
+                    />
+                    <span className="input-unit">زيارات في وقت متقارب</span>
+                  </div>
+                </div>
+
+                <div className="form-field-group">
+                  <label htmlFor="timeWindowInput" className="form-label">
+                    الإطار الزمني لتقارب الزيارات:
+                  </label>
+                  <select
+                    id="timeWindowInput"
+                    value={config.timeWindowMinutes}
+                    onChange={(e) =>
+                      handleConfigChange(
+                        "timeWindowMinutes",
+                        parseInt(e.target.value, 10),
+                      )
+                    }
+                    className="form-select"
+                  >
+                    <option value={15}>خلال 15 دقيقة (تقارب سريع جداً)</option>
+                    <option value={30}>خلال 30 دقيقة (جلسة تصفح واحدة)</option>
+                    <option value={60}>خلال ساعة واحدة (موصى به)</option>
+                    <option value={180}>خلال 3 ساعات</option>
+                    <option value={1440}>خلال 24 ساعة (نفس اليوم)</option>
+                  </select>
+                </div>
+
+                <div className="rule-badge-note">
+                  <Icon name="checkCircle" size={16} />
+                  <span>
+                    الشرط الحالي: إذا دخل الزائر {config.minVisits} مرات خلال{" "}
+                    {config.timeWindowMinutes} دقيقة ولم يسبق له الشراء، تنبثق
+                    النافذة فوراً.
+                  </span>
+                </div>
+
+                <div className="form-field-group" style={{ marginTop: "8px" }}>
+                  <label htmlFor="tokenEndpointInput" className="form-label">
+                    نقطة التوثيق الآمن لقناة التواجد (Token Endpoint):
+                  </label>
+                  <input
+                    id="tokenEndpointInput"
+                    type="url"
+                    value={config.tokenEndpoint}
+                    onChange={(e) =>
+                      handleConfigChange("tokenEndpoint", e.target.value)
+                    }
+                    className="form-input font-mono"
+                  />
+                  <span className="form-hint">
+                    يستخدم السكربت هذا الرابط لتوليد مفتاح اتصال مشفر بـ Ably
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Rule 2: Modal Content & Discount Customizer */}
-            <div className="form-section-card">
-              <h4 className="section-card-title">
-                2. تخصيص محتوى وكود خصم النافذة
-              </h4>
-              <p className="section-card-desc">
-                اكتب العنوان والنص المقنع الذي يشجع العميل على إتمام الشراء.
-              </p>
+            {/* Preview Column: Sticky Live Preview */}
+            <div className="customizer-preview-column">
+              <div className="live-preview-box">
+                <span className="live-preview-badge">
+                  <Icon name="sparkles" size={13} />
+                  معاينة حية ومباشرة (Live Preview)
+                </span>
 
-              <div className="form-field-group">
-                <label htmlFor="headlineInput" className="form-label">
-                  عنوان النافذة (العنوان الجذاب):
-                </label>
-                <input
-                  id="headlineInput"
-                  type="text"
-                  value={config.headline}
-                  onChange={(e) =>
-                    handleConfigChange("headline", e.target.value)
+                <StorefrontModalPreview
+                  config={config}
+                  onClose={() =>
+                    onShowToast?.("تمت تجربة إغلاق النافذة بنجاح", "info")
                   }
-                  className="form-input"
-                  placeholder="سعداء بزيارتك المتكررة..."
-                />
-              </div>
-
-              <div className="form-field-group">
-                <label htmlFor="messageInput" className="form-label">
-                  نص الرسالة التشجيعية:
-                </label>
-                <textarea
-                  id="messageInput"
-                  rows="3"
-                  value={config.message}
-                  onChange={(e) =>
-                    handleConfigChange("message", e.target.value)
+                  onApplyDiscount={(code) =>
+                    onShowToast?.(`تم تجربة نسخ الكود (${code}) بنجاح`, "success")
                   }
-                  className="form-textarea"
                 />
-              </div>
 
-              <div className="form-row-dual">
-                <div className="form-field-group">
-                  <label htmlFor="couponInput" className="form-label">
-                    كود الخصم في متجر سلة:
-                  </label>
-                  <input
-                    id="couponInput"
-                    type="text"
-                    value={config.couponCode}
-                    onChange={(e) =>
-                      handleConfigChange(
-                        "couponCode",
-                        e.target.value.toUpperCase(),
-                      )
-                    }
-                    className="form-input font-mono"
-                    placeholder="SPECIAL3X"
-                  />
-                </div>
-
-                <div className="form-field-group">
-                  <label htmlFor="discountValInput" className="form-label">
-                    نسبة الخصم (%):
-                  </label>
-                  <input
-                    id="discountValInput"
-                    type="number"
-                    min="5"
-                    max="90"
-                    value={config.discountValue}
-                    onChange={(e) =>
-                      handleConfigChange(
-                        "discountValue",
-                        parseInt(e.target.value, 10) || 15,
-                      )
-                    }
-                    className="form-input"
-                  />
-                </div>
-              </div>
-
-              <div className="form-field-group">
-                <label htmlFor="ctaInput" className="form-label">
-                  نص زر الشراء (CTA):
-                </label>
-                <input
-                  id="ctaInput"
-                  type="text"
-                  value={config.ctaText}
-                  onChange={(e) =>
-                    handleConfigChange("ctaText", e.target.value)
-                  }
-                  className="form-input"
-                />
+                <span className="live-preview-hint">
+                  ✨ تتغير ألوان ونصوص المعاينة فوراً في الوقت الحقيقي أثناء قيامك
+                  بالتعديل. انقر على &quot;حفظ التعديلات وتحديث المتجر&quot; لتطبيقها
+                  على واجهة المتجر فوراً.
+                </span>
               </div>
             </div>
           </div>

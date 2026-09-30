@@ -4,6 +4,9 @@ import {
   checkVisitorEligibility,
   generateMockFrequentVisitors,
   generateStorefrontTrackingScript,
+  getRealStoredVisitors,
+  recordRealVisitorSession,
+  clearRealStoredVisitors,
 } from "../visitorIncentives.js";
 
 describe("visitorIncentives", () => {
@@ -96,6 +99,29 @@ describe("visitorIncentives", () => {
       expect(script).toContain("SAVE20NOW");
       expect(script).toContain("CONFIG.minVisits");
       expect(script).toContain("localStorage");
+    });
+  });
+
+  describe("real visitor storage methods", () => {
+    it("records, retrieves and clears real visitor sessions", () => {
+      clearRealStoredVisitors();
+      expect(getRealStoredVisitors()).toEqual([]);
+
+      const updated = recordRealVisitorSession({
+        id: "vis_test_123",
+        name: "زائر تجريبي",
+      });
+      expect(updated.length).toBe(1);
+      expect(updated[0].id).toBe("vis_test_123");
+      expect(updated[0].visitCount).toBe(1);
+
+      // Record a second visit for the same visitor
+      const updated2 = recordRealVisitorSession({ id: "vis_test_123" });
+      expect(updated2[0].visitCount).toBe(2);
+
+      // Clear storage
+      clearRealStoredVisitors();
+      expect(getRealStoredVisitors()).toEqual([]);
     });
   });
 });
