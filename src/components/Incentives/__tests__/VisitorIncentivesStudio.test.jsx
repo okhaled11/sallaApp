@@ -111,13 +111,9 @@ describe("VisitorIncentivesStudio", () => {
       />,
     );
 
-    // Channel presence banner
-    expect(
-      screen.getByText(/قناة التواجد اللحظي في المتجر/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/presence:store:salla-store-main/i),
-    ).toBeInTheDocument();
+    // Channel presence indicator
+    expect(screen.getByText(/قناة الربط الحي/i)).toBeInTheDocument();
+    expect(screen.getByTitle(/قناة Ably Presence/i)).toBeInTheDocument();
 
     // Click online filter
     const onlineFilterBtn = screen.getByRole("button", {

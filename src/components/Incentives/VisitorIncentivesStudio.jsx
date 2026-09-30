@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Icon from "../Icon.jsx";
 import StorefrontModalPreview from "./StorefrontModalPreview.jsx";
 import {
@@ -22,10 +22,29 @@ export default function VisitorIncentivesStudio({
   products = [],
   currency = "SAR",
   initialVisitors,
+  storeId,
   onShowToast,
 }) {
   const [activeSubTab, setActiveSubTab] = useState("visitors"); // visitors | customizer | preview | script
   const [config, setConfig] = useState(() => loadSavedIncentiveConfig());
+  const [activeStoreId, setActiveStoreId] = useState(() => {
+    if (storeId) return String(storeId);
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("_salla_active_store_id");
+      if (saved) return saved;
+      const sallaStore = window.salla?.config?.get?.("store.id");
+      if (sallaStore) return String(sallaStore);
+    }
+    return "apptest";
+  });
+
+  useEffect(() => {
+    if (storeId && String(storeId) !== String(activeStoreId)) {
+      setActiveStoreId(String(storeId));
+    }
+  }, [storeId, activeStoreId]);
+
+  const [scriptFormat, setScriptFormat] = useState("pureJs"); // pureJs | htmlTag
   const [visitors, setVisitors] = useState(() => {
     if (initialVisitors !== undefined) return initialVisitors;
     const real = getRealStoredVisitors();
@@ -73,6 +92,192 @@ export default function VisitorIncentivesStudio({
       return true;
     });
   }, [visitors, filterType, searchQuery, config]);
+
+  // Real-time synchronization: Ably Presence + LocalStorage Sync
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // 1. LocalStorage poll & cross-tab sync
+    const syncFromStorage = () => {
+      const real = getRealStoredVisitors();
+      if (real && real.length > 0) {
+        setVisitors((prev) => {
+          const map = new Map(prev.map((v) => [v.id, v]));
+          let changed = false;
+          real.forEach((r) => {
+            const ex = map.get(r.id);
+            if (
+              !ex ||
+              ex.visitCount !== r.visitCount ||
+              ex.isOnline !== r.isOnline ||
+              ex.status !== r.status
+            ) {
+              map.set(r.id, { ...ex, ...r });
+              changed = true;
+            }
+          });
+          return changed ? Array.from(map.values()) : prev;
+        });
+      }
+    };
+
+    syncFromStorage();
+    const pollTimer = setInterval(syncFromStorage, 2500);
+    window.addEventListener("storage", syncFromStorage);
+
+    // 2. Ably Realtime Presence connection
+    let isMounted = true;
+    let realtimeInstance = null;
+
+    async function setupPresence() {
+      try {
+        if (!window.Ably) {
+          if (
+            (typeof process !== "undefined" &&
+              process.env?.NODE_ENV === "test") ||
+            import.meta.env?.MODE === "test"
+          ) {
+            return;
+          }
+          const s = document.createElement("script");
+          s.src = config.ablyCdn || "https://cdn.ably.com/lib/ably.min-2.js";
+          document.head.appendChild(s);
+          await new Promise((res) => {
+            s.onload = res;
+            s.onerror = res;
+            setTimeout(res, 3000);
+          });
+        }
+
+        if (!window.Ably || !isMounted) return;
+
+        realtimeInstance = new window.Ably.Realtime({
+          authCallback: (_tokenParams, callback) => {
+            fetch(config.tokenEndpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                storeId: activeStoreId,
+                clientId: "dashboard-" + Math.random().toString(36).slice(2),
+                tokenParams: _tokenParams || {},
+              }),
+            })
+              .then((res) => res.json())
+              .then((t) => callback(null, t))
+              .catch((err) => callback(err, null));
+          },
+        });
+
+        const channel = realtimeInstance.channels.get(
+          `presence:store:${activeStoreId}`,
+        );
+
+        const updateVisitorFromPresence = (member, isOnline) => {
+          if (!isMounted) return;
+          const cId = member.data?.clientId || member.clientId;
+          if (!cId || cId.startsWith("dashboard-")) return;
+
+          const vCount = member.data?.visitCount || 1;
+          const path = member.data?.pathname || "/";
+          const pName = member.data?.productId
+            ? `منتج #${member.data.productId}`
+            : "واجهة المتجر";
+
+          setVisitors((prev) => {
+            const idx = prev.findIndex((v) => v.id === cId);
+            let updatedList;
+            if (idx !== -1) {
+              const updated = [...prev];
+              updated[idx] = {
+                ...updated[idx],
+                visitCount: Math.max(updated[idx].visitCount, vCount),
+                isOnline,
+                lastVisitedAgo: isOnline ? `متصل الآن (${path})` : "منذ قليل",
+                status:
+                  vCount >= (config.minVisits || 3)
+                    ? "qualified"
+                    : updated[idx].status,
+              };
+              updatedList = updated;
+            } else if (isOnline) {
+              updatedList = [
+                {
+                  id: cId,
+                  name: `زائر متجر سلة (#${cId.slice(-4)})`,
+                  visitorType: "guest",
+                  city: "متصفح حقيقي",
+                  device: "جوال / متصفح",
+                  visitCount: vCount,
+                  isOnline: true,
+                  visitTimestamps: [Date.now()],
+                  purchasesCount: 0,
+                  cartItemsCount: 0,
+                  cartValue: 0,
+                  viewedProducts: [pName],
+                  status:
+                    vCount >= (config.minVisits || 3)
+                      ? "qualified"
+                      : "watching",
+                  lastVisitedAgo: `متصل الآن (${path})`,
+                  timeSpanText: `${vCount} زيارات خلال وقت متقارب`,
+                },
+                ...prev,
+              ];
+            } else {
+              return prev;
+            }
+            saveRealStoredVisitors(updatedList);
+            return updatedList;
+          });
+        };
+
+        const handlePresenceList = (members) => {
+          if (!isMounted || !members) return;
+          members.forEach((m) => updateVisitorFromPresence(m, true));
+        };
+
+        try {
+          const getRes = channel.presence.get((err, members) => {
+            if (!err && members) handlePresenceList(members);
+          });
+          if (getRes && typeof getRes.then === "function") {
+            getRes.then(handlePresenceList).catch(() => {});
+          }
+        } catch {
+          // ignore
+        }
+
+        channel.presence.subscribe("enter", (m) =>
+          updateVisitorFromPresence(m, true),
+        );
+        channel.presence.subscribe("update", (m) =>
+          updateVisitorFromPresence(m, true),
+        );
+        channel.presence.subscribe("leave", (m) =>
+          updateVisitorFromPresence(m, false),
+        );
+      } catch {
+        // Fallback gracefully if offline
+      }
+    }
+
+    setupPresence();
+
+    return () => {
+      isMounted = false;
+      clearInterval(pollTimer);
+      window.removeEventListener("storage", syncFromStorage);
+      try {
+        realtimeInstance?.close();
+      } catch {}
+    };
+  }, [
+    config.enabled,
+    config.tokenEndpoint,
+    config.ablyCdn,
+    config.minVisits,
+    activeStoreId,
+  ]);
 
   // Form field updater
   const handleConfigChange = (field, value) => {
@@ -128,7 +333,11 @@ export default function VisitorIncentivesStudio({
 
   // Copy tracking script to clipboard
   const handleCopyScript = () => {
-    const script = generateStorefrontTrackingScript(config);
+    const script = generateStorefrontTrackingScript(
+      config,
+      activeStoreId,
+      scriptFormat === "htmlTag",
+    );
     navigator.clipboard?.writeText?.(script);
     setScriptCopied(true);
     onShowToast?.("تم نسخ كود التتبع لواجهة المتجر بنجاح", "success");
@@ -248,6 +457,57 @@ export default function VisitorIncentivesStudio({
           >
             {config.enabled ? "تعطيل الحملة" : "تفعيل الحملة الآن"}
           </button>
+
+          {/* Store Channel Connection Bar */}
+          <div
+            style={{
+              marginTop: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "12px",
+              background: "rgba(0, 77, 91, 0.25)",
+              padding: "6px 12px",
+              borderRadius: "8px",
+              border: "1px solid rgba(115, 252, 215, 0.2)",
+            }}
+          >
+            <span
+              style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                backgroundColor: "#00b259",
+                display: "inline-block",
+                boxShadow: "0 0 6px #00b259",
+              }}
+            />
+            <span>قناة الربط الحي:</span>
+            <input
+              type="text"
+              value={activeStoreId}
+              onChange={(e) => {
+                const val = e.target.value.trim();
+                setActiveStoreId(val);
+                if (typeof window !== "undefined") {
+                  localStorage.setItem("_salla_active_store_id", val);
+                }
+              }}
+              style={{
+                background: "rgba(255, 255, 255, 0.12)",
+                border: "1px solid rgba(115, 252, 215, 0.4)",
+                color: "#ffffff",
+                padding: "2px 8px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                fontWeight: "bold",
+                width: "100px",
+                textAlign: "center",
+                direction: "ltr",
+              }}
+              title="معرف متجرك في قناة Ably Presence"
+            />
+          </div>
         </div>
       </div>
 
@@ -434,7 +694,7 @@ export default function VisitorIncentivesStudio({
                 قناة التواجد اللحظي في المتجر:
               </span>
               <code className="channel-code">
-                presence:store:salla-store-main
+                presence:store:{activeStoreId}
               </code>
               <span className="channel-badge-connected">
                 🟢 متصل عبر Ably Realtime
@@ -1274,29 +1534,65 @@ export default function VisitorIncentivesStudio({
 
           <div className="script-instructions-box">
             <h4 className="instructions-title">
-              خطوات التفعيل في 3 خطوات بسيطة:
+              طريقة التفعيل في تطبيق مقتطفات الرموز (Code Snippets):
             </h4>
             <ol className="instructions-steps">
               <li>
-                افتح لوحة تحكم سلة الخاصة بمتجرك:{" "}
-                <strong>إعدادات المتجر</strong> &gt;{" "}
-                <strong>تخصيص الروابط والأكواد</strong> (Custom Code).
+                افتح تطبيق <strong>مقتطفات الرموز (Code Snippets)</strong> في
+                متجرك بسلة.
               </li>
               <li>
-                اختر تبويب <strong>أكواد التتبع المخصصة (أكواد إضافية)</strong>،
-                أو ضعه داخل قالب <strong>Twilight</strong> الخاص بك.
+                اختر <strong>JavaScript</strong>، والصق الكود أدناه مباشرة{" "}
+                <em>(بدون أي وسوم script أو أخطاء صياغة)</em>.
               </li>
               <li>
-                الصق الكود البرمجي أدناه واضغط <strong>حفظ</strong>. سيبدأ
-                النظام فوراً برصد الزوار وإطلاق النافذة المخصصة عند زيارتهم
-                الثالثة!
+                اضغط <strong>تحديث المعاينة</strong> ثم <strong>حفظ</strong>.
+                افتح متجرك في تبويب جديد وستظهر جلستك فوراً في لوحة التحكم تحت{" "}
+                <strong>متصل الآن</strong>!
               </li>
             </ol>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                marginTop: "14px",
+                alignItems: "center",
+              }}
+            >
+              <span style={{ fontSize: "13px", fontWeight: "bold" }}>
+                صيغة الكود:
+              </span>
+              <button
+                type="button"
+                className={`filter-btn ${
+                  scriptFormat === "pureJs" ? "active" : ""
+                }`}
+                onClick={() => setScriptFormat("pureJs")}
+              >
+                JavaScript مباشر (لتطبيق مقتطفات الرموز) ⭐
+              </button>
+              <button
+                type="button"
+                className={`filter-btn ${
+                  scriptFormat === "htmlTag" ? "active" : ""
+                }`}
+                onClick={() => setScriptFormat("htmlTag")}
+              >
+                كامل مع وسم &lt;script&gt; (للقوالب)
+              </button>
+            </div>
           </div>
 
           <div className="code-block-container">
             <pre className="code-snippet-box">
-              <code>{generateStorefrontTrackingScript(config)}</code>
+              <code>
+                {generateStorefrontTrackingScript(
+                  config,
+                  activeStoreId,
+                  scriptFormat === "htmlTag",
+                )}
+              </code>
             </pre>
           </div>
         </div>

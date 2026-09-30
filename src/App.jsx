@@ -30,12 +30,20 @@ function AppContent() {
     [setTheme],
   );
 
-  const { embedded, isReady, layout, token, verifyStatus, error, bootstrap } =
-    useAppBootstrap({
-      debug: true,
-      autoInit: false, // We trigger manually after iframe detection
-      onThemeChange: handleSdkThemeChange,
-    });
+  const {
+    embedded,
+    isReady,
+    layout,
+    token,
+    verifiedData,
+    verifyStatus,
+    error,
+    bootstrap,
+  } = useAppBootstrap({
+    debug: true,
+    autoInit: false, // We trigger manually after iframe detection
+    onThemeChange: handleSdkThemeChange,
+  });
 
   // Detect iframe mode and auto-bootstrap when embedded
   const { iframeMode, parentOrigin, setParentOrigin } =
@@ -312,6 +320,14 @@ function AppContent() {
                 <VisitorIncentivesStudio
                   products={products}
                   currency={layout?.currency || "SAR"}
+                  storeId={
+                    verifiedData?.merchant_id ||
+                    verifiedData?.store_id ||
+                    verifiedData?.id ||
+                    (typeof window !== "undefined"
+                      ? new URLSearchParams(window.location.search).get("store")
+                      : null)
+                  }
                   onShowToast={showToast}
                 />
               )}
