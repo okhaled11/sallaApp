@@ -2413,7 +2413,13 @@ pre,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, rgba(0, 77, 91, 0.08) 0%, rgba(115, 252, 215, 0.12) 100%), var(--bg-secondary);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(0, 77, 91, 0.08) 0%,
+      rgba(115, 252, 215, 0.12) 100%
+    ),
+    var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
@@ -2701,7 +2707,9 @@ pre,
   padding: 16px;
   gap: 12px;
   box-shadow: var(--shadow-sm);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .product-content-card:hover {

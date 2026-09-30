@@ -68,7 +68,10 @@ describe("ContentEnhancerModal", () => {
     await user.click(copyBtn);
 
     expect(writeSpy).toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith("تم النسخ إلى الحافظة بنجاح", "success");
+    expect(showToast).toHaveBeenCalledWith(
+      "تم النسخ إلى الحافظة بنجاح",
+      "success",
+    );
   });
 
   it("calls onClose when close button is clicked", async () => {

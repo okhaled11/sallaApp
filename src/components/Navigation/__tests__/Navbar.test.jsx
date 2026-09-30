@@ -15,19 +15,17 @@ describe("Navbar", () => {
     const { rerender } = render(
       <Navbar activeTab="sales" onTabChange={vi.fn()} />,
     );
-    expect(screen.getByRole("tab", { name: /المبيعات والأرباح/i })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    expect(
+      screen.getByRole("tab", { name: /المبيعات والأرباح/i }),
+    ).toHaveAttribute("aria-selected", "true");
     expect(
       screen.getByRole("tab", { name: /ستوديو المحتوى والسيو/i }),
     ).toHaveAttribute("aria-selected", "false");
 
     rerender(<Navbar activeTab="content" onTabChange={vi.fn()} />);
-    expect(screen.getByRole("tab", { name: /المبيعات والأرباح/i })).toHaveAttribute(
-      "aria-selected",
-      "false",
-    );
+    expect(
+      screen.getByRole("tab", { name: /المبيعات والأرباح/i }),
+    ).toHaveAttribute("aria-selected", "false");
     expect(
       screen.getByRole("tab", { name: /ستوديو المحتوى والسيو/i }),
     ).toHaveAttribute("aria-selected", "true");
@@ -38,7 +36,9 @@ describe("Navbar", () => {
     const handleTabChange = vi.fn();
 
     render(<Navbar activeTab="sales" onTabChange={handleTabChange} />);
-    const contentTab = screen.getByRole("tab", { name: /ستوديو المحتوى والسيو/i });
+    const contentTab = screen.getByRole("tab", {
+      name: /ستوديو المحتوى والسيو/i,
+    });
     await user.click(contentTab);
 
     expect(handleTabChange).toHaveBeenCalledWith("content");

@@ -159,9 +159,7 @@ function AppContent() {
     embedded,
     enabled: isReady,
     title:
-      activeTab === "content"
-        ? "ستوديو المحتوى والسيو"
-        : "المبيعات والأرباح",
+      activeTab === "content" ? "ستوديو المحتوى والسيو" : "المبيعات والأرباح",
     action: chromeAction,
     onAction: handleDashboardAction,
   });

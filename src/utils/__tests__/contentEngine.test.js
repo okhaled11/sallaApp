@@ -87,7 +87,9 @@ describe("contentEngine", () => {
       expect(result.score).toBe(5);
       expect(result.status).toBe("critical");
       expect(result.issues.some((i) => i.type === "missing_image")).toBe(true);
-      expect(result.issues.some((i) => i.type === "title_too_short")).toBe(true);
+      expect(result.issues.some((i) => i.type === "title_too_short")).toBe(
+        true,
+      );
       expect(result.issues.some((i) => i.type === "missing_sku")).toBe(true);
       expect(result.issues.some((i) => i.type === "uncategorized")).toBe(true);
     });

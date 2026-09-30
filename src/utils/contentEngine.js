@@ -78,8 +78,15 @@ export function analyzeProductContent(product) {
       id: null,
       score: 0,
       status: "critical",
-      issues: [{ type: "invalid", label: "بيانات المنتج غير صالحة", severity: "high" }],
-      checklist: { hasImage: false, optimalTitle: false, hasSku: false, isCategorized: false },
+      issues: [
+        { type: "invalid", label: "بيانات المنتج غير صالحة", severity: "high" },
+      ],
+      checklist: {
+        hasImage: false,
+        optimalTitle: false,
+        hasSku: false,
+        isCategorized: false,
+      },
       seo: { slug: "product", metaTitle: "منتج", keywords: [] },
       copywriting: generateCopywritingSuggestions({}),
     };
@@ -89,7 +96,11 @@ export function analyzeProductContent(product) {
   let score = 0;
 
   // 1. Image Check (30 pts)
-  const hasImage = Boolean(product.image && typeof product.image === "string" && product.image.trim().length > 0);
+  const hasImage = Boolean(
+    product.image &&
+    typeof product.image === "string" &&
+    product.image.trim().length > 0,
+  );
   if (hasImage) {
     score += 30;
   } else {
@@ -114,7 +125,8 @@ export function analyzeProductContent(product) {
     issues.push({
       type: "short_title",
       label: "عنوان المنتج قصير ويمكن تحسينه",
-      recommendation: "العناوين التي تتراوح بين 15 و80 حرفاً تظهر بشكل أفضل في بحث Google",
+      recommendation:
+        "العناوين التي تتراوح بين 15 و80 حرفاً تظهر بشكل أفضل في بحث Google",
       severity: "medium",
     });
   } else {
@@ -122,7 +134,8 @@ export function analyzeProductContent(product) {
     issues.push({
       type: "title_too_short",
       label: "عنوان المنتج قصير جداً أو مفقود",
-      recommendation: "حدد اسماً دقيقاً ووصفياً للمنتج مع إضافة الكلمات المميزة",
+      recommendation:
+        "حدد اسماً دقيقاً ووصفياً للمنتج مع إضافة الكلمات المميزة",
       severity: "high",
     });
   }
@@ -135,13 +148,16 @@ export function analyzeProductContent(product) {
     issues.push({
       type: "missing_sku",
       label: "رمز المنتج (SKU) غير محدد",
-      recommendation: "رمز SKU يسهل تنظيم الفواتير والتتبع وإدارة المستودع بدقة",
+      recommendation:
+        "رمز SKU يسهل تنظيم الفواتير والتتبع وإدارة المستودع بدقة",
       severity: "medium",
     });
   }
 
   // 4. Categorization (20 pts)
-  const categories = Array.isArray(product.categories) ? product.categories.filter((c) => c && c.name) : [];
+  const categories = Array.isArray(product.categories)
+    ? product.categories.filter((c) => c && c.name)
+    : [];
   const isCategorized = categories.length > 0;
   if (isCategorized) {
     score += 20;
@@ -149,7 +165,8 @@ export function analyzeProductContent(product) {
     issues.push({
       type: "uncategorized",
       label: "المنتج غير مربوط بأي تصنيف",
-      recommendation: "ربط المنتج بتصنيف واضح يساعد المشترين في العثور عليه ومحركات البحث في فهمه",
+      recommendation:
+        "ربط المنتج بتصنيف واضح يساعد المشترين في العثور عليه ومحركات البحث في فهمه",
       severity: "medium",
     });
   }
@@ -221,9 +238,13 @@ export function calculateCatalogContentStats(products = []) {
   const totalScore = analyzed.reduce((sum, item) => sum + item.score, 0);
   const averageScore = Math.round(totalScore / total);
 
-  const missingImagesCount = analyzed.filter((p) => !p.checklist.hasImage).length;
+  const missingImagesCount = analyzed.filter(
+    (p) => !p.checklist.hasImage,
+  ).length;
   const missingSkuCount = analyzed.filter((p) => !p.checklist.hasSku).length;
-  const uncategorizedCount = analyzed.filter((p) => !p.checklist.isCategorized).length;
+  const uncategorizedCount = analyzed.filter(
+    (p) => !p.checklist.isCategorized,
+  ).length;
   const needsAttentionCount = analyzed.filter((p) => p.score < 80).length;
   const readyCount = analyzed.filter((p) => p.score >= 80).length;
 

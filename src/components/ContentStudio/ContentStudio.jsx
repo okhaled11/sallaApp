@@ -85,7 +85,9 @@ export default function ContentStudio({ products = [] }) {
           </div>
           <div className="score-meta">
             <span className="score-label">مؤشر جودة المحتوى</span>
-            <span className={`score-badge-pill ${healthRating === "ممتاز" ? "excellent" : "good"}`}>
+            <span
+              className={`score-badge-pill ${healthRating === "ممتاز" ? "excellent" : "good"}`}
+            >
               {healthRating}
             </span>
           </div>
@@ -289,28 +291,44 @@ export default function ContentStudio({ products = [] }) {
                     className={`mini-check ${checklist.hasImage ? "ok" : "fail"}`}
                     title={checklist.hasImage ? "الصورة متوفرة" : "صورة مفقودة"}
                   >
-                    <Icon name={checklist.hasImage ? "checkCircle" : "alert"} size={12} />
+                    <Icon
+                      name={checklist.hasImage ? "checkCircle" : "alert"}
+                      size={12}
+                    />
                     صورة
                   </span>
                   <span
                     className={`mini-check ${checklist.optimalTitle ? "ok" : "fail"}`}
-                    title={checklist.optimalTitle ? "العنوان مثالي" : "العنوان قصير"}
+                    title={
+                      checklist.optimalTitle ? "العنوان مثالي" : "العنوان قصير"
+                    }
                   >
-                    <Icon name={checklist.optimalTitle ? "checkCircle" : "alert"} size={12} />
+                    <Icon
+                      name={checklist.optimalTitle ? "checkCircle" : "alert"}
+                      size={12}
+                    />
                     سيو
                   </span>
                   <span
                     className={`mini-check ${checklist.hasSku ? "ok" : "fail"}`}
                     title={checklist.hasSku ? "الرمز متوفر" : "بدون SKU"}
                   >
-                    <Icon name={checklist.hasSku ? "checkCircle" : "alert"} size={12} />
+                    <Icon
+                      name={checklist.hasSku ? "checkCircle" : "alert"}
+                      size={12}
+                    />
                     SKU
                   </span>
                   <span
                     className={`mini-check ${checklist.isCategorized ? "ok" : "fail"}`}
-                    title={checklist.isCategorized ? "التصنيف مربوط" : "بدون تصنيف"}
+                    title={
+                      checklist.isCategorized ? "التصنيف مربوط" : "بدون تصنيف"
+                    }
                   >
-                    <Icon name={checklist.isCategorized ? "checkCircle" : "alert"} size={12} />
+                    <Icon
+                      name={checklist.isCategorized ? "checkCircle" : "alert"}
+                      size={12}
+                    />
                     تصنيف
                   </span>
                 </div>

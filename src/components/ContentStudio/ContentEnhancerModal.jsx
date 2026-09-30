@@ -197,7 +197,9 @@ export default function ContentEnhancerModal({
                 <button
                   type="button"
                   className="copy-btn"
-                  onClick={() => handleCopy(copywriting.metaDescription, "desc")}
+                  onClick={() =>
+                    handleCopy(copywriting.metaDescription, "desc")
+                  }
                 >
                   <Icon
                     name={copiedField === "desc" ? "checkCircle" : "copy"}
