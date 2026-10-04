@@ -125,11 +125,32 @@ export async function createCouponRequest({ method, body }) {
     const result = await sallaRes.json().catch(() => ({}));
 
     if (sallaRes.ok && result.status !== "error") {
+      // Confirm the coupon is really listed, and report which store the token belongs to.
+      const authHeaders = { Authorization: `Bearer ${accessToken}`, Accept: "application/json" };
+      const [listed, storeInfo] = await Promise.all([
+        fetch(`${SALLA_COUPONS_URL}?code=${encodeURIComponent(cleanCode)}`, { headers: authHeaders })
+          .then((r) => r.json())
+          .catch(() => null),
+        fetch("https://api.salla.dev/admin/v2/store/info", { headers: authHeaders })
+          .then((r) => r.json())
+          .catch(() => null),
+      ]);
+      const storeName = storeInfo?.data?.name || "غير معروف";
+      const found = Array.isArray(listed?.data) && listed.data.some((c) => String(c.code).toUpperCase() === cleanCode);
+
+      if (!result.data?.id || (listed && !found)) {
+        logError("createCouponRequest:verify-listing", new Error(`Coupon ${cleanCode} not listed after create: ${JSON.stringify(result).slice(0, 500)}`));
+        return respond(502, {
+          success: false,
+          error: `سلة ردّت بنجاح لكن الكوبون (${cleanCode}) لم يظهر في قائمة متجر "${storeName}". رد سلة: ${redact(JSON.stringify(result).slice(0, 300))}`,
+        });
+      }
+
       return respond(200, {
         success: true,
-        coupon: result.data || payload,
+        coupon: result.data,
         code: cleanCode,
-        message: `تم إنشاء وتفعيل قسيمة الشراء (${cleanCode}) في متجرك بسلة بنجاح!`,
+        message: `تم إنشاء قسيمة (${cleanCode}) في متجر "${storeName}" (رقم ${result.data.id}). افتح تسويق ← قسائم التخفيض في نفس المتجر.`,
       });
     }
 
@@ -137,9 +158,10 @@ export async function createCouponRequest({ method, body }) {
     const errText = JSON.stringify(result);
     if (
       sallaRes.status === 422 &&
+      result.error?.fields?.code &&
       (errText.includes("already been taken") ||
         errText.includes("مستخدم مسبقاً") ||
-        errText.includes("exists"))
+        errText.includes("already exists"))
     ) {
       return respond(200, {
         success: true,

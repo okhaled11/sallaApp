@@ -186,6 +186,11 @@ export function loadIncentiveRules() {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
       parsed.forEach((r) => {
+        // Older builds marked simulated (never sent to Salla) coupons as synced.
+        if (r?.incentive?.isCreatedInSalla && String(r.incentive.sallaCouponId || "").startsWith("sim_")) {
+          r.incentive.isCreatedInSalla = false;
+          delete r.incentive.sallaCouponId;
+        }
         if (r && r.trigger && r.trigger.type === "product_visits") {
           if (r.trigger.productName === "أي منتج" || r.trigger.productName === "جميع المنتجات") {
             r.trigger.productName = "";
