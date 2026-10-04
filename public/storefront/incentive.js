@@ -5,7 +5,7 @@
 (function() {
   "use strict";
 
-  var CONFIG = {"enabled":false,"minVisits":3,"timeWindowMinutes":60,"headline":"سعداء بزيارتك المتكررة لمتجرنا! ✨","message":"لاحظنا اهتمامك بمنتجاتنا المميزة! يسعدنا تقديم خصم حصري لتكمل طلبك وتستمتع بتجربة تسوق فريدة.","couponCode":"SPECIAL3X","couponCaption":"كود الخصم الحصري لك:","discountType":"percentage","discountValue":15,"ctaText":"تطبيق الخصم وإكمال الطلب 🛍️","dismissText":"متابعة التصفح","giftEmoji":"🎁","showCountdown":true,"countdownMinutes":15,"accentColor":"#73fcd7","primaryColor":"#004d5b","enableRealtimePresence":true,"showLiveCounterBadge":false,"tokenEndpoint":"https://live-visitor-counter-backend.vercel.app/api/presence-token","ablyCdn":"https://cdn.ably.com/lib/ably.min-2.js"};
+  var CONFIG = {"enabled":false,"minVisits":3,"timeWindowMinutes":60,"headline":"سعداء بزيارتك المتكررة لمتجرنا! ✨","message":"لاحظنا اهتمامك بمنتجاتنا المميزة! يسعدنا تقديم خصم حصري لتكمل طلبك وتستمتع بتجربة تسوق فريدة.","couponCode":"","couponCaption":"كود الخصم الحصري لك:","discountType":"percentage","discountValue":15,"ctaText":"تطبيق الخصم وإكمال الطلب 🛍️","dismissText":"متابعة التصفح","giftEmoji":"🎁","showCountdown":true,"countdownMinutes":15,"accentColor":"#73fcd7","primaryColor":"#004d5b","enableRealtimePresence":true,"showLiveCounterBadge":false,"tokenEndpoint":"https://live-visitor-counter-backend.vercel.app/api/presence-token","ablyCdn":"https://cdn.ably.com/lib/ably.min-2.js"};
   var RULES = [];
   var REMOTE = true;
   var APP_ORIGIN = '';
@@ -456,13 +456,7 @@
       }
     }
 
-    var shouldTrigger = false;
-    if (matchedRule) {
-      shouldTrigger = true;
-    } else if (ACTIVE_CONFIG.enabled && ACTIVE_RULES.length === 0 && visitCount >= (ACTIVE_CONFIG.minVisits || 3)) {
-      var defShownKey = "_salla_modal_shown_" + storeId + "_default";
-      if (!sessionStorage.getItem(defShownKey)) shouldTrigger = true;
-    }
+    var shouldTrigger = !!matchedRule;
 
     if (shouldTrigger && !hasPurchased) {
       console.log("%c[Salla-Incentives] 🎯 تطابقت قاعدة التحفيز: " + (matchedRule ? matchedRule.name : "الزيارات المتكررة") + "! جارٍ إظهار النافذة...", "color:#00b259;font-weight:bold;font-size:12px;");

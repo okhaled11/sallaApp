@@ -3,7 +3,6 @@ import Icon from "../Icon.jsx";
 import StorefrontModalPreview from "./StorefrontModalPreview.jsx";
 import {
   createBlankRule,
-  getDefaultRules,
   getTriggerLabel,
   getIncentiveLabel,
   saveIncentiveRules,
@@ -905,13 +904,6 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
         <button type="button" className="irm-btn-sync-all" onClick={handleSyncAllCoupons} disabled={isSyncingAll}>
           <Icon name={isSyncingAll ? "refresh" : "cloudUpload"} size={14}/>
           {isSyncingAll ? "جاري مزامنة القسائم..." : "تفعيل جميع القسائم في سلة ⚡"}
-        </button>
-        <button type="button" className="irm-btn-reset" onClick={() => {
-          if (!window.confirm("هل تريد استعادة القواعد الافتراضية؟")) return;
-          persistRules(getDefaultRules());
-          onShowToast?.("تم استعادة القواعد الافتراضية", "info");
-        }}>
-          <Icon name="refresh" size={14}/>استعادة الافتراضي
         </button>
       </div>
 

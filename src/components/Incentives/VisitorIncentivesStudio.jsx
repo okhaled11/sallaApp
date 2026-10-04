@@ -303,6 +303,17 @@ export default function VisitorIncentivesStudio({
     activeStoreId,
   ]);
 
+  // Rules that visitors can actually see: enabled and, if they use a coupon, activated in Salla.
+  const liveRules = useMemo(
+    () =>
+      rules.filter(
+        (r) =>
+          r.enabled &&
+          (r.incentive?.type === "custom" || !r.incentive?.couponCode || r.incentive?.isCreatedInSalla),
+      ),
+    [rules],
+  );
+
   // Publish saved settings to the server so the storefront script (installed once) uses them.
   const [publishState, setPublishState] = useState("idle"); // idle | saving | saved | error
   const [publishNote, setPublishNote] = useState("");
@@ -721,23 +732,18 @@ export default function VisitorIncentivesStudio({
 
           <div className="salla-metric-value-row">
             <span className="salla-big-number kpi-mini-val" style={{ fontSize: "28px" }}>
-              {config.couponCode} ({config.discountValue}%)
+              {liveRules.length === 1 ? liveRules[0].incentive.couponCode || liveRules[0].name : liveRules.length}
             </span>
             <span className="salla-metric-badge salla-badge-neutral">
-              {config.enabled ? "يعمل بالمتجر" : "معطل"}
+              {liveRules.length > 0 ? "يعمل بالمتجر" : "لا توجد قواعد مفعّلة"}
             </span>
-          </div>
-
-          <div className="salla-metric-progress-track">
-            <div
-              className="salla-metric-progress-fill"
-              style={{ width: `${Math.min(100, config.discountValue * 2)}%` }}
-            />
           </div>
 
           <div className="salla-card-footer">
             <span className="salla-metric-subtext">
-              خصم <strong>{config.discountValue}%</strong> للمترددين
+              {liveRules.length > 0
+                ? `${liveRules.length} قاعدة مفعّلة وجاهزة للظهور للزوار`
+                : "فعّل قاعدة وكوبونها في سلة لتظهر للزوار"}
             </span>
             <button
               type="button"

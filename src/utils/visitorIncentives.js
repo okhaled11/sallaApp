@@ -10,7 +10,7 @@ export const DEFAULT_INCENTIVE_CONFIG = {
   headline: "سعداء بزيارتك المتكررة لمتجرنا! ✨",
   message:
     "لاحظنا اهتمامك بمنتجاتنا المميزة! يسعدنا تقديم خصم حصري لتكمل طلبك وتستمتع بتجربة تسوق فريدة.",
-  couponCode: "SPECIAL3X",
+  couponCode: "",
   couponCaption: "كود الخصم الحصري لك:",
   discountType: "percentage", // "percentage" | "fixed"
   discountValue: 15,
@@ -118,71 +118,14 @@ export function createBlankRule(overrides = {}) {
 }
 
 /**
- * Returns the 3 default starter rules (store visits, product repeat, cart abandon)
- * @returns {Array<object>}
- */
-export function getDefaultRules() {
-  return [
-    createBlankRule({
-      id: "rule_default_store",
-      name: "خصم الزائر المتكرر للمتجر",
-      priority: 1,
-      trigger: { type: "store_visits", minVisits: 3, timeWindowMinutes: 60, productId: null, productName: "", categoryName: "" },
-      incentive: { type: "coupon_discount", discountValue: 15, discountType: "percentage", couponCode: "LOYAL3X", freeShippingThreshold: 0 },
-      modal: {
-        headline: "سعداء بزيارتك المتكررة لمتجرنا!",
-        message: "لاحظنا اهتمامك بمنتجاتنا! يسعدنا تقديم خصم 15% حصري لك لتكمل طلبك.",
-        ctaText: "تطبيق الخصم وإكمال الطلب",
-        dismissText: "متابعة التصفح",
-        couponCaption: "كود الخصم الحصري لك:",
-        primaryColor: "#004d5b", accentColor: "#73fcd7", giftIcon: "gift",
-        showCountdown: true, countdownMinutes: 15,
-      },
-    }),
-    createBlankRule({
-      id: "rule_default_product",
-      name: "توصيل مجاني لزائر المنتج",
-      priority: 2,
-      trigger: { type: "product_visits", minVisits: 2, timeWindowMinutes: 120, productId: null, productName: "", productTargetScope: "all", categoryName: "" },
-      incentive: { type: "free_shipping", discountValue: 0, discountType: "percentage", couponCode: "FREESHIP", freeShippingThreshold: 0 },
-      modal: {
-        headline: "اشتر الآن واحصل على توصيل مجاني!",
-        message: "لاحظنا اهتمامك بهذا المنتج عدة مرات. احصل على توصيل مجاني عند إضافته للسلة الآن.",
-        ctaText: "إضافة للسلة مع توصيل مجاني",
-        dismissText: "لاحقاً",
-        couponCaption: "كود التوصيل المجاني:",
-        primaryColor: "#0f4c81", accentColor: "#fbbf24", giftIcon: "shoppingBag",
-        showCountdown: true, countdownMinutes: 20,
-      },
-    }),
-    createBlankRule({
-      id: "rule_default_cart",
-      name: "استعادة السلة المتروكة",
-      priority: 3,
-      trigger: { type: "cart_abandon", minVisits: 1, timeWindowMinutes: 30, productId: null, productName: "", categoryName: "" },
-      incentive: { type: "coupon_discount", discountValue: 10, discountType: "percentage", couponCode: "COMEBACK10", freeShippingThreshold: 0 },
-      modal: {
-        headline: "نسيت شيئاً في سلتك!",
-        message: "لديك منتجات في سلة مشترياتك. أكمل طلبك الآن واحصل على خصم 10% كمكافأة خاصة.",
-        ctaText: "إكمال الشراء مع الخصم",
-        dismissText: "إلغاء",
-        couponCaption: "خصم العودة:",
-        primaryColor: "#6d28d9", accentColor: "#a78bfa", giftIcon: "cart",
-        showCountdown: false, countdownMinutes: 10,
-      },
-    }),
-  ];
-}
-
-/**
  * Load incentive rules from localStorage
  * @returns {Array<object>}
  */
 export function loadIncentiveRules() {
-  if (typeof window === "undefined" || !window.localStorage) return getDefaultRules();
+  if (typeof window === "undefined" || !window.localStorage) return [];
   try {
     const raw = window.localStorage.getItem(INCENTIVE_RULES_STORAGE_KEY);
-    if (!raw) return getDefaultRules();
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
       parsed.forEach((r) => {
@@ -200,9 +143,9 @@ export function loadIncentiveRules() {
       });
       return parsed;
     }
-    return getDefaultRules();
+    return [];
   } catch {
-    return getDefaultRules();
+    return [];
   }
 }
 
@@ -1080,13 +1023,7 @@ export function generateStorefrontTrackingScript(
     "      }",
     "    }",
     "",
-    "    var shouldTrigger = false;",
-    "    if (matchedRule) {",
-    "      shouldTrigger = true;",
-    "    } else if (ACTIVE_CONFIG.enabled && ACTIVE_RULES.length === 0 && visitCount >= (ACTIVE_CONFIG.minVisits || 3)) {",
-    '      var defShownKey = "_salla_modal_shown_" + storeId + "_default";',
-    "      if (!sessionStorage.getItem(defShownKey)) shouldTrigger = true;",
-    "    }",
+    "    var shouldTrigger = !!matchedRule;",
     "",
     "    if (shouldTrigger && !hasPurchased) {",
     '      console.log("%c[Salla-Incentives] 🎯 تطابقت قاعدة التحفيز: " + (matchedRule ? matchedRule.name : "الزيارات المتكررة") + "! جارٍ إظهار النافذة...", "color:#00b259;font-weight:bold;font-size:12px;");',

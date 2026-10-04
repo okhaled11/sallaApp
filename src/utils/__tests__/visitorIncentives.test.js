@@ -13,7 +13,7 @@ describe("visitorIncentives", () => {
   it("provides valid default configuration", () => {
     expect(DEFAULT_INCENTIVE_CONFIG.minVisits).toBe(3);
     expect(DEFAULT_INCENTIVE_CONFIG.timeWindowMinutes).toBe(60);
-    expect(DEFAULT_INCENTIVE_CONFIG.couponCode).toBe("SPECIAL3X");
+    expect(DEFAULT_INCENTIVE_CONFIG.couponCode).toBe("");
     expect(DEFAULT_INCENTIVE_CONFIG.enabled).toBe(true);
   });
 
