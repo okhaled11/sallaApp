@@ -94,21 +94,21 @@ export async function createCouponRequest({ method, body }) {
   const startDate = today.toISOString().split("T")[0];
   const expiryDate = nextYear.toISOString().split("T")[0];
 
-  const sallaType =
-    discount_type === "fixed"
-      ? "fixed"
-      : discount_type === "free_shipping"
-        ? "free_shipping"
-        : "percentage";
+  // Salla only accepts "percentage" | "fixed" for `type`; free shipping is the
+  // separate `free_shipping` flag (amount must still be a positive number).
+  const isFreeShipping = Boolean(free_shipping || discount_type === "free_shipping");
+  const sallaType = discount_type === "fixed" || discount_type === "free_shipping" ? "fixed" : "percentage";
+  const amount = discount_type === "free_shipping" ? 1 : Number(discount_value) || 1;
 
   const payload = {
     name: name || `كوبون تحفيز الزوار (${cleanCode})`,
     code: cleanCode,
     type: sallaType,
-    amount: Number(discount_value) || 0,
-    free_shipping: Boolean(free_shipping || discount_type === "free_shipping"),
+    amount,
+    free_shipping: isFreeShipping,
     start_date: startDate,
     expiry_date: expiryDate,
+    exclude_sale_products: false,
   };
 
   try {
@@ -150,7 +150,12 @@ export async function createCouponRequest({ method, body }) {
       });
     }
 
-    const sallaMsg = redact(result.error?.message || result.message || "فشل إنشاء القسيمة في سلة");
+    const fields = result.error?.fields
+      ? Object.entries(result.error.fields).map(([k, v]) => `${k}: ${[].concat(v).join(", ")}`).join(" | ")
+      : "";
+    const sallaMsg = redact(
+      [result.error?.message || result.message || "فشل إنشاء القسيمة في سلة", fields].filter(Boolean).join(" — ")
+    );
     return respond(sallaRes.status >= 400 && sallaRes.status < 600 ? sallaRes.status : 500, {
       success: false,
       error: `استجابة سلة (${sallaRes.status}): ${sallaMsg}`,
