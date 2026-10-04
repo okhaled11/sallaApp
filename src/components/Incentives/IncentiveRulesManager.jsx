@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+﻿import { useState, useCallback } from "react";
 import Icon from "../Icon.jsx";
 import StorefrontModalPreview from "./StorefrontModalPreview.jsx";
 import {
@@ -9,19 +9,20 @@ import {
   saveIncentiveRules,
   loadIncentiveRules,
 } from "../../utils/visitorIncentives.js";
+import { createSallaCoupon } from "../../utils/couponsApi.js";
 
 const INCENTIVE_COLORS = {
-  coupon_discount: { bg: "#dbeafe", text: "#1d4ed8", icon: "percent" },
-  free_shipping:   { bg: "#d1fae5", text: "#065f46", icon: "bag" },
-  free_product:    { bg: "#fef3c7", text: "#92400e", icon: "gift" },
-  custom:          { bg: "#ede9fe", text: "#5b21b6", icon: "sparkles" },
+  coupon_discount: { bg: "#dbeafe", text: "#1d4ed8", icon: "percent", fg: "#60a5fa" },
+  free_shipping:   { bg: "#d1fae5", text: "#065f46", icon: "bag", fg: "#34d399" },
+  free_product:    { bg: "#fef3c7", text: "#92400e", icon: "gift", fg: "#fbbf24" },
+  custom:          { bg: "#ede9fe", text: "#5b21b6", icon: "sparkles", fg: "#a78bfa" },
 };
 
 const TRIGGER_COLORS = {
-  store_visits:    { bg: "#e0f2fe", text: "#0369a1" },
-  product_visits:  { bg: "#fce7f3", text: "#9d174d" },
-  category_visits: { bg: "#fef3c7", text: "#92400e" },
-  cart_abandon:    { bg: "#fee2e2", text: "#b91c1c" },
+  store_visits:    { bg: "#e0f2fe", text: "#0369a1", fg: "#38bdf8" },
+  product_visits:  { bg: "#fce7f3", text: "#9d174d", fg: "#f472b6" },
+  category_visits: { bg: "#fef3c7", text: "#92400e", fg: "#fbbf24" },
+  cart_abandon:    { bg: "#fee2e2", text: "#b91c1c", fg: "#f87171" },
 };
 
 const COLOR_PRESETS = [
@@ -42,7 +43,19 @@ const ICON_OPTIONS = [
 ];
 
 /* ─── Rule Card ─────────────────────────────────────────── */
-function RuleCard({ rule, index, onEdit, onDelete, onToggle, onMoveUp, onMoveDown, isFirst, isLast }) {
+function RuleCard({
+  rule,
+  index,
+  onEdit,
+  onDelete,
+  onToggle,
+  onMoveUp,
+  onMoveDown,
+  isFirst,
+  isLast,
+  onSyncCoupon,
+  isSyncingCoupon,
+}) {
   const ic = INCENTIVE_COLORS[rule.incentive.type] || INCENTIVE_COLORS.coupon_discount;
   const tc = TRIGGER_COLORS[rule.trigger.type]     || TRIGGER_COLORS.store_visits;
   return (
@@ -75,6 +88,27 @@ function RuleCard({ rule, index, onEdit, onDelete, onToggle, onMoveUp, onMoveDow
           {rule.incentive.type === "coupon_discount" && <span className="irm-meta-chip highlight"><Icon name="tag" size={12}/>{rule.incentive.couponCode} — خصم {rule.incentive.discountValue}{rule.incentive.discountType === "percentage" ? "%" : " ر.س"}</span>}
           {rule.incentive.type === "free_shipping"   && <span className="irm-meta-chip highlight"><Icon name="bag"  size={12}/>{rule.incentive.couponCode} — توصيل مجاني</span>}
           {rule.incentive.type === "free_product"    && <span className="irm-meta-chip highlight"><Icon name="gift" size={12}/>{rule.incentive.couponCode} — منتج مجاني</span>}
+          {rule.incentive.type !== "custom" && rule.incentive.couponCode && (
+            rule.incentive.isCreatedInSalla ? (
+              <span className="irm-meta-chip salla-synced" title="تم إنشاء وتفعيل هذا الكوبون كقسيمة شراء حقيقية في متجر سلة">
+                <Icon name="checkCircle" size={12}/> مفعل بسلة ✓
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="irm-sync-coupon-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSyncCoupon?.(rule);
+                }}
+                disabled={isSyncingCoupon}
+                title="إنشاء وتفعيل هذه القسيمة في متجر سلة الآن"
+              >
+                <Icon name={isSyncingCoupon ? "refresh" : "flash"} size={11}/>
+                {isSyncingCoupon ? "جاري التفعيل..." : "تفعيل بسلة ⚡"}
+              </button>
+            )
+          )}
         </div>
       </div>
       <div className="irm-card-actions">
@@ -317,14 +351,51 @@ function ProductTargetSelector({ trigger, products = [], onChange, onApplyAutoTe
 }
 
 /* ─── Rule Editor Panel ─────────────────────────────────── */
-function RuleEditorPanel({ rule, products, onSave, onCancel }) {
+function RuleEditorPanel({ rule, products, token, onShowToast, onSave, onCancel }) {
   const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(rule)));
   const [tab, setTab] = useState("trigger");
+  const [isSyncingSalla, setIsSyncingSalla] = useState(false);
 
   const setT = (k, v) => setDraft((d) => ({ ...d, trigger:  { ...d.trigger,  [k]: v } }));
   const setTriggerFields = (fields) => setDraft((d) => ({ ...d, trigger: { ...d.trigger, ...fields } }));
   const setI = (k, v) => setDraft((d) => ({ ...d, incentive: { ...d.incentive, [k]: v } }));
   const setM = (k, v) => setDraft((d) => ({ ...d, modal:    { ...d.modal,    [k]: v } }));
+
+  const handleCreateCouponInSalla = async () => {
+    const code = draft.incentive.couponCode;
+    if (!code || !code.trim()) {
+      onShowToast?.("يرجى إدخال كود الكوبون أولاً", "warning");
+      return;
+    }
+    setIsSyncingSalla(true);
+    try {
+      const res = await createSallaCoupon(token, {
+        code: code.trim().toUpperCase(),
+        name: draft.name || `قسيمة ${code}`,
+        discount_type: draft.incentive.discountType || (draft.incentive.type === "free_shipping" ? "free_shipping" : "percentage"),
+        discount_value: Number(draft.incentive.discountValue) || 15,
+        free_shipping: Boolean(draft.incentive.type === "free_shipping" || draft.incentive.freeShippingThreshold > 0),
+      });
+      if (res.success) {
+        setI("isCreatedInSalla", true);
+        if (res.coupon?.id) {
+          setI("sallaCouponId", res.coupon.id);
+        }
+        onShowToast?.(
+          res.alreadyExists
+            ? `الكوبون (${code}) مفعل بالفعل في متجرك بسلة`
+            : res.message || `تم تفعيل القسيمة (${code}) في متجر سلة بنجاح!`,
+          "success"
+        );
+      } else {
+        onShowToast?.(res.error || "فشل إنشاء القسيمة في سلة", "error");
+      }
+    } catch {
+      onShowToast?.("حدث خطأ أثناء الاتصال بسلة", "error");
+    } finally {
+      setIsSyncingSalla(false);
+    }
+  };
 
   const handleApplyProductAutoText = (prod) => {
     if (!prod?.name) return;
@@ -398,10 +469,10 @@ function RuleEditorPanel({ rule, products, onSave, onCancel }) {
                       return (
                         <button key={val} type="button"
                           className={`irm-trigger-option${draft.trigger.type===val?" selected":""}`}
-                          style={draft.trigger.type===val ? {borderColor:c.text, background:c.bg+"55"} : {}}
+                          style={draft.trigger.type===val ? {borderColor:c.fg, background:c.fg+"1f"} : {}}
                           onClick={() => setT("type", val)}
                         >
-                          <span style={{color:c.text}}><Icon name={ico} size={22}/></span>
+                          <span style={{color:c.fg}}><Icon name={ico} size={22}/></span>
                           <span className="irm-trigger-label">{lbl}</span>
                           <span className="irm-trigger-desc">{desc}</span>
                         </button>
@@ -463,10 +534,10 @@ function RuleEditorPanel({ rule, products, onSave, onCancel }) {
                       return (
                         <button key={val} type="button"
                           className={`irm-incentive-option${draft.incentive.type===val?" selected":""}`}
-                          style={draft.incentive.type===val ? {borderColor:c.text, background:c.bg} : {}}
+                          style={draft.incentive.type===val ? {borderColor:c.fg, background:c.fg+"1f"} : {}}
                           onClick={() => setI("type", val)}
                         >
-                          <span style={{color:c.text}}><Icon name={ico} size={26}/></span>
+                          <span style={{color:c.fg}}><Icon name={ico} size={26}/></span>
                           <span className="irm-inc-label">{lbl}</span>
                           <span className="irm-inc-desc">{desc}</span>
                         </button>
@@ -480,6 +551,39 @@ function RuleEditorPanel({ rule, products, onSave, onCancel }) {
                   <input className="irm-input irm-input-mono" value={draft.incentive.couponCode}
                     onChange={(e) => setI("couponCode", e.target.value.toUpperCase())} placeholder="SAVE20" maxLength={20}/>
                 </div>
+
+                {draft.incentive.type !== "custom" && draft.incentive.couponCode && (
+                  <div className="irm-salla-coupon-box">
+                    <div className="irm-salla-coupon-info">
+                      <Icon name={draft.incentive.isCreatedInSalla ? "checkCircle" : "flash"} size={18} />
+                      <div>
+                        <strong>
+                          {draft.incentive.isCreatedInSalla
+                            ? "القسيمة مفعلة وجاهزة في متجر سلة ✓"
+                            : "تفعيل قسيمة الشراء الحقيقية في متجر سلة"}
+                        </strong>
+                        <p>
+                          {draft.incentive.isCreatedInSalla
+                            ? `تم ربط الكود (${draft.incentive.couponCode}) كقسيمة شراء حقيقية في متجرك بسلة.`
+                            : "اضغط الزر لإنشاء القسيمة الحقيقية في متجر سلة ليعمل الخصم مباشرة عند الشراء."}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className={`irm-btn-salla-sync ${draft.incentive.isCreatedInSalla ? "synced" : ""}`}
+                      onClick={handleCreateCouponInSalla}
+                      disabled={isSyncingSalla}
+                    >
+                      <Icon name={isSyncingSalla ? "refresh" : "flash"} size={14} />
+                      {isSyncingSalla
+                        ? "جاري التفعيل..."
+                        : draft.incentive.isCreatedInSalla
+                        ? "إعادة مزامنة مع سلة ✓"
+                        : "تفعيل القسيمة في متجر سلة ⚡"}
+                    </button>
+                  </div>
+                )}
 
                 {draft.incentive.type === "coupon_discount" && (
                   <>
@@ -594,10 +698,12 @@ function RuleEditorPanel({ rule, products, onSave, onCancel }) {
 }
 
 /* ─── Main Export ───────────────────────────────────────── */
-export default function IncentiveRulesManager({ products = [], onShowToast }) {
+export default function IncentiveRulesManager({ products = [], token = null, onShowToast }) {
   const [rules, setRules] = useState(() => loadIncentiveRules());
   const [editingRule, setEditingRule] = useState(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [syncingRuleId, setSyncingRuleId] = useState(null);
+  const [isSyncingAll, setIsSyncingAll] = useState(false);
 
   const persistRules = useCallback((updated) => {
     setRules(updated);
@@ -628,13 +734,115 @@ export default function IncentiveRulesManager({ products = [], onShowToast }) {
   const handleMoveUp   = (i) => { if (i === 0) return; const a=[...rules]; [a[i-1],a[i]]=[a[i],a[i-1]]; persistRules(a); };
   const handleMoveDown = (i) => { if (i===rules.length-1) return; const a=[...rules]; [a[i],a[i+1]]=[a[i+1],a[i]]; persistRules(a); };
 
+  const handleSyncSingleCoupon = async (rule) => {
+    if (rule.incentive?.type === "custom") return;
+    const code = rule.incentive?.couponCode;
+    if (!code) {
+      onShowToast?.("القاعدة لا تحتوي على كود كوبون", "warning");
+      return;
+    }
+    setSyncingRuleId(rule.id);
+    try {
+      const res = await createSallaCoupon(token, {
+        code: code.trim().toUpperCase(),
+        name: rule.name || `قسيمة ${code}`,
+        discount_type: rule.incentive.discountType || (rule.incentive.type === "free_shipping" ? "free_shipping" : "percentage"),
+        discount_value: Number(rule.incentive.discountValue) || 15,
+        free_shipping: Boolean(rule.incentive.type === "free_shipping" || rule.incentive.freeShippingThreshold > 0),
+      });
+      if (res.success) {
+        const updated = rules.map((r) =>
+          r.id === rule.id
+            ? {
+                ...r,
+                incentive: {
+                  ...r.incentive,
+                  isCreatedInSalla: true,
+                  sallaCouponId: res.coupon?.id || r.incentive.sallaCouponId,
+                },
+              }
+            : r
+        );
+        persistRules(updated);
+        onShowToast?.(
+          res.alreadyExists
+            ? `الكوبون (${code}) مفعل بالفعل في متجرك بسلة`
+            : res.message || `تم تفعيل القسيمة (${code}) في متجر سلة بنجاح!`,
+          "success"
+        );
+      } else {
+        onShowToast?.(res.error || `فشل تفعيل القسيمة (${code})`, "error");
+      }
+    } catch {
+      onShowToast?.(`حدث خطأ أثناء تفعيل القسيمة (${code})`, "error");
+    } finally {
+      setSyncingRuleId(null);
+    }
+  };
+
+  const handleSyncAllCoupons = async () => {
+    const couponRules = rules.filter((r) => r.enabled && r.incentive?.type !== "custom" && r.incentive?.couponCode);
+    if (couponRules.length === 0) {
+      onShowToast?.("لا توجد قواعد نشطة تحتوي على كوبونات للمزامنة", "info");
+      return;
+    }
+    setIsSyncingAll(true);
+    let successCount = 0;
+    let failCount = 0;
+    let updatedRules = [...rules];
+
+    for (const r of couponRules) {
+      try {
+        const res = await createSallaCoupon(token, {
+          code: r.incentive.couponCode.trim().toUpperCase(),
+          name: r.name || `قسيمة ${r.incentive.couponCode}`,
+          discount_type: r.incentive.discountType || (r.incentive.type === "free_shipping" ? "free_shipping" : "percentage"),
+          discount_value: Number(r.incentive.discountValue) || 15,
+          free_shipping: Boolean(r.incentive.type === "free_shipping" || r.incentive.freeShippingThreshold > 0),
+        });
+        if (res.success) {
+          successCount++;
+          updatedRules = updatedRules.map((item) =>
+            item.id === r.id
+              ? {
+                  ...item,
+                  incentive: {
+                    ...item.incentive,
+                    isCreatedInSalla: true,
+                    sallaCouponId: res.coupon?.id || item.incentive.sallaCouponId,
+                  },
+                }
+              : item
+          );
+        } else {
+          failCount++;
+        }
+      } catch {
+        failCount++;
+      }
+    }
+    persistRules(updatedRules);
+    setIsSyncingAll(false);
+    if (failCount === 0) {
+      onShowToast?.(`تم تفعيل جميع القسائم (${successCount}) في متجر سلة بنجاح! ⚡`, "success");
+    } else {
+      onShowToast?.(`تم تفعيل ${successCount} قسيمة، وتعذر تفعيل ${failCount}`, "warning");
+    }
+  };
+
   const enabledCount = rules.filter((r) => r.enabled).length;
 
   return (
     <div className="irm-container">
       {editingRule && (
-        <RuleEditorPanel rule={editingRule} products={products} onSave={handleSaveRule}
-          onCancel={() => { setEditingRule(null); setIsCreating(false); }}/>
+        <RuleEditorPanel
+          rule={editingRule}
+          products={products}
+          token={token}
+          onShowToast={onShowToast}
+          onSave={handleSaveRule}
+          onCancel={() => { setEditingRule(null); setIsCreating(false); }}
+        />
       )}
 
       <div className="irm-header">
@@ -659,6 +867,10 @@ export default function IncentiveRulesManager({ products = [], onShowToast }) {
         <button type="button" className="irm-btn-add" onClick={() => { setEditingRule(createBlankRule()); setIsCreating(true); }}>
           <Icon name="flash" size={16}/>إضافة قاعدة جديدة
         </button>
+        <button type="button" className="irm-btn-sync-all" onClick={handleSyncAllCoupons} disabled={isSyncingAll}>
+          <Icon name={isSyncingAll ? "refresh" : "cloudUpload"} size={14}/>
+          {isSyncingAll ? "جاري مزامنة القسائم..." : "تفعيل جميع القسائم في سلة ⚡"}
+        </button>
         <button type="button" className="irm-btn-reset" onClick={() => {
           if (!window.confirm("هل تريد استعادة القواعد الافتراضية؟")) return;
           persistRules(getDefaultRules());
@@ -679,18 +891,26 @@ export default function IncentiveRulesManager({ products = [], onShowToast }) {
             </button>
           </div>
         ) : rules.map((rule, i) => (
-          <RuleCard key={rule.id} rule={rule} index={i} isFirst={i===0} isLast={i===rules.length-1}
+          <RuleCard
+            key={rule.id}
+            rule={rule}
+            index={i}
+            isFirst={i===0}
+            isLast={i===rules.length-1}
             onEdit={() => { setEditingRule(rule); setIsCreating(false); }}
             onDelete={() => handleDeleteRule(rule.id)}
             onToggle={() => persistRules(rules.map((r) => r.id===rule.id ? {...r,enabled:!r.enabled} : r))}
-            onMoveUp={() => handleMoveUp(i)} onMoveDown={() => handleMoveDown(i)}
+            onMoveUp={() => handleMoveUp(i)}
+            onMoveDown={() => handleMoveDown(i)}
+            onSyncCoupon={handleSyncSingleCoupon}
+            isSyncingCoupon={syncingRuleId === rule.id}
           />
         ))}
       </div>
 
       <div className="irm-info-footer">
         <Icon name="help" size={13}/>
-        <span>القواعد تُطبَّق بالترتيب — الأولى في القائمة لها أعلى أولوية. تأكد من تثبيت كود التتبع في متجرك.</span>
+        <span>القواعد تُطبَّق بالترتيب — الأولى في القائمة لها أعلى أولوية. اضغط "تفعيل بسلة ⚡" لإنشاء القسيمة ككود شراء حقيقي في متجرك.</span>
       </div>
     </div>
   );

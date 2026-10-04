@@ -2931,7 +2931,7 @@ pre,
 
 .filter-chip.active {
   background: var(--salla-primary);
-  color: #ffffff;
+  color: #00333d;
   border-color: var(--salla-primary);
 }
 
@@ -5445,7 +5445,8 @@ pre,
 }
 
 .irm-editor-panel {
-  background: #ffffff;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color-strong);
   border-radius: var(--radius-lg);
   max-width: 980px;
   width: 100%;
@@ -5495,9 +5496,9 @@ pre,
 }
 
 .irm-rule-name-input:focus {
-  background: #ffffff;
+  background: var(--bg-tertiary);
   border-color: var(--salla-primary);
-  box-shadow: 0 0 0 2px rgba(0, 77, 91, 0.15);
+  box-shadow: 0 0 0 2px rgba(115, 252, 215, 0.10);
 }
 
 .irm-editor-close-btn {
@@ -5547,7 +5548,7 @@ pre,
 .irm-editor-tab.active {
   color: var(--salla-primary);
   border-bottom-color: var(--salla-primary);
-  background: #ffffff;
+  background: var(--bg-tertiary);
 }
 
 .irm-editor-body {
@@ -5565,7 +5566,7 @@ pre,
 }
 
 .irm-editor-preview-col {
-  background: #f1f5f9;
+  background: var(--bg-secondary);
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -5616,7 +5617,7 @@ pre,
   font-size: 11px;
   font-weight: 800;
   color: var(--salla-primary);
-  background: rgba(0, 77, 91, 0.08);
+  background: rgba(115, 252, 215, 0.10);
   padding: 2px 8px;
   border-radius: 999px;
   font-family: var(--font-mono);
@@ -5631,7 +5632,7 @@ pre,
   font-size: 13.5px;
   font-family: inherit;
   color: var(--text-primary);
-  background: #ffffff;
+  background: var(--bg-tertiary);
   outline: none;
   transition: all var(--transition-fast);
   box-sizing: border-box;
@@ -5640,7 +5641,7 @@ pre,
 .irm-input:focus,
 .irm-textarea:focus {
   border-color: var(--salla-primary);
-  box-shadow: 0 0 0 2px rgba(0, 77, 91, 0.12);
+  box-shadow: 0 0 0 2px rgba(115, 252, 215, 0.10);
 }
 
 .irm-input-mono {
@@ -5664,7 +5665,7 @@ pre,
   padding: 12px 14px;
   border: 1.5px solid var(--border-color);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: var(--bg-tertiary);
   cursor: pointer;
   text-align: right;
   transition: all var(--transition-fast);
@@ -5673,13 +5674,13 @@ pre,
 
 .irm-trigger-option:hover,
 .irm-incentive-option:hover {
-  border-color: rgba(0, 77, 91, 0.4);
+  border-color: rgba(115, 252, 215, 0.4);
   transform: translateY(-1px);
 }
 
 .irm-trigger-option.selected,
 .irm-incentive-option.selected {
-  box-shadow: 0 3px 10px rgba(0, 77, 91, 0.12);
+  box-shadow: 0 3px 10px rgba(115, 252, 215, 0.10);
 }
 
 .irm-trigger-label,
@@ -5718,7 +5719,7 @@ pre,
 }
 
 .irm-seg-ctrl button.active {
-  background: #ffffff;
+  background: var(--bg-primary);
   color: var(--salla-primary);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
@@ -5788,7 +5789,7 @@ pre,
   height: 40px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
-  background: #ffffff;
+  background: var(--bg-tertiary);
   color: var(--text-secondary);
   display: flex;
   align-items: center;
@@ -5804,7 +5805,7 @@ pre,
 
 .irm-icon-btn.active {
   background: var(--salla-primary);
-  color: #ffffff;
+  color: #00333d;
   border-color: var(--salla-primary);
 }
 
@@ -5849,18 +5850,18 @@ pre,
   gap: 8px;
   background: var(--salla-primary);
   border: none;
-  color: #ffffff;
+  color: #00333d;
   padding: 10px 24px;
   border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 3px 12px rgba(0, 77, 91, 0.25);
+  box-shadow: 0 3px 12px rgba(115, 252, 215, 0.4);
   transition: all var(--transition-fast);
 }
 
 .irm-btn-save:hover {
-  background: #003640;
+  background: var(--salla-secondary);
 }
 
 /* ============================================================
@@ -5881,7 +5882,7 @@ pre,
   padding: 10px 12px;
   border: 1.5px solid var(--border-color);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: var(--bg-tertiary);
   cursor: pointer;
   text-align: right;
   gap: 3px;
@@ -5889,12 +5890,12 @@ pre,
 }
 
 .irm-scope-btn:hover {
-  border-color: rgba(0, 77, 91, 0.35);
+  border-color: rgba(115, 252, 215, 0.4);
 }
 
 .irm-scope-btn.active {
   border-color: var(--salla-primary);
-  background: rgba(0, 77, 91, 0.05);
+  background: rgba(115, 252, 215, 0.10);
 }
 
 .irm-scope-title {
@@ -5917,8 +5918,8 @@ pre,
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  background: #fdf2f8;
-  border: 1.5px solid #fbcfe8;
+  background: rgba(244, 114, 182, 0.10);
+  border: 1.5px solid rgba(244, 114, 182, 0.45);
   border-radius: var(--radius-md);
   margin-top: 4px;
 }
@@ -5927,7 +5928,7 @@ pre,
   width: 52px;
   height: 52px;
   border-radius: var(--radius-sm);
-  background: #ffffff;
+  background: var(--bg-tertiary);
   border: 1px solid rgba(0, 0, 0, 0.08);
   display: flex;
   align-items: center;
@@ -5952,12 +5953,12 @@ pre,
 .irm-prod-title {
   font-size: 14px;
   font-weight: 800;
-  color: #831843;
+  color: #fbcfe8;
 }
 
 .irm-prod-meta {
   font-size: 12px;
-  color: #9d174d;
+  color: #f9a8d4;
   font-weight: 600;
 }
 
@@ -5969,9 +5970,9 @@ pre,
 }
 
 .irm-btn-change-prod {
-  background: #ffffff;
+  background: var(--bg-tertiary);
   border: 1px solid #f472b6;
-  color: #9d174d;
+  color: #fbcfe8;
   padding: 5px 10px;
   border-radius: var(--radius-sm);
   font-size: 11.5px;
@@ -6019,7 +6020,7 @@ pre,
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-color);
-  background: #ffffff;
+  background: var(--bg-tertiary);
   cursor: pointer;
   transition: all var(--transition-fast);
   text-align: right;
@@ -6028,12 +6029,133 @@ pre,
 
 .irm-prod-picker-item:hover {
   border-color: var(--salla-primary);
-  background: rgba(0, 77, 91, 0.03);
+  background: rgba(115, 252, 215, 0.10);
 }
 
 .irm-prod-picker-item.selected {
   border-color: #f472b6;
-  background: #fdf2f8;
+  background: rgba(244, 114, 182, 0.12);
+}
+
+/* Salla Coupon Live Synchronization */
+.irm-meta-chip.salla-synced {
+  background: rgba(16, 185, 129, 0.12);
+  color: #3ddc97;
+  border-color: rgba(16, 185, 129, 0.35);
+  font-weight: 700;
+}
+
+.irm-sync-coupon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #73fcd7;
+  background: rgba(115, 252, 215, 0.10);
+  border: 1px dashed #73fcd7;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.irm-sync-coupon-btn:hover:not(:disabled) {
+  background: #73fcd7;
+  color: #00333d;
+  transform: translateY(-1px);
+}
+
+.irm-sync-coupon-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.irm-btn-sync-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #004d5b;
+  color: #73fcd7;
+  border: 1px solid rgba(115, 252, 215, 0.3);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.irm-btn-sync-all:hover:not(:disabled) {
+  background: #003842;
+  box-shadow: 0 2px 6px rgba(0, 77, 91, 0.2);
+}
+
+.irm-btn-sync-all:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.irm-salla-coupon-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  background: rgba(115, 252, 215, 0.10);
+  border: 1px solid rgba(115, 252, 215, 0.10);
+  border-radius: var(--radius-md);
+  margin-top: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.irm-salla-coupon-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.irm-salla-coupon-info strong {
+  display: block;
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.irm-salla-coupon-info p {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.irm-btn-salla-sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--salla-primary);
+  color: #00333d;
+  border: none;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.irm-btn-salla-sync:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.irm-btn-salla-sync.synced {
+  background: #059669;
+  color: #ffffff;
 }
 
 @media (max-width: 840px) {

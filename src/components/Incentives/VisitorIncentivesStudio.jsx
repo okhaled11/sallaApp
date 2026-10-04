@@ -24,6 +24,7 @@ import {
  */
 export default function VisitorIncentivesStudio({
   products = [],
+  token,
   currency = "SAR",
   initialVisitors,
   storeId,
@@ -1726,6 +1727,7 @@ export default function VisitorIncentivesStudio({
         <div className="panel studio-panel" style={{ padding: 0, background: "transparent", border: "none" }}>
           <IncentiveRulesManager
             products={products}
+            token={token}
             onShowToast={onShowToast}
           />
         </div>

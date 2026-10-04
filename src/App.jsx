@@ -319,6 +319,7 @@ function AppContent() {
               ) : (
                 <VisitorIncentivesStudio
                   products={products}
+                  token={token}
                   currency={layout?.currency || "SAR"}
                   storeId={
                     verifiedData?.merchant_id ||
