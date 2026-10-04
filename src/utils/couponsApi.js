@@ -28,7 +28,13 @@ export async function createSallaCoupon(token, couponData) {
       }),
     });
 
-    const result = await response.json();
+    const result = await response.json().catch(() => null);
+    if (!result) {
+      return {
+        success: false,
+        error: `سيرفر القسائم غير متاح (${response.status}). تأكد من نشر /api/create-coupon أو تشغيل التطبيق عبر netlify dev / vercel dev.`,
+      };
+    }
     return result;
   } catch (error) {
     logger.error("Create coupon error:", error);

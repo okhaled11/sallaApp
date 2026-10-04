@@ -1,8 +1,37 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { loadEnv } from "vite";
+
+// Serves /api/create-coupon during `vite` dev (no Vercel/Netlify runtime there).
+function devCouponApi() {
+  return {
+    name: "dev-create-coupon-api",
+    apply: "serve",
+    configResolved(config) {
+      const env = loadEnv(config.mode, config.root, "");
+      for (const [k, v] of Object.entries(env)) {
+        if (process.env[k] === undefined) process.env[k] = v;
+      }
+    },
+    configureServer(server) {
+      server.middlewares.use("/api/create-coupon", async (req, res) => {
+        const chunks = [];
+        for await (const c of req) chunks.push(c);
+        const { createCouponRequest } = await server.ssrLoadModule("/server/lib/coupons-core.js");
+        const { statusCode, headers, body } = await createCouponRequest({
+          method: req.method,
+          body: Buffer.concat(chunks).toString("utf8"),
+        });
+        res.statusCode = statusCode;
+        for (const [k, v] of Object.entries(headers || {})) res.setHeader(k, v);
+        res.end(body);
+      });
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), devCouponApi()],
   root: ".",
   build: {
     outDir: "dist",
