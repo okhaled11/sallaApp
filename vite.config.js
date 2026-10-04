@@ -14,18 +14,24 @@ function devCouponApi() {
       }
     },
     configureServer(server) {
-      server.middlewares.use("/api/create-coupon", async (req, res) => {
-        const chunks = [];
-        for await (const c of req) chunks.push(c);
-        const { createCouponRequest } = await server.ssrLoadModule("/server/lib/coupons-core.js");
-        const { statusCode, headers, body } = await createCouponRequest({
-          method: req.method,
-          body: Buffer.concat(chunks).toString("utf8"),
+      const routes = [
+        ["/api/create-coupon", "/server/lib/coupons-core.js", "createCouponRequest"],
+        ["/api/coupon-stats", "/server/lib/coupon-stats-core.js", "couponStatsRequest"],
+      ];
+      for (const [route, modulePath, exportName] of routes) {
+        server.middlewares.use(route, async (req, res) => {
+          const chunks = [];
+          for await (const c of req) chunks.push(c);
+          const mod = await server.ssrLoadModule(modulePath);
+          const { statusCode, headers, body } = await mod[exportName]({
+            method: req.method,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+          res.statusCode = statusCode;
+          for (const [k, v] of Object.entries(headers || {})) res.setHeader(k, v);
+          res.end(body);
         });
-        res.statusCode = statusCode;
-        for (const [k, v] of Object.entries(headers || {})) res.setHeader(k, v);
-        res.end(body);
-      });
+      }
     },
   };
 }

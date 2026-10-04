@@ -1,4 +1,4 @@
-﻿import { useState, useCallback } from "react";
+﻿import { useState, useCallback, useEffect } from "react";
 import Icon from "../Icon.jsx";
 import StorefrontModalPreview from "./StorefrontModalPreview.jsx";
 import {
@@ -9,7 +9,7 @@ import {
   saveIncentiveRules,
   loadIncentiveRules,
 } from "../../utils/visitorIncentives.js";
-import { createSallaCoupon } from "../../utils/couponsApi.js";
+import { createSallaCoupon, fetchCouponStats } from "../../utils/couponsApi.js";
 
 const INCENTIVE_COLORS = {
   coupon_discount: { bg: "#dbeafe", text: "#1d4ed8", icon: "percent", fg: "#60a5fa" },
@@ -55,6 +55,7 @@ function RuleCard({
   isLast,
   onSyncCoupon,
   isSyncingCoupon,
+  stats,
 }) {
   const ic = INCENTIVE_COLORS[rule.incentive.type] || INCENTIVE_COLORS.coupon_discount;
   const tc = TRIGGER_COLORS[rule.trigger.type]     || TRIGGER_COLORS.store_visits;
@@ -108,6 +109,12 @@ function RuleCard({
                 {isSyncingCoupon ? "جاري التفعيل..." : "تفعيل بسلة ⚡"}
               </button>
             )
+          )}
+          {stats?.exists && (
+            <span className="irm-meta-chip" title="إحصائيات الكوبون من سلة (الطلبات المدفوعة)">
+              <Icon name="analyticsUp" size={12}/>
+              {stats.usage} استخدام · {stats.customers} عميل · {stats.sales} {stats.currency}
+            </span>
           )}
         </div>
       </div>
@@ -704,6 +711,7 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
   const [isCreating, setIsCreating] = useState(false);
   const [syncingRuleId, setSyncingRuleId] = useState(null);
   const [isSyncingAll, setIsSyncingAll] = useState(false);
+  const [couponStats, setCouponStats] = useState({});
 
   const persistRules = useCallback((updated) => {
     setRules(updated);
@@ -715,6 +723,33 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
         );
       } catch {}
     }
+  }, []);
+
+  // Load Salla usage stats; drop the "synced" mark for coupons deleted in Salla (404).
+  useEffect(() => {
+    const ids = rules
+      .filter((r) => r.incentive?.isCreatedInSalla && /^\d+$/.test(String(r.incentive.sallaCouponId || "")))
+      .map((r) => String(r.incentive.sallaCouponId));
+    if (ids.length === 0) return undefined;
+    let cancelled = false;
+    fetchCouponStats(ids).then((stats) => {
+      if (cancelled) return;
+      setCouponStats(stats);
+      const missing = new Set(ids.filter((id) => stats[id]?.exists === false));
+      if (missing.size === 0) return;
+      persistRules(
+        rules.map((r) =>
+          missing.has(String(r.incentive?.sallaCouponId))
+            ? { ...r, incentive: { ...r.incentive, isCreatedInSalla: false, sallaCouponId: undefined } }
+            : r
+        )
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Run once on mount; later changes re-sync through the sync handlers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSaveRule = (savedDraft) => {
@@ -904,6 +939,7 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
             onMoveDown={() => handleMoveDown(i)}
             onSyncCoupon={handleSyncSingleCoupon}
             isSyncingCoupon={syncingRuleId === rule.id}
+            stats={couponStats[String(rule.incentive?.sallaCouponId)]}
           />
         ))}
       </div>

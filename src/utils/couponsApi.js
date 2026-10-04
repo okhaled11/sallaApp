@@ -1,4 +1,4 @@
-import { CREATE_COUPON_FUNCTION_URL, getAppId } from "./constants.js";
+import { CREATE_COUPON_FUNCTION_URL, COUPON_STATS_FUNCTION_URL, getAppId } from "./constants.js";
 import logger from "./logger.js";
 
 /**
@@ -49,5 +49,28 @@ export async function createSallaCoupon(token, couponData) {
       success: false,
       error: error.message || "فشل الاتصال بسيرفر التطبيق",
     };
+  }
+}
+
+/**
+ * Fetches usage/sales statistics for Salla coupons by their numeric ids.
+ * A 404 from Salla comes back as `{ exists: false }` for that id.
+ *
+ * @param {Array<string|number>} ids
+ * @returns {Promise<Record<string, { exists: boolean|null, usage?: number, customers?: number, sales?: number, currency?: string }>>}
+ */
+export async function fetchCouponStats(ids) {
+  if (!ids.length) return {};
+  try {
+    const response = await fetch(COUPON_STATS_FUNCTION_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    const result = await response.json().catch(() => null);
+    return result?.success ? result.stats || {} : {};
+  } catch (error) {
+    logger.error("Coupon stats error:", error);
+    return {};
   }
 }
