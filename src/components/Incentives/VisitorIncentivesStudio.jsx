@@ -7,7 +7,6 @@ import {
   loadSavedIncentiveConfig,
   saveIncentiveConfig,
   generateMockFrequentVisitors,
-  generateStorefrontTrackingScript,
   checkVisitorEligibility,
   getRealStoredVisitors,
   saveRealStoredVisitors,
@@ -16,6 +15,7 @@ import {
   deduplicateVisitors,
   loadIncentiveRules,
 } from "../../utils/visitorIncentives.js";
+import { publishIncentiveSettings, buildInstallSnippet } from "../../utils/incentiveConfigApi.js";
 
 /**
  * VisitorIncentivesStudio:
@@ -303,6 +303,37 @@ export default function VisitorIncentivesStudio({
     activeStoreId,
   ]);
 
+  // Publish saved settings to the server so the storefront script (installed once) uses them.
+  const [publishState, setPublishState] = useState("idle"); // idle | saving | saved | error
+  const [publishNote, setPublishNote] = useState("");
+  const publishSettings = useCallback(async () => {
+    if (!token) return;
+    setPublishState("saving");
+    const res = await publishIncentiveSettings({
+      token,
+      storeId: activeStoreId,
+      config: loadSavedIncentiveConfig(),
+      rules: loadIncentiveRules(),
+    });
+    if (res.success) {
+      setPublishState("saved");
+      setPublishNote(res.persisted === false ? "تنبيه: التخزين الدائم (Upstash Redis) غير مضبوط، الإعدادات مؤقتة." : "");
+    } else {
+      setPublishState("error");
+      setPublishNote(res.error || "فشل النشر");
+    }
+  }, [token, activeStoreId]);
+
+  useEffect(() => {
+    if (!token) return undefined;
+    const timer = setTimeout(publishSettings, 1500);
+    window.addEventListener("salla-incentive-config-updated", publishSettings);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("salla-incentive-config-updated", publishSettings);
+    };
+  }, [rules, token, publishSettings]);
+
   // Form field updater
   const handleConfigChange = (field, value) => {
     setConfig((prev) => ({ ...prev, [field]: value }));
@@ -357,13 +388,11 @@ export default function VisitorIncentivesStudio({
 
   // Copy tracking script to clipboard
   const handleCopyScript = () => {
-    const latestRules = loadIncentiveRules();
-    const script = generateStorefrontTrackingScript(
-      config,
-      activeStoreId,
-      scriptFormat === "htmlTag",
-      latestRules,
-    );
+    const script = buildInstallSnippet({
+      origin: window.location.origin,
+      storeId: activeStoreId,
+      asHtmlTag: scriptFormat === "htmlTag",
+    });
     navigator.clipboard?.writeText?.(script);
     setScriptCopied(true);
     onShowToast?.("تم نسخ كود التتبع لواجهة المتجر بنجاح", "success");
@@ -1813,15 +1842,35 @@ export default function VisitorIncentivesStudio({
             </div>
           </div>
 
+          <div className="script-instructions-box">
+            <p style={{ margin: 0, fontSize: "13px" }}>
+              <strong>الصق هذا السطر مرة واحدة فقط.</strong> القواعد والتصميم يتحدثان
+              تلقائياً من التطبيق بدون إعادة اللصق.{" "}
+              {publishState === "saving" && "جاري نشر الإعدادات..."}
+              {publishState === "saved" && "تم نشر آخر الإعدادات ✓"}
+              {publishState === "error" && `تعذر النشر: ${publishNote}`}
+              {publishState === "saved" && publishNote ? ` ${publishNote}` : ""}
+            </p>
+            {/localhost|127\.0\.0\.1/.test(window.location.hostname) && (
+              <p style={{ margin: "8px 0 0", fontSize: "12px", color: "#b45309" }}>
+                أنت على عنوان محلي: هذا السطر لن يعمل على متجر حقيقي. انسخه من التطبيق
+                المنشور (Vercel).
+              </p>
+            )}
+            <button type="button" className="filter-btn" onClick={publishSettings} disabled={!token || publishState === "saving"} style={{ marginTop: "10px" }}>
+              <Icon name="refresh" size={14} />
+              <span>نشر الإعدادات الآن</span>
+            </button>
+          </div>
+
           <div className="code-block-container">
             <pre className="code-snippet-box">
               <code>
-                {generateStorefrontTrackingScript(
-                  config,
-                  activeStoreId,
-                  scriptFormat === "htmlTag",
-                  rules,
-                )}
+                {buildInstallSnippet({
+                  origin: window.location.origin,
+                  storeId: activeStoreId,
+                  asHtmlTag: scriptFormat === "htmlTag",
+                })}
               </code>
             </pre>
           </div>

@@ -6,9 +6,10 @@
   "main": "index.js",
   "scripts": {
     "sync-types": "node scripts/sync-types.js",
-    "dev": "node scripts/sync-types.js && vite",
+    "build:storefront": "node scripts/build-storefront.mjs",
+    "dev": "node scripts/sync-types.js && node scripts/build-storefront.mjs && vite",
     "dev:netlify": "netlify dev",
-    "build": "node scripts/sync-types.js && vite build",
+    "build": "node scripts/sync-types.js && node scripts/build-storefront.mjs && vite build",
     "preview": "vite preview",
     "test": "vitest run --coverage",
     "test:watch": "vitest watch",
