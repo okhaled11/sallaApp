@@ -35,6 +35,13 @@ export async function createSallaCoupon(token, couponData) {
         error: `سيرفر القسائم غير متاح (${response.status}). تأكد من نشر /api/create-coupon أو تشغيل التطبيق عبر netlify dev / vercel dev.`,
       };
     }
+    if (result.simulated) {
+      // Server had no SALLA_ACCESS_TOKEN: nothing was created in Salla.
+      return {
+        success: false,
+        error: "لم يتم إنشاء الكوبون في سلة: SALLA_ACCESS_TOKEN غير مضبوط على السيرفر. أضفه في ملف .env (أو Vercel Environment Variables) وأعد التشغيل.",
+      };
+    }
     return result;
   } catch (error) {
     logger.error("Create coupon error:", error);
