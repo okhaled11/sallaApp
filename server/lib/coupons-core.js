@@ -106,6 +106,7 @@ export async function createCouponRequest({ method, body }) {
     type: sallaType,
     amount,
     free_shipping: isFreeShipping,
+    status: "active",
     start_date: startDate,
     expiry_date: expiryDate,
     exclude_sale_products: false,
@@ -128,7 +129,7 @@ export async function createCouponRequest({ method, body }) {
       // Confirm the coupon is really listed, and report which store the token belongs to.
       const authHeaders = { Authorization: `Bearer ${accessToken}`, Accept: "application/json" };
       const [listed, storeInfo] = await Promise.all([
-        fetch(`${SALLA_COUPONS_URL}?code=${encodeURIComponent(cleanCode)}`, { headers: authHeaders })
+        fetch(`${SALLA_COUPONS_URL}?keyword=${encodeURIComponent(cleanCode)}`, { headers: authHeaders })
           .then((r) => r.json())
           .catch(() => null),
         fetch("https://api.salla.dev/admin/v2/store/info", { headers: authHeaders })
