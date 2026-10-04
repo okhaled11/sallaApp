@@ -135,6 +135,7 @@
     } catch (e) {}
 
     var windowMs = (ACTIVE_CONFIG.timeWindowMinutes || 60) * 60 * 1000;
+    var now = Date.now();
 
     // Record visitor entry & filter within time window
     var history = [];
