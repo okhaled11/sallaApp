@@ -23,6 +23,8 @@
   var TEMPLE_A = 127;
   var TEMPLE_B = 356;
   var SMOOTHING = 0.45;
+  // Most the camera image may be enlarged to fill a phone screen (1 = no cropping at all).
+  var MAX_CROP_ZOOM = 1.2;
 
   var APP_ORIGIN = "";
   var DATA_STORE = "";
@@ -207,11 +209,14 @@
     // Ask for a portrait stream on a portrait phone so it fills the screen without cropping much.
     function cameraConstraints() {
       var portrait = mobile && window.innerHeight > window.innerWidth;
-      return {
+      var constraints = {
         facingMode: "user",
         width: { ideal: portrait ? 720 : 1280 },
         height: { ideal: portrait ? 1280 : 720 },
       };
+      // Match the screen's shape so the image fills it without needing a big crop.
+      if (mobile) constraints.aspectRatio = { ideal: window.innerWidth / window.innerHeight };
+      return constraints;
     }
 
     function setStatus(text) {
@@ -235,7 +240,14 @@
       if (canvas.width === w && canvas.height === h) return;
       canvas.width = w;
       canvas.height = h;
-      if (mobile) return;
+      if (mobile) {
+        // Fill the screen only when that crops little; otherwise show the whole frame
+        // rather than zooming in on the middle of it.
+        var screenRatio = stage.clientWidth / Math.max(1, stage.clientHeight);
+        var cropZoom = Math.max(screenRatio / (w / h), (w / h) / screenRatio);
+        canvas.style.objectFit = cropZoom <= MAX_CROP_ZOOM ? "cover" : "contain";
+        return;
+      }
       stage.style.aspectRatio = w + " / " + h;
       card.style.maxWidth = "min(640px, calc(64vh * " + (w / h).toFixed(4) + "))";
     }
