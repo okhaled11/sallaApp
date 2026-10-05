@@ -138,7 +138,7 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
               <KpiCard tone="neutral" title="نسبة الدفع عند الاستلام" value={formatPercent(stats?.codShare)} sub={`${stats?.codOrders ?? 0} من ${stats?.totalOrders ?? 0} طلب`} />
               <KpiCard
                 tone="neutral"
-                title="نسبة مرتجعات COD"
+                title="نسبة مرتجعات الدفع عند الاستلام"
                 value={formatPercent(stats?.returnRate)}
                 sub={stats?.closedCodOrders ? `من ${stats.closedCodOrders} طلب مكتمل` : "لا توجد بيانات كافية بعد"}
               />
@@ -215,7 +215,7 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
                         <span style={{ width: `${Math.min(100, Math.round(c.rate * 100))}%` }} data-tone={c.rate >= 0.4 ? "high" : c.rate >= 0.25 ? "medium" : "low"} />
                       </span>
                       <span className="risk-city-rate">
-                        {formatPercent(c.rate)} <small>({c.closed} طلب)</small>
+                        {formatPercent(c.rate)} <small>(<bdi>{c.closed}</bdi> طلب)</small>
                       </span>
                     </li>
                   ))}
@@ -274,7 +274,11 @@ function OrderCard({ order, currency, isConfirmed, onToggleConfirmed }) {
           {order.city && <span className="risk-muted">{order.city}</span>}
           <span className="risk-muted">{timeAgo(order.createdAt)}</span>
           {!order.isCod && <span className="risk-pill">مدفوع مسبقاً</span>}
-          {isConfirmed && <span className="risk-pill risk-pill-ok">تم التأكيد ✓</span>}
+          {isConfirmed && (
+            <span className="risk-pill risk-pill-ok">
+              <Icon name="checkCircle" size={12} /> تم التأكيد
+            </span>
+          )}
         </div>
 
         <div className="risk-order-meta">
@@ -290,7 +294,7 @@ function OrderCard({ order, currency, isConfirmed, onToggleConfirmed }) {
               .map((r) => (
                 <li key={r.code + r.label} className={r.points < 0 ? "is-good" : ""}>
                   {r.label}
-                  <b>{r.points > 0 ? `+${r.points}` : r.points}</b>
+                  <b dir="ltr">{r.points > 0 ? `+${r.points}` : r.points}</b>
                 </li>
               ))}
           </ul>
@@ -303,17 +307,30 @@ function OrderCard({ order, currency, isConfirmed, onToggleConfirmed }) {
 
       <div className="risk-actions">
         {tel ? (
-          <a className="filter-btn" href={tel}>اتصال</a>
+          <a className="filter-btn" href={tel}>
+            <Icon name="call" size={14} />
+            <span>اتصال</span>
+          </a>
         ) : (
-          <span className="filter-btn is-disabled">اتصال</span>
+          <span className="filter-btn is-disabled">
+            <Icon name="call" size={14} />
+            <span>اتصال</span>
+          </span>
         )}
         {whatsapp ? (
-          <a className="filter-btn" href={whatsapp} target="_blank" rel="noopener noreferrer">واتساب</a>
+          <a className="filter-btn" href={whatsapp} target="_blank" rel="noopener noreferrer">
+            <Icon name="whatsapp" size={14} />
+            <span>واتساب</span>
+          </a>
         ) : (
-          <span className="filter-btn is-disabled">واتساب</span>
+          <span className="filter-btn is-disabled">
+            <Icon name="whatsapp" size={14} />
+            <span>واتساب</span>
+          </span>
         )}
         <button type="button" className={`filter-btn ${isConfirmed ? "active" : ""}`} onClick={onToggleConfirmed} aria-pressed={isConfirmed}>
-          {isConfirmed ? "إلغاء التأكيد" : "تم التأكيد"}
+          <Icon name="checkCircle" size={14} />
+          <span>{isConfirmed ? "إلغاء التأكيد" : "تم التأكيد"}</span>
         </button>
       </div>
     </li>

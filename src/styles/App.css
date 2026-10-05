@@ -6202,7 +6202,7 @@ pre,
 }
 
 .risk-state-error {
-  color: var(--salla-danger);
+  color: var(--danger-text);
 }
 
 .risk-kpis {
@@ -6224,11 +6224,11 @@ pre,
 }
 
 .risk-kpi-high {
-  border-inline-start-color: var(--salla-danger);
+  border-inline-start-color: var(--accent-danger);
 }
 
 .risk-kpi-medium {
-  border-inline-start-color: #fbbf24;
+  border-inline-start-color: var(--accent-warning);
 }
 
 .risk-kpi-title {
@@ -6243,11 +6243,11 @@ pre,
 }
 
 .risk-kpi-high .risk-kpi-value {
-  color: var(--salla-danger);
+  color: var(--danger-text);
 }
 
 .risk-kpi-medium .risk-kpi-value {
-  color: #fbbf24;
+  color: var(--warning-text);
 }
 
 .risk-kpi-sub {
@@ -6259,8 +6259,8 @@ pre,
   margin: 0 var(--space-md) var(--space-sm);
   padding: 8px 12px;
   font-size: 0.78rem;
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.08);
+  color: var(--warning-text);
+  background: var(--warning-soft);
   border-radius: var(--radius-md);
 }
 
@@ -6279,6 +6279,10 @@ pre,
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+.risk-check input {
+  accent-color: var(--accent-primary);
 }
 
 .risk-check,
@@ -6317,7 +6321,7 @@ pre,
 
 .risk-order {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
+  grid-template-columns: 64px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
   padding: 14px;
@@ -6328,15 +6332,15 @@ pre,
 }
 
 .risk-order-high {
-  border-inline-start-color: var(--salla-danger);
+  border-inline-start-color: var(--accent-danger);
 }
 
 .risk-order-medium {
-  border-inline-start-color: #fbbf24;
+  border-inline-start-color: var(--accent-warning);
 }
 
 .risk-order-low {
-  border-inline-start-color: var(--salla-success);
+  border-inline-start-color: var(--accent-success);
 }
 
 .risk-order.is-confirmed {
@@ -6366,15 +6370,15 @@ pre,
 }
 
 .risk-order-high .risk-score {
-  border-color: var(--salla-danger);
+  border-color: var(--accent-danger);
 }
 
 .risk-order-medium .risk-score {
-  border-color: #fbbf24;
+  border-color: var(--accent-warning);
 }
 
 .risk-order-low .risk-score {
-  border-color: var(--salla-success);
+  border-color: var(--accent-success);
 }
 
 .risk-order-main {
@@ -6416,8 +6420,11 @@ pre,
 }
 
 .risk-pill-ok {
-  color: var(--salla-success);
-  border-color: var(--salla-success);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--success-text);
+  border-color: var(--accent-success);
 }
 
 .risk-reasons {
@@ -6436,18 +6443,21 @@ pre,
   padding: 2px 10px;
   border-radius: 999px;
   font-size: 0.74rem;
-  color: #fecaca;
-  background: rgba(245, 67, 74, 0.12);
+  color: var(--danger-text);
+  background: var(--danger-soft);
 }
 
 .risk-reasons li.is-good {
-  color: #a7f3d0;
-  background: rgba(0, 178, 89, 0.14);
+  color: var(--success-text);
+  background: var(--success-soft);
 }
 
 .risk-reasons b {
   font-size: 0.7rem;
   opacity: 0.85;
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-weight: 500;
 }
 
 .risk-advice {
@@ -6460,15 +6470,18 @@ pre,
 }
 
 .risk-actions {
+  grid-column: 2;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 4px;
 }
 
 .risk-actions .filter-btn {
   justify-content: center;
   text-decoration: none;
+  padding: 5px 14px;
+  font-size: 0.78rem;
 }
 
 .risk-actions .is-disabled {
@@ -6515,15 +6528,15 @@ pre,
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--salla-success);
+  background: var(--accent-success);
 }
 
 .risk-bar span[data-tone="medium"] {
-  background: #fbbf24;
+  background: var(--accent-warning);
 }
 
 .risk-bar span[data-tone="high"] {
-  background: var(--salla-danger);
+  background: var(--accent-danger);
 }
 
 .risk-city-rate small {
@@ -6558,11 +6571,5 @@ pre,
 
   .risk-order {
     grid-template-columns: 56px minmax(0, 1fr);
-  }
-
-  .risk-actions {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    flex-wrap: wrap;
   }
 }

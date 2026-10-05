@@ -197,8 +197,8 @@ export function scoreOrder(order, ctx) {
 
   if (ctx.medianCodTotal > 0 && order.total > 0) {
     const ratio = order.total / ctx.medianCodTotal;
-    if (ratio >= 3.5) add("very_high_value", `قيمة الطلب ${ratio.toFixed(1)}× المعتاد`, 25);
-    else if (ratio >= 2) add("high_value", `قيمة الطلب ${ratio.toFixed(1)}× المعتاد`, 12);
+    if (ratio >= 3.5) add("very_high_value", `قيمة الطلب ${ratio.toFixed(1)} ضعف المعتاد`, 25);
+    else if (ratio >= 2) add("high_value", `قيمة الطلب ${ratio.toFixed(1)} ضعف المعتاد`, 12);
   }
 
   if (order.maxQuantity >= 10) add("bulk_quantity", `كمية كبيرة من منتج واحد (${order.maxQuantity} قطعة)`, 25);
@@ -207,8 +207,8 @@ export function scoreOrder(order, ctx) {
   const rate = order.city ? ctx.cityRate.get(order.city) : undefined;
   if (rate !== undefined) {
     const percent = Math.round(rate * 100);
-    if (rate >= 0.4) add("risky_city", `مرتجعات مرتفعة في ${order.city} (${percent}%)`, 25);
-    else if (rate >= 0.25) add("risky_city", `مرتجعات أعلى من المعتاد في ${order.city} (${percent}%)`, 15);
+    if (rate >= 0.4) add("risky_city", `مرتجعات مرتفعة في ${order.city} بنسبة ${percent}%`, 25);
+    else if (rate >= 0.25) add("risky_city", `مرتجعات أعلى من المعتاد في ${order.city} بنسبة ${percent}%`, 15);
   }
 
   // Many orders from the same number in a short time

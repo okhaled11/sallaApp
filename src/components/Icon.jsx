@@ -7,6 +7,7 @@ import {
   AiSparklesIcon,
   ArrowReloadHorizontalIcon,
   BarChartIcon,
+  Call02Icon,
   Cancel01Icon,
   ChampionIcon,
   ChartDecreaseIcon,
@@ -50,6 +51,7 @@ import {
   UserGroupIcon,
   UserIcon,
   ViewIcon,
+  WhatsappIcon,
 } from "@hugeicons/core-free-icons";
 
 /**
@@ -63,6 +65,7 @@ const ICONS = {
   analytics: Analytics01Icon,
   analyticsUp: AnalyticsUpIcon,
   bag: ShoppingBag01Icon,
+  call: Call02Icon,
   barChart: BarChartIcon,
   cart: ShoppingCart01Icon,
   check: Tick01Icon,
@@ -113,6 +116,7 @@ const ICONS = {
   user: UserIcon,
   users: UserGroupIcon,
   view: ViewIcon,
+  whatsapp: WhatsappIcon,
 };
 
 export default function Icon({ name, size = 16, className }) {

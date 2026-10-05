@@ -125,7 +125,8 @@ describe("RiskyOrders", () => {
     unmount();
     renderPanel();
     await screen.findByText("عميل 1");
-    expect(cards()[2]).toHaveTextContent("تم التأكيد ✓");
+    expect(cards()[2]).toHaveTextContent("تم التأكيد");
+    expect(within(cards()[2]).getByRole("button", { name: "إلغاء التأكيد" })).toBeInTheDocument();
   });
 
   it("lists the cities with the most returns", async () => {
