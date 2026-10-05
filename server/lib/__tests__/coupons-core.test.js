@@ -16,6 +16,9 @@ describe("coupons-core: gift coupon", () => {
     process.env.SALLA_ACCESS_TOKEN = "env_token";
     fetchMock = vi.fn(async (url, opts) => {
       if (opts?.method === "POST") return json(200, { data: { id: 99, code: "GIFT1" } });
+      if (String(url).includes("/products/")) {
+        return json(200, { data: { price: { amount: 174, currency: "SAR" }, sale_price: { amount: 0, currency: "SAR" } } });
+      }
       if (String(url).includes("/store/info")) return json(200, { data: { name: "متجر" } });
       return json(200, { data: [{ code: "GIFT1" }] });
     });
@@ -50,6 +53,7 @@ describe("coupons-core: gift coupon", () => {
       products_include: ["1626467363"],
       usage_limit: 100000,
       usage_limit_per_user: 1,
+      maximum_amount: 174,
     });
     expect(payload.usage_limit_per_user).toBeLessThan(payload.usage_limit);
   });
@@ -61,6 +65,25 @@ describe("coupons-core: gift coupon", () => {
     });
     expect(res.statusCode).toBe(400);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("caps the discount at the sale price when the gift is on sale", async () => {
+    fetchMock.mockImplementation(async (url, opts) => {
+      if (opts?.method === "POST") return json(200, { data: { id: 99, code: "GIFT1" } });
+      if (String(url).includes("/products/")) {
+        return json(200, { data: { price: { amount: 200 }, sale_price: { amount: 150 } } });
+      }
+      return json(200, { data: [{ code: "GIFT1" }] });
+    });
+    await createCouponRequest({ method: "POST", body: JSON.stringify({ code: "gift1", gift_product_id: 5 }) });
+    expect(sentPayload().maximum_amount).toBe(150);
+  });
+
+  it("does not create the coupon if the gift price cannot be read", async () => {
+    fetchMock.mockImplementation(async () => json(404, {}));
+    const res = await createCouponRequest({ method: "POST", body: JSON.stringify({ code: "gift1", gift_product_id: 5 }) });
+    expect(res.statusCode).toBe(502);
+    expect(fetchMock.mock.calls.some(([, o]) => o?.method === "POST")).toBe(false);
   });
 
   it("does not restrict products for a normal coupon", async () => {
