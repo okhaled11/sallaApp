@@ -144,7 +144,7 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
   const snippet = useMemo(
     () =>
       activeStoreId && typeof window !== "undefined"
-        ? buildTryOnInstallSnippet({ origin: window.location.origin, storeId: activeStoreId, asHtmlTag: true })
+        ? buildTryOnInstallSnippet({ origin: window.location.origin, storeId: activeStoreId })
         : "",
     [activeStoreId],
   );
@@ -280,7 +280,7 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
           <div>
             <span className="panel-title">تركيب الكود في المتجر (مرة واحدة)</span>
             <span className="panel-subtitle">
-              الصق السطر التالي في كود مخصص قبل &lt;/body&gt;، وبعدها أي تعديل تنشره هنا يظهر تلقائياً.
+              أضف الكود التالي كـ Snippet من نوع JavaScript (بدون وسوم HTML)، وبعدها أي تعديل تنشره هنا يظهر تلقائياً.
             </span>
           </div>
           <div className="panel-actions">
