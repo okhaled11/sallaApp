@@ -9,6 +9,7 @@
  *   2. Call Salla Merchant API with Authorization: Bearer <SALLA_ACCESS_TOKEN>
  */
 import { respond, verifyEmbeddedToken } from "./verify-token-core.js";
+import { getActiveAccessToken } from "./salla-tokens-core.js";
 import {
   ERROR_CODES,
   SallaAuthError,
@@ -57,7 +58,7 @@ export async function createCouponRequest({ method, body }) {
   const cleanCode = code.trim().toUpperCase();
 
   // If in sandbox or SALLA_ACCESS_TOKEN is not configured
-  const accessToken = process.env.SALLA_ACCESS_TOKEN;
+  const accessToken = await getActiveAccessToken();
   if (!accessToken) {
     return respond(200, {
       success: true,

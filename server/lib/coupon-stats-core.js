@@ -7,6 +7,7 @@
  * exists in the store, so the UI can drop its "synced" mark.
  */
 import { respond } from "./verify-token-core.js";
+import { getActiveAccessToken } from "./salla-tokens-core.js";
 import { logError } from "./errors.js";
 
 const SALLA_COUPONS_URL = "https://api.salla.dev/admin/v2/coupons";
@@ -49,7 +50,7 @@ export async function couponStatsRequest({ method, body }) {
     .slice(0, MAX_IDS);
   if (ids.length === 0) return respond(200, { success: true, stats: {} });
 
-  const accessToken = process.env.SALLA_ACCESS_TOKEN;
+  const accessToken = await getActiveAccessToken();
   if (!accessToken) {
     return respond(200, { success: false, error: "SALLA_ACCESS_TOKEN غير مضبوط على السيرفر" });
   }

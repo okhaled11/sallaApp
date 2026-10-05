@@ -18,6 +18,7 @@ function devCouponApi() {
         ["/api/create-coupon", "/server/lib/coupons-core.js", "createCouponRequest"],
         ["/api/coupon-stats", "/server/lib/coupon-stats-core.js", "couponStatsRequest"],
         ["/api/incentive-config", "/server/lib/incentive-config-core.js", "incentiveConfigRequest"],
+        ["/api/webhooks/salla", "/server/lib/webhook-core.js", "sallaWebhookRequest"],
       ];
       for (const [route, modulePath, exportName] of routes) {
         server.middlewares.use(route, async (req, res) => {
@@ -28,6 +29,7 @@ function devCouponApi() {
             method: req.method,
             body: Buffer.concat(chunks).toString("utf8"),
             query: Object.fromEntries(new URL(req.url, "http://localhost").searchParams),
+            headers: req.headers,
           });
           res.statusCode = statusCode;
           for (const [k, v] of Object.entries(headers || {})) res.setHeader(k, v);

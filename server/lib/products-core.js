@@ -18,12 +18,12 @@
  * Netlify functions (server/functions/products.js, server/functions/update-product.js).
  */
 import { respond, verifyEmbeddedToken } from "./verify-token-core.js";
+import { getActiveAccessToken } from "./salla-tokens-core.js";
 import {
   ERROR_CODES,
   SallaAuthError,
   logError,
   redact,
-  requireEnv,
 } from "./errors.js";
 
 const SALLA_PRODUCTS_URL = "https://api.salla.dev/admin/v2/products";
@@ -278,7 +278,14 @@ async function authorizeRequest({ method, body }) {
     };
   }
 
-  requireEnv("SALLA_ACCESS_TOKEN");
+  const accessToken = await getActiveAccessToken();
+  if (!accessToken) {
+    throw new SallaAuthError(
+      ERROR_CODES.CONFIG_MISSING,
+      "Server is missing configuration: SALLA_ACCESS_TOKEN (or install the app via the Salla webhook so it can be fetched automatically)",
+      500,
+    );
+  }
 
   // Only serve / change product data for a verified embedded session
   const verification = await verifyEmbeddedToken({ token, appId });
@@ -290,7 +297,7 @@ async function authorizeRequest({ method, body }) {
     );
   }
 
-  return { data, accessToken: process.env.SALLA_ACCESS_TOKEN };
+  return { data, accessToken };
 }
 
 function errorResponse(error, label) {

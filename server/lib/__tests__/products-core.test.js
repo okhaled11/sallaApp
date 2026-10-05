@@ -151,7 +151,8 @@ describe("products-core", () => {
     expect(res.statusCode).toBe(500);
     expect(res.json).toEqual({
       success: false,
-      error: "Server is missing configuration: SALLA_ACCESS_TOKEN",
+      error:
+        "Server is missing configuration: SALLA_ACCESS_TOKEN (or install the app via the Salla webhook so it can be fetched automatically)",
       code: ERROR_CODES.CONFIG_MISSING,
     });
     expect(fetchMock).not.toHaveBeenCalled();
