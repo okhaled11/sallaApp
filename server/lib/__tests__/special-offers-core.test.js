@@ -93,6 +93,32 @@ describe("special-offers-core", () => {
     expect(JSON.parse(res.body).offer.id).toBe(777);
   });
 
+  it("sends a start date-time that is not in the past (date AND time)", async () => {
+    await request();
+    const body = JSON.parse(sallaCall()[1].body);
+    expect(body.start_date).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/);
+    // At least "now" in UTC+3, so never behind a Saudi clock
+    expect(new Date(body.start_date.replace(" ", "T") + "Z").getTime()).toBeGreaterThan(Date.now() + 3 * 3600 * 1000);
+  });
+
+  it("retries with a wider start margin when Salla rejects start_date", async () => {
+    let offerCalls = 0;
+    fetchMock.mockImplementation(async (url) => {
+      if (String(url).includes("exchange-authority")) return json(200, { success: true });
+      offerCalls++;
+      return offerCalls === 1
+        ? json(422, { error: { message: "alert.invalid_fields", fields: { start_date: ["past"] } } })
+        : json(200, { data: { id: 888 } });
+    });
+    const res = await request();
+    expect(res.statusCode).toBe(200);
+    expect(offerCalls).toBe(2);
+    const starts = fetchMock.mock.calls
+      .filter(([url]) => String(url).includes("/specialoffers"))
+      .map(([, o]) => new Date(JSON.parse(o.body).start_date.replace(" ", "T") + "Z").getTime());
+    expect(starts[1]).toBeGreaterThan(starts[0]);
+  });
+
   it("requires both products", async () => {
     const res = await request({ gift_product_id: "" });
     expect(res.statusCode).toBe(400);

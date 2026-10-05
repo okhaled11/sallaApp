@@ -21,6 +21,15 @@ function clampQty(value) {
   return Number.isFinite(n) && n >= 1 ? Math.min(n, 100) : 1;
 }
 
+// Salla validates start_date as a date AND time that must not be in the past, in the
+// store's timezone (unknown here). Try Saudi time (UTC+3) a few minutes ahead first,
+// then a wider margin for stores whose clock is further ahead.
+const START_OFFSETS_MINUTES = [3 * 60 + 5, 5 * 60 + 5];
+
+function dateTime(utcMs, offsetMinutes) {
+  return new Date(utcMs + offsetMinutes * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
+}
+
 function isoDate(ms) {
   return new Date(ms).toISOString().split("T")[0];
 }
@@ -82,7 +91,7 @@ export async function createOfferRequest({ method, body }) {
     applied_channel: "browser_and_application",
     offer_type: "buy_x_get_y",
     applied_to: "product",
-    start_date: isoDate(Date.now()),
+    start_date: dateTime(Date.now(), START_OFFSETS_MINUTES[0]),
     expiry_date: isoDate(Date.now() + 365 * 24 * 60 * 60 * 1000),
     buy: { type: "product", quantity: buyQty, products: [Number(buyId)] },
     get: { type: "product", discount_type: "free-product", quantity: giftQty, products: [Number(giftId)] },
@@ -100,13 +109,22 @@ export async function createOfferRequest({ method, body }) {
   }
 
   try {
+    const attempt = async () => {
+      let outcome = null;
+      if (existing_offer_id && ID_RE.test(String(existing_offer_id))) {
+        outcome = await send("PUT", `${SALLA_OFFERS_URL}/${existing_offer_id}`);
+        // The old offer may have been deleted in Salla: fall back to creating a new one.
+        if (!outcome.res.ok && !outcome.result?.error?.fields?.start_date) outcome = null;
+      }
+      return outcome || (await send("POST", SALLA_OFFERS_URL));
+    };
+
     let outcome = null;
-    if (existing_offer_id && ID_RE.test(String(existing_offer_id))) {
-      outcome = await send("PUT", `${SALLA_OFFERS_URL}/${existing_offer_id}`);
-      // The old offer may have been deleted in Salla: fall back to creating a new one.
-      if (!outcome.res.ok) outcome = null;
+    for (const offset of START_OFFSETS_MINUTES) {
+      payload.start_date = dateTime(Date.now(), offset);
+      outcome = await attempt();
+      if (outcome.res.ok || !outcome.result?.error?.fields?.start_date) break;
     }
-    if (!outcome) outcome = await send("POST", SALLA_OFFERS_URL);
 
     const { res, result } = outcome;
     if (res.ok && result.status !== "error" && (result.data?.id || existing_offer_id)) {
