@@ -7,11 +7,10 @@ import {
 } from "../../utils/tryOnApi.js";
 import { fileToOverlayDataUrl } from "../../utils/tryOnImage.js";
 
-const DEFAULT_SCALE = 2.1;
 const MAX_ITEMS = 20;
 
-// Reference face for the preview: eye corners 80 units apart, same maths as tryon.js.
-const FACE = { eyeY: 105, eyeDist: 80, width: 200, height: 240 };
+// Reference face for the preview: eyes 80 apart, temples 124 apart (same auto-fit as tryon.js).
+const FACE = { eyeY: 105, eyeDist: 80, templeDist: 124, width: 200, height: 240 };
 
 function FacePreview({ item }) {
   const pct = (value, total) => `${(value / total) * 100}%`;
@@ -29,7 +28,7 @@ function FacePreview({ item }) {
         alt=""
         className="tryon-preview-overlay"
         style={{
-          width: pct(FACE.eyeDist * item.scale, FACE.width),
+          width: pct(FACE.templeDist * item.fit, FACE.width),
           top: pct(FACE.eyeY + item.offsetY * FACE.eyeDist, FACE.height),
         }}
       />
@@ -110,7 +109,7 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
           productId: selectedId,
           name: selectedProduct.name || "",
           image: result.image,
-          scale: existing?.scale ?? DEFAULT_SCALE,
+          fit: existing?.fit ?? 1,
           offsetY: existing?.offsetY ?? 0,
           enabled: true,
         },
@@ -244,15 +243,18 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
                   <div className="tryon-tuner">
                     <FacePreview item={selectedItem} />
                     <div className="tryon-sliders">
+                      <p className="tryon-hint">
+                        الحجم والموضع يُضبطان تلقائياً على وجه كل زائر. استخدم السلايدرز للتعديل البسيط فقط.
+                      </p>
                       <label>
-                        الحجم ({selectedItem.scale.toFixed(2)}×)
+                        تكبير/تصغير ({Math.round((selectedItem.fit ?? 1) * 100)}%)
                         <input
                           type="range"
-                          min="1"
-                          max="3.5"
-                          step="0.05"
-                          value={selectedItem.scale}
-                          onChange={(e) => patchItem(selectedId, { scale: Number(e.target.value) })}
+                          min="0.5"
+                          max="1.6"
+                          step="0.01"
+                          value={selectedItem.fit ?? 1}
+                          onChange={(e) => patchItem(selectedId, { fit: Number(e.target.value) })}
                         />
                       </label>
                       <label>
@@ -266,6 +268,13 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
                           onChange={(e) => patchItem(selectedId, { offsetY: Number(e.target.value) })}
                         />
                       </label>
+                      <button
+                        type="button"
+                        className="btn btn-small"
+                        onClick={() => patchItem(selectedId, { fit: 1, offsetY: 0 })}
+                      >
+                        إعادة الضبط التلقائي
+                      </button>
                     </div>
                   </div>
                 )}

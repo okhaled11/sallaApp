@@ -22,9 +22,9 @@ const MAX_ITEMS = 20;
 const MAX_IMAGE_CHARS = 150 * 1024;
 const MAX_BYTES = 900 * 1024;
 
-export const SCALE_RANGE = [1, 3.5];
+// fit: multiplier on the auto-fitted size (1 = frame as wide as the face at the temples).
+export const FIT_RANGE = [0.5, 1.6];
 export const OFFSET_RANGE = [-0.5, 0.5];
-const DEFAULT_SCALE = 2.1;
 
 const headers = (extra = {}) => ({
   "Content-Type": "application/json",
@@ -83,7 +83,7 @@ export function sanitizeItem(raw) {
     productId,
     name: String(raw.name ?? "").slice(0, 120),
     image,
-    scale: clamp(raw.scale, SCALE_RANGE, DEFAULT_SCALE),
+    fit: clamp(raw.fit, FIT_RANGE, 1),
     offsetY: clamp(raw.offsetY, OFFSET_RANGE, 0),
     enabled: raw.enabled !== false,
   };

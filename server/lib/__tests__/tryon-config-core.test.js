@@ -6,7 +6,7 @@ vi.mock("../verify-token-core.js", () => ({ verifyEmbeddedToken: (...a) => verif
 const { tryonConfigRequest, sanitizeItem } = await import("../tryon-config-core.js");
 
 const PNG = "data:image/png;base64,iVBORw0KGgo=";
-const item = (extra = {}) => ({ productId: "123", name: "نظارة", image: PNG, scale: 2, offsetY: 0.1, ...extra });
+const item = (extra = {}) => ({ productId: "123", name: "نظارة", image: PNG, fit: 1, offsetY: 0.1, ...extra });
 const save = (storeId, items, extra = {}) =>
   tryonConfigRequest({
     method: "POST",
@@ -26,16 +26,16 @@ describe("tryon-config-core", () => {
 
   describe("sanitizeItem", () => {
     it("keeps a valid item and clamps placement values", () => {
-      expect(sanitizeItem(item({ scale: 99, offsetY: -9 }))).toMatchObject({
+      expect(sanitizeItem(item({ fit: 99, offsetY: -9 }))).toMatchObject({
         productId: "123",
-        scale: 3.5,
+        fit: 1.6,
         offsetY: -0.5,
         enabled: true,
       });
     });
 
     it("falls back to defaults for non-numeric placement", () => {
-      expect(sanitizeItem(item({ scale: "x", offsetY: undefined }))).toMatchObject({ scale: 2.1, offsetY: 0 });
+      expect(sanitizeItem(item({ fit: "x", offsetY: undefined }))).toMatchObject({ fit: 1, offsetY: 0 });
     });
 
     it("rejects remote or script image sources and bad ids", () => {

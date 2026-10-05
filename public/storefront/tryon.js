@@ -17,9 +17,11 @@
   var MP_MODEL =
     "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
 
-  // Face-mesh landmarks: outer eye corners (subject's right / left).
+  // Face-mesh landmarks: outer eye corners, and the face edge at eye level (temples).
   var EYE_A = 33;
   var EYE_B = 263;
+  var TEMPLE_A = 127;
+  var TEMPLE_B = 356;
   var SMOOTHING = 0.45;
 
   var APP_ORIGIN = "";
@@ -77,27 +79,28 @@
   }
 
   /**
-   * Where the glasses go for one face: centred between the eyes, sized from the
-   * eye distance, tilted with the eye line. x is mirrored (selfie view).
+   * Where the glasses go for one face. Auto-fit: the frame is as wide as the face
+   * at the temples, centred on the eye line and tilted with it, so it suits any
+   * face without manual tuning. item.fit / item.offsetY are only small tweaks.
+   * x is mirrored (selfie view).
    */
   function placement(landmarks, w, h, item) {
-    var a = landmarks[EYE_A];
-    var b = landmarks[EYE_B];
-    var ax = (1 - a.x) * w, ay = a.y * h;
-    var bx = (1 - b.x) * w, by = b.y * h;
+    function pt(i) { return { x: (1 - landmarks[i].x) * w, y: landmarks[i].y * h }; }
+    var a = pt(EYE_A), b = pt(EYE_B);
     // Mirroring swaps which corner is on the left; order them so the angle stays small.
-    if (bx < ax) {
-      var tx = ax, ty = ay;
-      ax = bx; ay = by; bx = tx; by = ty;
-    }
-    var dist = Math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
-    var angle = Math.atan2(by - ay, bx - ax);
+    if (b.x < a.x) { var t = a; a = b; b = t; }
+    var eyeDist = Math.sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
+    var angle = Math.atan2(b.y - a.y, b.x - a.x);
+    var ta = pt(TEMPLE_A), tb = pt(TEMPLE_B);
+    var templeDist = Math.sqrt((tb.x - ta.x) * (tb.x - ta.x) + (tb.y - ta.y) * (tb.y - ta.y));
+    // Head turned away: the projected face width shrinks, so the frame narrows with it.
+    var faceWidth = templeDist > eyeDist ? templeDist : eyeDist * 2.1;
     // Move along the face's own "down" axis so the offset follows head tilt.
-    var shift = (item.offsetY || 0) * dist;
+    var shift = (item.offsetY || 0) * eyeDist;
     return {
-      x: (ax + bx) / 2 - Math.sin(angle) * shift,
-      y: (ay + by) / 2 + Math.cos(angle) * shift,
-      width: dist * (item.scale || 2.1),
+      x: (a.x + b.x) / 2 - Math.sin(angle) * shift,
+      y: (a.y + b.y) / 2 + Math.cos(angle) * shift,
+      width: faceWidth * (item.fit || 1),
       angle: angle,
     };
   }
@@ -112,38 +115,81 @@
   function openTryOn(item) {
     if (document.getElementById(MODAL_ID)) return;
 
+    // Phones get a full-screen camera (like the native app); desktops get a centred card.
+    var mobile = !!(window.matchMedia && window.matchMedia("(max-width: 700px)").matches);
+
     var overlay = el(
       "div",
-      "position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:12px;font-family:PingARLT,system-ui,sans-serif;direction:rtl;",
+      "position:fixed;inset:0;z-index:2147483000;display:flex;font-family:PingARLT,system-ui,sans-serif;direction:rtl;" +
+        (mobile ? "background:#000;" : "background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:12px;"),
     );
     overlay.id = MODAL_ID;
-    var card = el("div", "background:#111;border-radius:16px;width:100%;max-width:560px;overflow:hidden;color:#fff;position:relative;");
-    var stage = el("div", "position:relative;width:100%;aspect-ratio:4/3;background:#000;");
-    var canvas = el("canvas", "width:100%;height:100%;display:block;");
+    var card = el(
+      "div",
+      "background:#111;color:#fff;position:relative;overflow:hidden;width:100%;" +
+        (mobile
+          ? "height:100%;display:flex;flex-direction:column;"
+          : "border-radius:16px;max-width:min(640px,calc(64vh * 1.3333));"),
+    );
+    var stage = el(
+      "div",
+      "position:relative;width:100%;background:#000;" + (mobile ? "flex:1;min-height:0;" : "aspect-ratio:4/3;"),
+    );
+    var canvas = el("canvas", "width:100%;height:100%;display:block;" + (mobile ? "object-fit:cover;" : ""));
     var status = el("div", "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:14px;", "جارٍ تجهيز الكاميرا...");
     stage.appendChild(canvas);
     stage.appendChild(status);
 
-    var bar = el("div", "display:flex;gap:8px;padding:12px;flex-wrap:wrap;align-items:center;");
-    var btnStyle = "border:0;border-radius:10px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;";
-    var snap = el("button", btnStyle + "background:#fff;color:#111;", "📸 التقاط صورة");
-    var upload = el("button", btnStyle + "background:#333;color:#fff;", "🖼️ ارفع صورة بدل الكاميرا");
-    var close = el("button", btnStyle + "background:#333;color:#fff;margin-inline-start:auto;", "إغلاق");
+    var safeTop = "calc(12px + env(safe-area-inset-top,0px))";
+    var safeBottom = "calc(18px + env(safe-area-inset-bottom,0px))";
+    var btnStyle = "border:0;cursor:pointer;font-family:inherit;font-weight:700;";
     var fileInput = el("input");
     fileInput.type = "file";
     fileInput.accept = "image/*";
     fileInput.style.display = "none";
-    var note = el("div", "width:100%;font-size:11px;opacity:.65;", "🔒 الصورة تُعالَج على جهازك فقط ولا يتم رفعها لأي مكان.");
-    bar.appendChild(snap);
-    bar.appendChild(upload);
-    bar.appendChild(fileInput);
-    bar.appendChild(close);
-    bar.appendChild(note);
+    var snap, upload, close, note;
 
-    card.appendChild(stage);
-    card.appendChild(bar);
+    if (mobile) {
+      var round = btnStyle + "border-radius:50%;display:flex;align-items:center;justify-content:center;";
+      snap = el("button", round + "width:68px;height:68px;font-size:28px;background:#fff;color:#111;border:4px solid rgba(255,255,255,.5);", "📸");
+      upload = el("button", round + "width:46px;height:46px;font-size:20px;background:rgba(0,0,0,.45);color:#fff;", "🖼️");
+      close = el("button", round + "position:absolute;top:" + safeTop + ";right:12px;width:40px;height:40px;font-size:18px;background:rgba(0,0,0,.45);color:#fff;z-index:2;", "✕");
+      note = el("div", "position:absolute;top:" + safeTop + ";left:64px;right:64px;text-align:center;font-size:11px;line-height:1.4;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);z-index:1;", "🔒 المعالجة على جهازك فقط، ولا يتم رفع الصورة");
+      snap.setAttribute("aria-label", "التقاط صورة");
+      upload.setAttribute("aria-label", "رفع صورة بدل الكاميرا");
+      close.setAttribute("aria-label", "إغلاق");
+      var mbar = el(
+        "div",
+        "position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-around;padding:40px 24px " + safeBottom + ";background:linear-gradient(transparent,rgba(0,0,0,.65));z-index:1;",
+      );
+      mbar.appendChild(upload);
+      mbar.appendChild(snap);
+      mbar.appendChild(el("span", "width:46px;height:46px;"));
+      stage.appendChild(note);
+      stage.appendChild(close);
+      stage.appendChild(mbar);
+      stage.appendChild(fileInput);
+      card.appendChild(stage);
+    } else {
+      var rect = btnStyle + "border-radius:10px;padding:10px 14px;font-size:13px;";
+      snap = el("button", rect + "background:#fff;color:#111;", "📸 التقاط صورة");
+      upload = el("button", rect + "background:#333;color:#fff;", "🖼️ ارفع صورة بدل الكاميرا");
+      close = el("button", rect + "background:#333;color:#fff;margin-inline-start:auto;", "إغلاق");
+      note = el("div", "width:100%;font-size:11px;opacity:.65;", "🔒 الصورة تُعالَج على جهازك فقط ولا يتم رفعها لأي مكان.");
+      var bar = el("div", "display:flex;gap:8px;padding:12px;flex-wrap:wrap;align-items:center;");
+      bar.appendChild(snap);
+      bar.appendChild(upload);
+      bar.appendChild(fileInput);
+      bar.appendChild(close);
+      bar.appendChild(note);
+      card.appendChild(stage);
+      card.appendChild(bar);
+    }
+
     overlay.appendChild(card);
     document.body.appendChild(overlay);
+    var prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
     var ctx = canvas.getContext("2d");
     var glasses = new Image();
@@ -157,6 +203,16 @@
     var photo = null;
     var last = null;
     var stopped = false;
+
+    // Ask for a portrait stream on a portrait phone so it fills the screen without cropping much.
+    function cameraConstraints() {
+      var portrait = mobile && window.innerHeight > window.innerWidth;
+      return {
+        facingMode: "user",
+        width: { ideal: portrait ? 720 : 1280 },
+        height: { ideal: portrait ? 1280 : 720 },
+      };
+    }
 
     function setStatus(text) {
       status.textContent = text || "";
@@ -173,11 +229,15 @@
       ctx.restore();
     }
 
+    // Desktop: the card takes the camera's real aspect ratio and never grows taller than the
+    // viewport. Phones: the canvas covers the whole screen, so only its pixel size matters.
     function fit(w, h) {
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w;
-        canvas.height = h;
-      }
+      if (canvas.width === w && canvas.height === h) return;
+      canvas.width = w;
+      canvas.height = h;
+      if (mobile) return;
+      stage.style.aspectRatio = w + " / " + h;
+      card.style.maxWidth = "min(640px, calc(64vh * " + (w / h).toFixed(4) + "))";
     }
 
     function frame() {
@@ -206,6 +266,7 @@
     function renderPhoto() {
       if (!photo || !landmarker) return;
       fit(photo.naturalWidth, photo.naturalHeight);
+      canvas.style.objectFit = "contain";
       ctx.drawImage(photo, 0, 0, canvas.width, canvas.height);
       landmarker.setOptions({ runningMode: "IMAGE" });
       var res = landmarker.detect(photo);
@@ -227,6 +288,7 @@
       stopped = true;
       stopCamera();
       overlay.remove();
+      document.body.style.overflow = prevOverflow;
       document.removeEventListener("keydown", onKey);
     }
     function onKey(e) { if (e.key === "Escape") teardown(); }
@@ -262,7 +324,7 @@
         landmarker = lm;
         if (stopped) return;
         return navigator.mediaDevices
-          .getUserMedia({ video: { facingMode: "user", width: { ideal: 960 } }, audio: false })
+          .getUserMedia({ video: cameraConstraints(), audio: false })
           .then(function (s) {
             if (stopped) return s.getTracks().forEach(function (t) { t.stop(); });
             stream = s;
