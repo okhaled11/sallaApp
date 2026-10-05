@@ -1,0 +1,868 @@
+/* ============================================
+   Flat UI: one visual language for every tab
+   (same look as the risky-orders screen)
+
+   - Flat surfaces with hairline dividers; no gradients, glows or heavy shadows
+   - Underline tabs, quiet badges, link-style actions
+   - Summary figures sit in ONE strip instead of separate tinted cards
+   - Colour is only used to carry meaning (risk, stock, success)
+
+   Loaded after App.css and written with a `:root` prefix so it wins over the
+   older component rules, including the [data-theme] ones.
+   ============================================ */
+
+/* ---------- Header and tabs ---------- */
+:root .salla-breadcrumb-bar {
+  background: none;
+  border: none;
+  padding-block: 4px 12px;
+}
+
+:root .salla-date-range-pill,
+:root .salla-icon-btn-pill {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+:root .salla-tabs-wrapper {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root .salla-pill-tabs {
+  display: flex;
+  gap: 26px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root .salla-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0 11px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+:root .salla-tab-btn:hover {
+  background: none;
+  color: var(--text-primary);
+}
+
+:root .salla-tab-btn.active {
+  background: none;
+  border-bottom-color: var(--accent-primary);
+  box-shadow: none;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+:root .salla-tab-icon {
+  display: inline-flex;
+  width: auto;
+  height: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: inherit;
+}
+
+:root .salla-badge-count,
+:root .salla-badge-tag {
+  padding: 1px 8px;
+  background: var(--bg-tertiary);
+  border: none;
+  border-radius: 999px;
+  box-shadow: none;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+:root .salla-badge-count {
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+:root .salla-sync-pill {
+  background: none;
+  border: none;
+  padding: 0 0 10px;
+  box-shadow: none;
+  color: var(--text-tertiary);
+}
+
+/* ---------- Panels ---------- */
+:root .panel {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+:root .panel-header {
+  background: none;
+  border-bottom: 1px solid var(--border-color);
+}
+
+:root .panel-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* ---------- Summary figures: one strip ---------- */
+:root .store-stats-kpi-grid,
+:root .incentives-kpi-grid,
+:root .content-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0;
+  margin-block: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+:root .stats-kpi-card,
+:root .salla-metric-card,
+:root .kpi-mini-card,
+:root .content-kpi-card {
+  min-height: 0;
+  gap: 6px;
+  padding: 18px 20px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+:root .stats-kpi-card + .stats-kpi-card,
+:root .content-kpi-card + .content-kpi-card {
+  border-inline-start: 1px solid var(--border-color);
+}
+
+:root .stats-kpi-card:hover,
+:root .salla-metric-card:hover,
+:root .content-kpi-card:hover {
+  background: none;
+  border-color: var(--border-color);
+  transform: none;
+}
+
+:root .salla-card-header {
+  margin: 0;
+}
+
+:root .salla-metric-title,
+:root .kpi-title {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+:root .salla-big-number,
+:root .kpi-val {
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--text-heading);
+}
+
+:root .salla-metric-subtext {
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+
+:root .salla-metric-value-row {
+  margin: 0;
+}
+
+/* Decorative bits that only add noise */
+:root .salla-metric-progress-track,
+:root .salla-card-refresh-btn,
+:root .salla-tooltip-trigger {
+  display: none;
+}
+
+:root .salla-card-footer {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+/* Shortcut buttons inside the figures become plain links */
+:root .salla-card-action-pill {
+  min-height: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--accent-primary);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+:root .salla-card-action-pill:hover {
+  background: none;
+  color: var(--accent-primary-hover);
+}
+
+/* Quiet badges (same as the risk badges) */
+:root .salla-metric-badge {
+  padding: 1px 9px;
+  background: var(--bg-tertiary);
+  border: none;
+  border-radius: 999px;
+  box-shadow: none;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+:root .salla-badge-good {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+/* ---------- Intro banners become plain panel headers ---------- */
+:root .incentives-hero-card,
+:root .content-hero-card {
+  background: var(--bg-secondary);
+  background-image: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+:root .hero-icon-badge,
+:root .kpi-icon-wrap {
+  display: none;
+}
+
+:root .incentives-hero-badge {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-tertiary);
+}
+
+:root .content-global-score-box,
+:root .incentives-hero-toggle-card {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+/* ---------- Filters and tabs inside screens ---------- */
+:root .filter-btn,
+:root .filter-chip {
+  padding: 5px 12px;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  color: var(--text-secondary) !important;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+:root .filter-btn:hover,
+:root .filter-chip:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color-strong);
+  color: var(--text-heading) !important;
+}
+
+:root .filter-btn.active,
+:root .filter-chip.active,
+:root .filter-chip[aria-pressed="true"] {
+  background: none !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: none;
+  color: var(--accent-primary) !important;
+  font-weight: 600;
+}
+
+:root .studio-tabs-bar,
+:root .store-stats-tabs {
+  display: flex;
+  gap: 22px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root .studio-tab-btn,
+:root .stats-tab-btn {
+  padding: 10px 0 9px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+:root .studio-tab-btn.active,
+:root .stats-tab-btn.active {
+  background: none;
+  border-bottom-color: var(--accent-primary);
+  box-shadow: none;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+/* ---------- Cards that were boxes inside boxes ---------- */
+:root .summary-tile,
+:root .action-tile {
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root .action-tile-critical,
+:root .action-tile-warning {
+  border: none;
+}
+
+:root .category-alert,
+:root .category-alert-low,
+:root .category-alert-out {
+  background: none;
+  border: none;
+  border-inline-start: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ---------- Buttons ---------- */
+:root .btn-trigger-action,
+:root .btn-save-settings,
+:root .btn-copy-script,
+:root .btn-run-simulation,
+:root .btn-seed-sample,
+:root .btn-merge-duplicates,
+:root .btn-clear-log,
+:root .btn-reset-settings,
+:root .btn-reset-simulation {
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+/* Status tags */
+:root .visitor-status-tag,
+:root .card-score-pill,
+:root .cat-tag,
+:root .sku-tag {
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+/* ---------- Lists: rows split by hairlines, never boxes ---------- */
+:root .drivers-list,
+:root .category-profit-list,
+:root .action-list {
+  gap: 0;
+}
+
+:root .driver-item,
+:root .cat-profit-row,
+:root .action-item {
+  padding: 12px var(--space-sm);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root .driver-item:last-child,
+:root .cat-profit-row:last-child,
+:root .action-item:last-child {
+  border-bottom: none;
+}
+
+:root .driver-item:hover,
+:root .cat-profit-row:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+:root .cat-profit-row.selected-row {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+:root .action-critical,
+:root .action-warning,
+:root .action-info {
+  border-inline-start: none;
+}
+
+/* Ranks are plain numbers, not coloured medals */
+:root .driver-item .driver-rank-badge {
+  width: 22px;
+  height: auto;
+  background: none;
+  border-radius: 0;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+
+:root .driver-share-bar-container,
+:root .cat-progress-track,
+:root .category-share-bar {
+  height: 4px;
+}
+
+:root .action-icon {
+  padding: 0;
+  background: none;
+}
+
+/* ---------- Category cards: a divided grid instead of boxed cards ---------- */
+:root .category-grid {
+  gap: 0;
+  padding: 0;
+}
+
+:root .category-card {
+  padding: var(--space-md);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-inline-end: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root .category-card-selected {
+  background: var(--bg-tertiary);
+  box-shadow: none;
+}
+
+/* ---------- Segmented controls become underline tabs ---------- */
+:root .segmented {
+  gap: 18px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+}
+
+:root .segmented-button {
+  flex: none;
+  padding: 8px 0 7px;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+}
+
+:root .segmented-button.is-active {
+  background: none;
+  border-bottom-color: var(--accent-primary);
+  box-shadow: none;
+  color: var(--accent-primary);
+}
+
+/* ---------- Figures inside panels: strips with dividers ---------- */
+:root .profit-tiles,
+:root .action-tiles,
+:root .products-summary {
+  gap: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+:root .profit-tiles > * + *,
+:root .action-tiles > * + *,
+:root .products-summary > * + * {
+  border-inline-start: 1px solid var(--border-color);
+}
+
+/* ---------- Buttons: quiet, squared, no fills ---------- */
+:root .btn {
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+:root .btn.btn-small:not(.btn-primary):not(.btn-danger):not(.btn-success) {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+:root .btn.btn-small:not(.btn-primary):not(.btn-danger):not(.btn-success):hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color-strong);
+  color: var(--text-heading);
+}
+
+/* ---------- Alert banners: no thick coloured edge ---------- */
+:root .stats-alert-banner {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-inline-start-width: 1px;
+  border-radius: var(--radius-md);
+}
+
+:root .stats-alert-banner.alert-danger,
+:root .stats-alert-banner.alert-info {
+  background: none;
+  border-inline-start: 1px solid var(--border-color);
+}
+
+:root .stats-alert-banner.alert-danger .alert-header {
+  color: var(--danger-text);
+}
+
+:root .loss-item-pill,
+:root .missing-cost-tag {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+/* Stacked panels inside the statistics panel read as sections */
+:root .store-stats-panel .panel {
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
+}
+
+/* ---------- Content studio: product cards become rows ---------- */
+:root .content-cards-grid {
+  display: block;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+:root .product-content-card {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.5fr) minmax(190px, 1fr) minmax(200px, 1.3fr) auto;
+  grid-template-areas:
+    "top check issues action"
+    "top bar issues action";
+  align-items: center;
+  gap: 6px 20px;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  border-left: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
+}
+
+:root .product-content-card:last-child {
+  border-bottom: none;
+}
+
+:root .product-content-card:hover {
+  background: var(--bg-tertiary);
+  box-shadow: none;
+  transform: none;
+}
+
+:root .product-content-card.critical,
+:root .product-content-card.needs_improvement,
+:root .product-content-card.good,
+:root .product-content-card.excellent {
+  border-left: none;
+}
+
+:root .product-content-card .card-top-row {
+  grid-area: top;
+  gap: 12px;
+}
+
+:root .product-content-card .card-checklist-mini {
+  grid-area: check;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: 0;
+  gap: 12px;
+}
+
+:root .product-content-card .card-progress-track {
+  grid-area: bar;
+  height: 4px;
+}
+
+:root .product-content-card .card-issues-preview,
+:root .product-content-card .card-issues-clean {
+  grid-area: issues;
+  margin: 0;
+}
+
+:root .product-content-card .card-action-btn {
+  grid-area: action;
+  width: auto;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+}
+
+:root .product-media-wrap {
+  flex-shrink: 0;
+}
+
+:root .product-thumb,
+:root .product-thumb-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  box-shadow: none;
+}
+
+:root .product-card-title {
+  margin: 2px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+:root .content-badge,
+:root .card-score-pill {
+  border: none;
+  box-shadow: none;
+}
+
+:root .mini-check.ok {
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 900px) {
+  :root .product-content-card {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "top action"
+      "check check"
+      "bar bar"
+      "issues issues";
+  }
+}
+
+/* ---------- Visitor incentives ---------- */
+:root .incentives-hero-toggle-card button,
+:root .btn-trigger-action {
+  min-height: 0;
+  padding: 5px 14px;
+  background: none;
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  color: var(--accent-primary);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+:root .incentives-hero-toggle-card button:hover,
+:root .btn-trigger-action:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+:root .btn-trigger-action:disabled {
+  color: var(--text-tertiary);
+  border-color: var(--border-color);
+}
+
+:root .visitor-status-tag {
+  border: none;
+}
+
+:root .realtime-channel-bar {
+  background: none;
+  border-color: var(--border-color);
+}
+
+:root .channel-info-right,
+:root .channel-badge-connected {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+:root .product-media-wrap .product-thumb-placeholder,
+:root .product-media-wrap .product-thumb {
+  width: 44px;
+  height: 44px;
+}
+
+:root .product-content-card .card-action-btn {
+  align-self: center;
+  margin: 0;
+}
+
+/* ---------- Incentive rules manager ---------- */
+:root .irm-container {
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+
+:root .irm-header {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root .irm-stat-chip {
+  background: none;
+  border: none;
+  padding: 0 8px;
+  color: var(--text-secondary);
+}
+
+:root .irm-how-it-works {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root .irm-how-step {
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+
+:root .irm-btn-add,
+:root .irm-btn-save {
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+:root .irm-btn-sync-all,
+:root .irm-btn-reset,
+:root .irm-btn-cancel,
+:root .irm-sync-coupon-btn {
+  background: none;
+  border: 1px solid var(--border-color-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  color: var(--text-secondary);
+}
+
+:root .irm-btn-sync-all:hover,
+:root .irm-btn-reset:hover,
+:root .irm-sync-coupon-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
+}
+
+:root .irm-rules-list {
+  gap: 0;
+  border-top: 1px solid var(--border-color);
+}
+
+:root .irm-rule-card {
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+:root .irm-rule-card:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+:root .irm-priority-badge {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+}
+
+:root .irm-type-badge,
+:root .irm-meta-chip {
+  border: none;
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+:root .irm-empty-state {
+  background: none;
+  border: none;
+}
+
+:root .irm-info-footer {
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
+}
+
+:root .irm-salla-coupon-box,
+:root .irm-selected-product-card {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: none;
+}
+
+/* Chips were pastel (light theme) colours and the coupon code was dark on dark.
+   Inline colours are overridden on purpose: they came from a fixed light palette. */
+:root .irm-type-badge {
+  background: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+}
+
+:root .irm-meta-chip,
+:root .irm-meta-chip.highlight,
+:root .irm-meta-chip.product,
+:root .irm-meta-chip.salla-synced {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+:root .irm-meta-chip.highlight {
+  color: var(--accent-primary);
+}
+
+:root .irm-meta-chip.salla-synced {
+  background: var(--success-soft);
+  color: var(--success-text);
+}
