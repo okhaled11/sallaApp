@@ -11,6 +11,7 @@ import Navbar from "./components/Navigation/Navbar.jsx";
 import ContentStudio from "./components/ContentStudio/ContentStudio.jsx";
 import VisitorIncentivesStudio from "./components/Incentives/VisitorIncentivesStudio.jsx";
 import RiskyOrders from "./components/RiskyOrders/RiskyOrders.jsx";
+import TryOnStudio from "./components/TryOn/TryOnStudio.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
 import ProfitInsights from "./components/ProfitInsights.jsx";
@@ -58,6 +59,14 @@ function AppContent() {
     reload,
     updateProduct,
   } = useProducts(token, isReady && !!token);
+
+  const storeId =
+    verifiedData?.merchant_id ||
+    verifiedData?.store_id ||
+    verifiedData?.id ||
+    (typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("store")
+      : null);
 
   const [activeTab, setActiveTab] = useState("sales");
   const [lowStockLimit, setLowStockLimit] = useState(DEFAULT_LOW_STOCK_LIMIT);
@@ -216,7 +225,9 @@ function AppContent() {
         ? "ستوديو المحتوى والسيو"
         : activeTab === "risk"
           ? "كاشف الطلبات الخطرة"
-          : activeTab === "incentives"
+          : activeTab === "tryon"
+            ? "التجربة الافتراضية"
+            : activeTab === "incentives"
             ? "تحفيز الزوار والخصومات الذكية"
             : "المبيعات والأرباح",
     action: chromeAction,
@@ -325,19 +336,19 @@ function AppContent() {
                   currency={layout?.currency || "SAR"}
                   onShowToast={showToast}
                 />
+              ) : activeTab === "tryon" ? (
+                <TryOnStudio
+                  products={products}
+                  token={token}
+                  storeId={storeId}
+                  onShowToast={showToast}
+                />
               ) : (
                 <VisitorIncentivesStudio
                   products={products}
                   token={token}
                   currency={layout?.currency || "SAR"}
-                  storeId={
-                    verifiedData?.merchant_id ||
-                    verifiedData?.store_id ||
-                    verifiedData?.id ||
-                    (typeof window !== "undefined"
-                      ? new URLSearchParams(window.location.search).get("store")
-                      : null)
-                  }
+                  storeId={storeId}
                   onShowToast={showToast}
                 />
               )}

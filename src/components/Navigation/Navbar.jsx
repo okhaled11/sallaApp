@@ -37,6 +37,13 @@ export default function Navbar({
       icon: "tag",
       badgeLabel: "تجريبي",
     },
+    {
+      id: "tryon",
+      label: "التجربة الافتراضية",
+      subtitle: "جرّب النظارات على الوجه بالكاميرا",
+      icon: "aiSparkles",
+      badgeLabel: "جديد",
+    },
   ];
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
