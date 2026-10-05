@@ -48,8 +48,10 @@ describe("coupons-core: gift coupon", () => {
       amount: 100,
       free_shipping: false,
       products_include: ["1626467363"],
+      usage_limit: 100000,
       usage_limit_per_user: 1,
     });
+    expect(payload.usage_limit_per_user).toBeLessThan(payload.usage_limit);
   });
 
   it("rejects a non-numeric gift product id", async () => {

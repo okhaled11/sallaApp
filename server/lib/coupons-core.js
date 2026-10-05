@@ -18,6 +18,8 @@ import {
 } from "./errors.js";
 
 const SALLA_COUPONS_URL = "https://api.salla.dev/admin/v2/coupons";
+// Total redemptions allowed for a gift coupon (each customer can still use it once).
+const GIFT_TOTAL_USAGE_LIMIT = 100000;
 
 /**
  * Handle incoming create coupon request
@@ -125,6 +127,8 @@ export async function createCouponRequest({ method, body }) {
     payload.amount = 100;
     payload.free_shipping = false;
     payload.products_include = [giftId];
+    // Salla requires usage_limit_per_user to be lower than the total usage_limit.
+    payload.usage_limit = GIFT_TOTAL_USAGE_LIMIT;
     payload.usage_limit_per_user = 1;
   }
 
