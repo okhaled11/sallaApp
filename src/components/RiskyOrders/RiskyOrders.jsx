@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Icon from "../Icon.jsx";
 import { fetchRiskyOrders } from "../../utils/ordersApi.js";
 import { ACTIONS, LEVELS, SENSITIVITY, levelFor, summarize } from "../../../shared/orderRisk.js";
@@ -15,12 +15,12 @@ import {
 } from "../../utils/riskUi.js";
 
 const SENSITIVITY_OPTIONS = [
-  { id: "strict", label: "صارم", hint: "يكشف أكبر عدد من الطلبات المشبوهة" },
-  { id: "balanced", label: "متوازن", hint: "الإعداد الموصى به" },
-  { id: "relaxed", label: "متساهل", hint: "يُظهر الطلبات الواضحة فقط" },
+  { id: "strict", label: "صارم" },
+  { id: "balanced", label: "متوازن" },
+  { id: "relaxed", label: "متساهل" },
 ];
 
-const LEVEL_FILTERS = [
+const LEVEL_TABS = [
   { id: "all", label: "الكل" },
   { id: LEVELS.HIGH, label: "خطر مرتفع" },
   { id: LEVELS.MEDIUM, label: "خطر متوسط" },
@@ -35,12 +35,14 @@ const SIGNALS = [
   "مدينة نسبة مرتجعاتها مرتفعة",
   "عدة طلبات من نفس الرقم خلال 24 ساعة",
   "رقم جوال يبدو غير حقيقي، أو مدينة غير محددة",
-  "العميل الموثوق (طلبات سابقة مستلمة) يخفض التقييم، والدفع المسبق يخفضه كثيراً",
+  "العميل الموثوق يخفض التقييم، والدفع المسبق يخفضه كثيراً",
 ];
 
+const COLUMNS = 6;
+
 /**
- * Risky orders: scores cash-on-delivery orders before they ship, shows why each
- * one is risky and what to do about it (call, WhatsApp, confirm).
+ * Risky orders: scores cash-on-delivery orders before they ship, and shows why
+ * each one is risky and what to do about it (call, WhatsApp, confirm).
  */
 export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
   const [state, setState] = useState({ status: "loading", data: null, error: "" });
@@ -49,6 +51,7 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
   const [onlyNotShipped, setOnlyNotShipped] = useState(true);
   const [query, setQuery] = useState("");
   const [confirmed, setConfirmed] = useState(() => loadConfirmed());
+  const [openId, setOpenId] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) {
@@ -69,21 +72,34 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
   const orders = useMemo(() => state.data?.orders ?? [], [state.data]);
 
   const scope = useMemo(
-    () => orders.filter((order) => (!onlyNotShipped || order.isNotShipped) && matchesSearch(order, query)),
-    [orders, onlyNotShipped, query],
+    () =>
+      orders
+        .filter((order) => (!onlyNotShipped || order.isNotShipped) && matchesSearch(order, query))
+        .map((order) => ({ ...order, level: levelFor(order.score, thresholds) })),
+    [orders, onlyNotShipped, query, thresholds],
   );
 
-  // Orders already confirmed by the merchant no longer need attention
+  // Orders the merchant already confirmed no longer need attention
   const summary = useMemo(() => summarize(scope.filter((o) => !confirmed.has(o.id)), thresholds), [scope, confirmed, thresholds]);
 
+  const counts = useMemo(
+    () => ({
+      all: scope.length,
+      [LEVELS.HIGH]: scope.filter((o) => o.level === LEVELS.HIGH).length,
+      [LEVELS.MEDIUM]: scope.filter((o) => o.level === LEVELS.MEDIUM).length,
+      [LEVELS.LOW]: scope.filter((o) => o.level === LEVELS.LOW).length,
+    }),
+    [scope],
+  );
+
   const visible = useMemo(() => {
-    const withLevel = scope.map((order) => ({ ...order, level: levelFor(order.score, thresholds) }));
-    const filtered = levelFilter === "all" ? withLevel : withLevel.filter((o) => o.level === levelFilter);
+    const filtered = levelFilter === "all" ? scope : scope.filter((o) => o.level === levelFilter);
     // Confirmed orders sink to the bottom; the rest stay riskiest first
     return [...filtered].sort((a, b) => Number(confirmed.has(a.id)) - Number(confirmed.has(b.id)) || b.score - a.score);
-  }, [scope, thresholds, levelFilter, confirmed]);
+  }, [scope, levelFilter, confirmed]);
 
   const toggleConfirmed = (order) => {
+    const wasConfirmed = confirmed.has(order.id);
     setConfirmed((prev) => {
       const next = new Set(prev);
       if (next.has(order.id)) next.delete(order.id);
@@ -91,7 +107,7 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
       saveConfirmed(next);
       return next;
     });
-    if (!confirmed.has(order.id)) onShowToast?.(`تم تسجيل تأكيد الطلب #${order.referenceId}`, "success");
+    if (!wasConfirmed) onShowToast?.(`تم تسجيل تأكيد الطلب #${order.referenceId}`, "success");
   };
 
   const stats = state.data?.stats;
@@ -103,11 +119,9 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
         <div className="panel-header risk-header">
           <div>
             <span className="panel-title">كاشف الطلبات الخطرة</span>
-            <span className="panel-subtitle">
-              اكتشف طلبات الدفع عند الاستلام المشبوهة قبل شحنها، وعرف السبب والإجراء المناسب
-            </span>
+            <span className="panel-subtitle">راجع طلبات الدفع عند الاستلام المشبوهة قبل شحنها</span>
           </div>
-          <button type="button" className="filter-btn" onClick={load} disabled={state.status === "loading"}>
+          <button type="button" className="risk-link-btn" onClick={load} disabled={state.status === "loading"}>
             <Icon name="refresh" size={14} />
             <span>{state.status === "loading" ? "جاري التحليل..." : "تحديث"}</span>
           </button>
@@ -115,9 +129,9 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
 
         {state.status === "error" && (
           <div className="risk-state risk-state-error" role="alert">
-            <Icon name="alert" size={22} />
+            <Icon name="alert" size={20} />
             <p>{state.error}</p>
-            <button type="button" className="filter-btn" onClick={load}>
+            <button type="button" className="risk-link-btn" onClick={load}>
               إعادة المحاولة
             </button>
           </div>
@@ -125,20 +139,19 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
 
         {state.status === "loading" && !state.data && (
           <div className="risk-state" aria-busy="true">
-            <Icon name="refresh" size={22} />
+            <Icon name="refresh" size={20} />
             <p>جاري تحليل طلباتك الأخيرة...</p>
           </div>
         )}
 
         {state.data && (
           <>
-            <div className="risk-kpis">
-              <KpiCard tone="high" title="تحتاج اتصالاً الآن" value={summary.high} sub={`${formatMoney(summary.highAmount, currency)} معرضة للمرتجع`} />
-              <KpiCard tone="medium" title="تحتاج تأكيد واتساب" value={summary.medium} sub={`${formatMoney(summary.mediumAmount, currency)} إجمالي قيمتها`} />
-              <KpiCard tone="neutral" title="نسبة الدفع عند الاستلام" value={formatPercent(stats?.codShare)} sub={`${stats?.codOrders ?? 0} من ${stats?.totalOrders ?? 0} طلب`} />
-              <KpiCard
-                tone="neutral"
-                title="نسبة مرتجعات الدفع عند الاستلام"
+            <div className="risk-stats">
+              <Stat dot="high" label="تحتاج اتصالاً الآن" value={summary.high} sub={`${formatMoney(summary.highAmount, currency)} معرضة للمرتجع`} />
+              <Stat dot="medium" label="تحتاج تأكيد واتساب" value={summary.medium} sub={`${formatMoney(summary.mediumAmount, currency)} إجمالي قيمتها`} />
+              <Stat label="نسبة الدفع عند الاستلام" value={formatPercent(stats?.codShare)} sub={`${stats?.codOrders ?? 0} من ${stats?.totalOrders ?? 0} طلب`} />
+              <Stat
+                label="نسبة مرتجعات الدفع عند الاستلام"
                 value={formatPercent(stats?.returnRate)}
                 sub={stats?.closedCodOrders ? `من ${stats.closedCodOrders} طلب مكتمل` : "لا توجد بيانات كافية بعد"}
               />
@@ -146,27 +159,32 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
 
             {state.data.truncated && (
               <p className="risk-note">
-                تم تحليل أحدث {state.data.fetched} طلب فقط لحجم المتجر الكبير، لذا قد تكون إحصاءات العملاء القدامى ناقصة.
+                تم تحليل أحدث {state.data.fetched} طلب فقط، لذا قد تكون إحصاءات العملاء القدامى ناقصة.
               </p>
             )}
 
-            <div className="risk-controls">
-              <div className="risk-filters" role="group" aria-label="مستوى الخطر">
-                {LEVEL_FILTERS.map((f) => (
-                  <button key={f.id} type="button" className={`filter-btn ${levelFilter === f.id ? "active" : ""}`} onClick={() => setLevelFilter(f.id)}>
-                    {f.label}
+            <div className="risk-toolbar">
+              <div className="risk-tabs" role="group" aria-label="مستوى الخطر">
+                {LEVEL_TABS.map((tab) => (
+                  <button key={tab.id} type="button" className={levelFilter === tab.id ? "is-active" : ""} aria-pressed={levelFilter === tab.id} onClick={() => setLevelFilter(tab.id)}>
+                    {tab.label}
+                    <span className="risk-tab-count">{counts[tab.id]}</span>
                   </button>
                 ))}
               </div>
 
               <div className="risk-tools">
-                <label className="risk-check">
-                  <input type="checkbox" checked={onlyNotShipped} onChange={(e) => setOnlyNotShipped(e.target.checked)} />
-                  <span>الطلبات التي لم تُشحن فقط</span>
-                </label>
+                <input
+                  type="search"
+                  className="risk-field"
+                  placeholder="بحث بالاسم أو الجوال أو رقم الطلب"
+                  aria-label="بحث في الطلبات"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
                 <label className="risk-select">
                   <span>الحساسية</span>
-                  <select value={sensitivity} onChange={(e) => setSensitivity(e.target.value)} title={SENSITIVITY_OPTIONS.find((o) => o.id === sensitivity)?.hint}>
+                  <select className="risk-field" value={sensitivity} onChange={(e) => setSensitivity(e.target.value)}>
                     {SENSITIVITY_OPTIONS.map((o) => (
                       <option key={o.id} value={o.id}>
                         {o.label}
@@ -174,20 +192,16 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
                     ))}
                   </select>
                 </label>
-                <input
-                  type="search"
-                  className="risk-search"
-                  placeholder="ابحث بالاسم أو الجوال أو رقم الطلب"
-                  aria-label="بحث في الطلبات"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
+                <label className="risk-check">
+                  <input type="checkbox" checked={onlyNotShipped} onChange={(e) => setOnlyNotShipped(e.target.checked)} />
+                  <span>الطلبات التي لم تُشحن فقط</span>
+                </label>
               </div>
             </div>
 
             {visible.length === 0 ? (
               <div className="risk-state">
-                <Icon name="checkCircle" size={22} />
+                <Icon name="checkCircle" size={20} />
                 <p>
                   {orders.length === 0
                     ? "لا توجد طلبات في آخر 30 يوماً."
@@ -197,11 +211,35 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
                 </p>
               </div>
             ) : (
-              <ul className="risk-list">
-                {visible.map((order) => (
-                  <OrderCard key={order.id} order={order} currency={currency} isConfirmed={confirmed.has(order.id)} onToggleConfirmed={() => toggleConfirmed(order)} />
-                ))}
-              </ul>
+              <div className="risk-table-wrap">
+                <table className="risk-table">
+                  <thead>
+                    <tr>
+                      <th>الطلب</th>
+                      <th>العميل</th>
+                      <th>المبلغ</th>
+                      <th>الخطر</th>
+                      <th>أبرز الأسباب</th>
+                      <th>
+                        <span className="sr-only">إجراءات</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visible.map((order) => (
+                      <OrderRow
+                        key={order.id}
+                        order={order}
+                        currency={currency}
+                        isConfirmed={confirmed.has(order.id)}
+                        isOpen={openId === order.id}
+                        onToggleOpen={() => setOpenId((id) => (id === order.id ? null : order.id))}
+                        onToggleConfirmed={() => toggleConfirmed(order)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {cities.length > 0 && (
@@ -212,7 +250,7 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
                     <li key={c.city}>
                       <span className="risk-city-name">{c.city}</span>
                       <span className="risk-bar" aria-hidden="true">
-                        <span style={{ width: `${Math.min(100, Math.round(c.rate * 100))}%` }} data-tone={c.rate >= 0.4 ? "high" : c.rate >= 0.25 ? "medium" : "low"} />
+                        <span style={{ width: `${Math.min(100, Math.round(c.rate * 100))}%` }} data-high={c.rate >= 0.4 ? "true" : "false"} />
                       </span>
                       <span className="risk-city-rate">
                         {formatPercent(c.rate)} <small>(<bdi>{c.closed}</bdi> طلب)</small>
@@ -225,9 +263,7 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
 
             <details className="risk-how">
               <summary>كيف يُحسب التقييم؟</summary>
-              <p>
-                كل طلب يُقارن بتاريخ متجرك نفسه (آخر {state.data.windowDays} يوماً)، وتُجمع نقاط من الإشارات التالية:
-              </p>
+              <p>كل طلب يُقارن بتاريخ متجرك نفسه (آخر {state.data.windowDays} يوماً)، وتُجمع نقاط من الإشارات التالية:</p>
               <ul>
                 {SIGNALS.map((s) => (
                   <li key={s}>{s}</li>
@@ -244,95 +280,122 @@ export default function RiskyOrders({ token, currency = "SAR", onShowToast }) {
   );
 }
 
-function KpiCard({ tone, title, value, sub }) {
+function Stat({ dot, label, value, sub }) {
   return (
-    <div className={`risk-kpi risk-kpi-${tone}`}>
-      <span className="risk-kpi-title">{title}</span>
-      <strong className="risk-kpi-value">{value}</strong>
-      <span className="risk-kpi-sub">{sub}</span>
+    <div className="risk-stat">
+      <span className="risk-stat-label">
+        {dot && <i className={`risk-dot risk-dot-${dot}`} aria-hidden="true" />}
+        {label}
+      </span>
+      <strong className="risk-stat-value">{value}</strong>
+      <span className="risk-stat-sub">{sub}</span>
     </div>
   );
 }
 
-function OrderCard({ order, currency, isConfirmed, onToggleConfirmed }) {
+function OrderRow({ order, currency, isConfirmed, isOpen, onToggleOpen, onToggleConfirmed }) {
   const meta = LEVEL_META[order.level];
   const whatsapp = buildWhatsAppUrl(order);
   const tel = buildTelUrl(order);
+  const reasons = order.reasons.filter((r) => r.points !== 0);
   const products = order.items.map((item) => `${item.name}${item.quantity > 1 ? ` ×${item.quantity}` : ""}`).join("، ");
 
   return (
-    <li className={`risk-order risk-order-${meta.tone}${isConfirmed ? " is-confirmed" : ""}`} data-level={order.level}>
-      <div className="risk-score" aria-label={`درجة الخطر ${order.score} من 100`}>
-        <strong>{order.score}</strong>
-        <span>{meta.short}</span>
-      </div>
-
-      <div className="risk-order-main">
-        <div className="risk-order-top">
-          <strong>{order.customerName || "عميل"}</strong>
-          <span className="risk-muted">#{order.referenceId}</span>
-          {order.city && <span className="risk-muted">{order.city}</span>}
-          <span className="risk-muted">{timeAgo(order.createdAt)}</span>
-          {!order.isCod && <span className="risk-pill">مدفوع مسبقاً</span>}
+    <Fragment>
+      <tr className={`risk-row${isConfirmed ? " is-confirmed" : ""}`} data-level={order.level}>
+        <td>
+          <span className="risk-cell-main">#{order.referenceId}</span>
+          <span className="risk-cell-sub">{timeAgo(order.createdAt)}</span>
+        </td>
+        <td>
+          <span className="risk-cell-main">{order.customerName || "عميل"}</span>
+          <span className="risk-cell-sub">{[order.city, !order.isCod && "مدفوع مسبقاً"].filter(Boolean).join(" · ")}</span>
+        </td>
+        <td>
+          <span className="risk-cell-main">{formatMoney(order.total, order.currency || currency)}</span>
+          <span className="risk-cell-sub risk-cell-products" title={products}>
+            {products}
+          </span>
+        </td>
+        <td>
+          <span className={`risk-badge risk-badge-${meta.tone}`} aria-label={`درجة الخطر ${order.score} من 100`}>
+            <i className="risk-dot" aria-hidden="true" />
+            {meta.short}
+            <b dir="ltr">{order.score}</b>
+          </span>
           {isConfirmed && (
-            <span className="risk-pill risk-pill-ok">
+            <span className="risk-cell-sub risk-confirmed-note">
               <Icon name="checkCircle" size={12} /> تم التأكيد
             </span>
           )}
-        </div>
+        </td>
+        <td>
+          {reasons.length === 0 ? (
+            <span className="risk-cell-sub">لا توجد إشارات مقلقة</span>
+          ) : (
+            <>
+              <span className="risk-cell-main risk-reason-first">{reasons[0].label}</span>
+              {reasons.length > 1 && (
+                <button type="button" className="risk-link-btn" onClick={onToggleOpen} aria-expanded={isOpen}>
+                  {isOpen ? "إخفاء" : `عرض كل الأسباب (${reasons.length})`}
+                </button>
+              )}
+            </>
+          )}
+        </td>
+        <td>
+          <div className="risk-actions">
+            {tel ? (
+              <a className="risk-icon-btn" href={tel} aria-label="اتصال" title="اتصال بالعميل">
+                <Icon name="call" size={16} />
+              </a>
+            ) : (
+              <span className="risk-icon-btn is-disabled" aria-hidden="true">
+                <Icon name="call" size={16} />
+              </span>
+            )}
+            {whatsapp ? (
+              <a className="risk-icon-btn" href={whatsapp} target="_blank" rel="noopener noreferrer" aria-label="واتساب" title="مراسلة واتساب برسالة تأكيد جاهزة">
+                <Icon name="whatsapp" size={16} />
+              </a>
+            ) : (
+              <span className="risk-icon-btn is-disabled" aria-hidden="true">
+                <Icon name="whatsapp" size={16} />
+              </span>
+            )}
+            <button
+              type="button"
+              className={`risk-icon-btn${isConfirmed ? " is-on" : ""}`}
+              onClick={onToggleConfirmed}
+              aria-pressed={isConfirmed}
+              aria-label={isConfirmed ? "إلغاء التأكيد" : "تم التأكيد"}
+              title={isConfirmed ? "إلغاء التأكيد" : "تسجيل أن الطلب تم تأكيده"}
+            >
+              <Icon name="checkCircle" size={16} />
+            </button>
+          </div>
+        </td>
+      </tr>
 
-        <div className="risk-order-meta">
-          <span>{formatMoney(order.total, order.currency || currency)}</span>
-          <span className="risk-muted" title={products}>{products}</span>
-          <span className="risk-muted">{order.statusName}</span>
-        </div>
-
-        {order.reasons.length > 0 && order.reasons.some((r) => r.points !== 0) && (
-          <ul className="risk-reasons">
-            {order.reasons
-              .filter((r) => r.points !== 0)
-              .map((r) => (
-                <li key={r.code + r.label} className={r.points < 0 ? "is-good" : ""}>
-                  {r.label}
-                  <b dir="ltr">{r.points > 0 ? `+${r.points}` : r.points}</b>
+      {isOpen && (
+        <tr className="risk-detail">
+          <td colSpan={COLUMNS}>
+            <ul className="risk-detail-reasons">
+              {reasons.map((r) => (
+                <li key={r.code + r.label}>
+                  <span>{r.label}</span>
+                  <b dir="ltr" className={r.points < 0 ? "is-good" : ""}>
+                    {r.points > 0 ? `+${r.points}` : r.points}
+                  </b>
                 </li>
               ))}
-          </ul>
-        )}
-
-        <p className="risk-advice">
-          <Icon name="target" size={13} /> {ACTIONS[order.level]}
-        </p>
-      </div>
-
-      <div className="risk-actions">
-        {tel ? (
-          <a className="filter-btn" href={tel}>
-            <Icon name="call" size={14} />
-            <span>اتصال</span>
-          </a>
-        ) : (
-          <span className="filter-btn is-disabled">
-            <Icon name="call" size={14} />
-            <span>اتصال</span>
-          </span>
-        )}
-        {whatsapp ? (
-          <a className="filter-btn" href={whatsapp} target="_blank" rel="noopener noreferrer">
-            <Icon name="whatsapp" size={14} />
-            <span>واتساب</span>
-          </a>
-        ) : (
-          <span className="filter-btn is-disabled">
-            <Icon name="whatsapp" size={14} />
-            <span>واتساب</span>
-          </span>
-        )}
-        <button type="button" className={`filter-btn ${isConfirmed ? "active" : ""}`} onClick={onToggleConfirmed} aria-pressed={isConfirmed}>
-          <Icon name="checkCircle" size={14} />
-          <span>{isConfirmed ? "إلغاء التأكيد" : "تم التأكيد"}</span>
-        </button>
-      </div>
-    </li>
+            </ul>
+            <p className="risk-advice">
+              <Icon name="target" size={14} /> {ACTIONS[order.level]}
+            </p>
+          </td>
+        </tr>
+      )}
+    </Fragment>
   );
 }

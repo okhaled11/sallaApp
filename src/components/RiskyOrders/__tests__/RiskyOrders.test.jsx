@@ -29,8 +29,14 @@ const order = (id, over = {}) => ({
 
 const DATA = {
   orders: [
-    order(1, { score: 85, reasons: [{ code: "new_customer", label: "عميل جديد لا توجد له طلبات سابقة", points: 20 }, { code: "bad_phone", label: "رقم الجوال يبدو غير حقيقي أو ناقصاً", points: 20 }] }),
-    order(2, { score: 40, reasons: [{ code: "high_value", label: "قيمة الطلب 2.5× المعتاد", points: 12 }] }),
+    order(1, {
+      score: 85,
+      reasons: [
+        { code: "new_customer", label: "عميل جديد لا توجد له طلبات سابقة", points: 20 },
+        { code: "bad_phone", label: "رقم الجوال يبدو غير حقيقي أو ناقصاً", points: 20 },
+      ],
+    }),
+    order(2, { score: 40, reasons: [{ code: "high_value", label: "قيمة الطلب 2.5 ضعف المعتاد", points: 12 }] }),
     order(3, { score: 5 }),
     order(4, { score: 90, statusSlug: "delivered", statusName: "تم التوصيل", isNotShipped: false }),
   ],
@@ -43,7 +49,8 @@ const DATA = {
 };
 
 const renderPanel = (props = {}) => render(<RiskyOrders token="tok" currency="SAR" {...props} />);
-const cards = () => screen.getAllByRole("listitem").filter((li) => li.classList.contains("risk-order"));
+// Order rows only (not the header row or the expanded detail row)
+const rows = () => screen.getAllByRole("row").filter((row) => row.classList.contains("risk-row"));
 
 describe("RiskyOrders", () => {
   beforeEach(() => {
@@ -52,18 +59,32 @@ describe("RiskyOrders", () => {
     fetchRiskyOrders.mockResolvedValue({ success: true, data: DATA });
   });
 
-  it("shows unshipped orders riskiest first, with the reasons", async () => {
+  it("lists unshipped orders riskiest first with the main reason", async () => {
     renderPanel();
     await screen.findByText("عميل 1");
-    const list = cards();
+    const list = rows();
     expect(list).toHaveLength(3); // the delivered order is hidden by default
     expect(list[0]).toHaveTextContent("عميل 1");
     expect(list[0]).toHaveTextContent("عميل جديد لا توجد له طلبات سابقة");
-    expect(list[0]).toHaveTextContent("اتصل بالعميل وأكّد قبل الشحن");
+    expect(list[0]).toHaveTextContent("مرتفع");
     expect(list[2]).toHaveTextContent("عميل 3");
   });
 
-  it("counts what needs attention in the KPI cards", async () => {
+  it("opens every reason and the advice on demand", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await screen.findByText("عميل 1");
+    expect(screen.queryByText("رقم الجوال يبدو غير حقيقي أو ناقصاً")).not.toBeInTheDocument();
+
+    await user.click(within(rows()[0]).getByRole("button", { name: /عرض كل الأسباب \(2\)/ }));
+    expect(screen.getByText("رقم الجوال يبدو غير حقيقي أو ناقصاً")).toBeInTheDocument();
+    expect(screen.getByText(/اتصل بالعميل وأكّد قبل الشحن/)).toBeInTheDocument();
+
+    await user.click(within(rows()[0]).getByRole("button", { name: "إخفاء" }));
+    expect(screen.queryByText(/اتصل بالعميل وأكّد قبل الشحن/)).not.toBeInTheDocument();
+  });
+
+  it("counts what needs attention in the summary", async () => {
     renderPanel();
     await screen.findByText("عميل 1");
     expect(screen.getByText("تحتاج اتصالاً الآن").parentElement).toHaveTextContent("1");
@@ -71,16 +92,17 @@ describe("RiskyOrders", () => {
     expect(screen.getByText("نسبة الدفع عند الاستلام").parentElement).toHaveTextContent("75%");
   });
 
-  it("filters by level and can include shipped orders", async () => {
+  it("filters by level (with counts) and can include shipped orders", async () => {
     const user = userEvent.setup();
     renderPanel();
     await screen.findByText("عميل 1");
+    expect(screen.getByRole("button", { name: /^الكل\s*3$/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "خطر مرتفع" }));
-    expect(cards()).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: /^خطر مرتفع/ }));
+    expect(rows()).toHaveLength(1);
 
     await user.click(screen.getByRole("checkbox", { name: /لم تُشحن فقط/ }));
-    expect(cards()).toHaveLength(2); // the delivered order has a high score too
+    expect(rows()).toHaveLength(2); // the delivered order has a high score too
   });
 
   it("changes the level with the sensitivity setting", async () => {
@@ -97,14 +119,14 @@ describe("RiskyOrders", () => {
     renderPanel();
     await screen.findByText("عميل 1");
     await user.type(screen.getByLabelText("بحث في الطلبات"), "عميل 2");
-    expect(cards()).toHaveLength(1);
-    expect(cards()[0]).toHaveTextContent("عميل 2");
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0]).toHaveTextContent("عميل 2");
   });
 
   it("links to a call and a pre-filled WhatsApp message", async () => {
     renderPanel();
     await screen.findByText("عميل 1");
-    const first = within(cards()[0]);
+    const first = within(rows()[0]);
     expect(first.getByRole("link", { name: "اتصال" })).toHaveAttribute("href", "tel:+96655000100");
     const wa = first.getByRole("link", { name: "واتساب" });
     expect(wa.getAttribute("href")).toMatch(/^https:\/\/wa\.me\/96655000100\?text=/);
@@ -117,16 +139,16 @@ describe("RiskyOrders", () => {
     const { unmount } = renderPanel({ onShowToast });
     await screen.findByText("عميل 1");
 
-    await user.click(within(cards()[0]).getByRole("button", { name: "تم التأكيد" }));
+    await user.click(within(rows()[0]).getByRole("button", { name: "تم التأكيد" }));
     expect(onShowToast).toHaveBeenCalledWith(expect.stringContaining("9001"), "success");
     expect(screen.getByText("تحتاج اتصالاً الآن").parentElement).toHaveTextContent("0");
-    expect(cards()[2]).toHaveTextContent("عميل 1"); // sinks to the bottom
+    expect(rows()[2]).toHaveTextContent("عميل 1"); // sinks to the bottom
 
     unmount();
     renderPanel();
     await screen.findByText("عميل 1");
-    expect(cards()[2]).toHaveTextContent("تم التأكيد");
-    expect(within(cards()[2]).getByRole("button", { name: "إلغاء التأكيد" })).toBeInTheDocument();
+    expect(rows()[2]).toHaveTextContent("تم التأكيد");
+    expect(within(rows()[2]).getByRole("button", { name: "إلغاء التأكيد" })).toBeInTheDocument();
   });
 
   it("lists the cities with the most returns", async () => {
