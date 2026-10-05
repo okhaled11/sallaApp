@@ -61,6 +61,7 @@ async function writeRecord(storeId, record) {
 function isLiveRule(rule) {
   if (!rule || !rule.enabled || !rule.trigger) return false;
   const inc = rule.incentive || {};
+  if (inc.type === "free_product") return inc.isCreatedInSalla === true;
   if (inc.type === "custom" || !inc.couponCode) return true;
   return inc.isCreatedInSalla === true;
 }

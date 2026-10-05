@@ -1,4 +1,9 @@
-import { CREATE_COUPON_FUNCTION_URL, COUPON_STATS_FUNCTION_URL, getAppId } from "./constants.js";
+import {
+  CREATE_COUPON_FUNCTION_URL,
+  CREATE_OFFER_FUNCTION_URL,
+  COUPON_STATS_FUNCTION_URL,
+  getAppId,
+} from "./constants.js";
 import logger from "./logger.js";
 
 /**
@@ -49,6 +54,35 @@ export async function createSallaCoupon(token, couponData) {
       success: false,
       error: error.message || "فشل الاتصال بسيرفر التطبيق",
     };
+  }
+}
+
+/**
+ * Creates (or updates) a native "buy N, get M free" special offer in Salla.
+ *
+ * @param {string|null} token - Embedded auth token
+ * @param {{
+ *   name?: string,
+ *   buy_product_id: string|number,
+ *   gift_product_id: string|number,
+ *   buy_quantity?: number,
+ *   gift_quantity?: number,
+ *   existing_offer_id?: string|number
+ * }} offerData
+ * @returns {Promise<{ success: boolean, message?: string, error?: string, offer?: { id: string|number } }>}
+ */
+export async function createSallaSpecialOffer(token, offerData) {
+  try {
+    const response = await fetch(CREATE_OFFER_FUNCTION_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, appId: getAppId(), ...offerData }),
+    });
+    const result = await response.json().catch(() => null);
+    return result || { success: false, error: `سيرفر العروض غير متاح (${response.status})` };
+  } catch (error) {
+    logger.error("Create special offer error:", error);
+    return { success: false, error: error.message || "فشل الاتصال بسيرفر التطبيق" };
   }
 }
 

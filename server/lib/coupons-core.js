@@ -18,35 +18,6 @@ import {
 } from "./errors.js";
 
 const SALLA_COUPONS_URL = "https://api.salla.dev/admin/v2/coupons";
-// Total redemptions allowed for a gift coupon (each customer can still use it once).
-const GIFT_TOTAL_USAGE_LIMIT = 100000;
-const SALLA_PRODUCTS_URL = "https://api.salla.dev/admin/v2/products";
-
-// Salla sends amounts as a number or as { amount, currency }
-function toAmount(value) {
-  const amount = typeof value === "object" && value !== null ? value.amount : value;
-  const number = Number(amount);
-  return amount === null || amount === undefined || amount === "" || !Number.isFinite(number) ? null : number;
-}
-
-/** Price of one unit of the gift product (the sale price when there is one). */
-async function fetchGiftUnitPrice(productId, accessToken) {
-  try {
-    const res = await fetch(`${SALLA_PRODUCTS_URL}/${productId}`, {
-      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
-    });
-    const product = (await res.json().catch(() => null))?.data;
-    if (!res.ok || !product) return null;
-    const price = toAmount(product.price);
-    const sale = toAmount(product.sale_price);
-    const unit = sale !== null && sale > 0 && (price === null || sale < price) ? sale : price;
-    return unit && unit > 0 ? unit : null;
-  } catch (err) {
-    logError("createCouponRequest:gift-price", err);
-    return null;
-  }
-}
-
 /**
  * Handle incoming create coupon request
  *
@@ -77,7 +48,6 @@ export async function createCouponRequest({ method, body }) {
     discount_type = "percentage",
     discount_value = 15,
     free_shipping = false,
-    gift_product_id = null,
   } = data;
 
   if (!code || typeof code !== "string" || !code.trim()) {
@@ -141,30 +111,6 @@ export async function createCouponRequest({ method, body }) {
     expiry_date: expiryDate,
     exclude_sale_products: false,
   };
-
-  // Gift: Salla has no "free gift" coupon type, so the gift is a 100% coupon
-  // restricted to the gift product, usable once per customer.
-  if (gift_product_id !== null && gift_product_id !== undefined && gift_product_id !== "") {
-    const giftId = String(gift_product_id);
-    if (!/^\d+$/.test(giftId)) {
-      return respond(400, { success: false, error: "معرّف منتج الهدية غير صالح" });
-    }
-    payload.type = "percentage";
-    payload.amount = 100;
-    payload.free_shipping = false;
-    payload.products_include = [giftId];
-    // Salla requires usage_limit_per_user to be lower than the total usage_limit.
-    payload.usage_limit = GIFT_TOTAL_USAGE_LIMIT;
-    payload.usage_limit_per_user = 1;
-
-    // A 100% coupon on a product discounts every unit, so a customer could raise the
-    // quantity and get them all free. Cap the discount at ONE unit's price.
-    const unitPrice = await fetchGiftUnitPrice(giftId, accessToken);
-    if (!unitPrice) {
-      return respond(502, { success: false, error: "تعذر قراءة سعر منتج الهدية من سلة، تأكد أن المنتج موجود وله سعر" });
-    }
-    payload.maximum_amount = unitPrice;
-  }
 
   try {
     const sallaRes = await fetch(SALLA_COUPONS_URL, {

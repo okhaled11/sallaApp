@@ -481,6 +481,7 @@
     function isRuleLive(rule) {
       if (!rule || !rule.enabled || !rule.trigger) return false;
       var inc = rule.incentive || {};
+      if (inc.type === 'free_product') return inc.isCreatedInSalla === true;
       if (inc.type === 'custom' || !inc.couponCode) return true;
       return inc.isCreatedInSalla === true;
     }
@@ -577,8 +578,16 @@
       var ctaText      = (rule && rule.modal && rule.modal.ctaText)           || ACTIVE_CONFIG.ctaText;
       var dismissText  = (rule && rule.modal && rule.modal.dismissText)       || ACTIVE_CONFIG.dismissText;
       var incType      = (rule && rule.incentive && rule.incentive.type)      || 'coupon_discount';
-      var giftId   = (rule && rule.incentive && rule.incentive.giftProductId) || '';
-      var giftName = (rule && rule.incentive && rule.incentive.giftProductName) || '';
+      var inc_      = (rule && rule.incentive) || {};
+      var buyId     = inc_.buyProductId || '';
+      var giftId    = inc_.giftProductId || '';
+      var buyName   = inc_.buyProductName || '';
+      var giftName  = inc_.giftProductName || '';
+      var buyImg    = inc_.buyProductImage || '';
+      var giftImg   = inc_.giftProductImage || '';
+      var buyQty    = Math.max(1, parseInt(inc_.buyQuantity, 10) || 1);
+      var giftQty   = Math.max(1, parseInt(inc_.giftQuantity, 10) || 1);
+      var isGiftOffer = incType === 'free_product' && !!buyId && !!giftId;
       var discType     = (rule && rule.incentive && rule.incentive.discountType) || ACTIVE_CONFIG.discountType || 'percentage';
       var discVal      = (rule && rule.incentive && rule.incentive.discountValue !== undefined) ? rule.incentive.discountValue : (ACTIVE_CONFIG.discountValue || 15);
 
@@ -593,7 +602,7 @@
 
       var badgeText = incType === 'free_shipping' ? 'توصيل مجاني 🚚' : (incType === 'free_product' ? 'هدية مجانية 🎁' : ('خصم ' + discVal + (discType === 'fixed' ? ' ر.س' : '%')));
       var pillText = incType === 'free_product'
-        ? '🎁 هديتك المجانية' + (giftName ? ' (' + giftName + ')' : '') + ' مفعّلة لطلبك القادم (كود ' + activeCoupon + ')'
+        ? '🎁 اشترِ ' + buyQty + (buyName ? ' ' + buyName : '') + ' واحصل على ' + giftQty + (giftName ? ' ' + giftName : '') + ' مجاناً'
         : (incType === 'free_shipping'
           ? '🚚 التوصيل المجاني مفعّل لطلبك القادم (كود ' + activeCoupon + ')'
           : '🏷️ كود الخصم (' + activeCoupon + ') مفعّل لطلبك القادم (' + badgeText + ')');
@@ -601,6 +610,24 @@
       overlay.id = "salla-freq-visitor-modal";
       overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,30,36,0.65);backdrop-filter:blur(5px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:PingARLT,system-ui,sans-serif;direction:rtl;";
 
+      function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+      function productChip(img, name, qty, free) {
+        return '<div style="flex:1;min-width:0;text-align:center;">' +
+          (img ? '<img src="' + esc(img) + '" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid #e5e7eb;">' : '<div style="width:64px;height:64px;border-radius:10px;background:#f3f4f6;display:inline-flex;align-items:center;justify-content:center;font-size:24px;">' + (free ? '🎁' : '🛍️') + '</div>') +
+          '<div style="font-size:12px;font-weight:700;color:#111827;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(name) + '</div>' +
+          '<div style="font-size:11px;color:#374151;">' + (free ? '<span style="background:' + accentCol + ';color:' + primaryCol + ';padding:1px 8px;border-radius:999px;font-weight:700;">مجاناً × ' + qty + '</span>' : '× ' + qty) + '</div>' +
+          '</div>';
+      }
+      var couponBoxHtml = isGiftOffer
+        ? '<div style="background:#ffffff;border:2px dashed ' + primaryCol + ';border-radius:12px;padding:14px 12px;margin-bottom:16px;">' +
+          '<div style="display:flex;align-items:center;gap:10px;">' + productChip(buyImg, buyName, buyQty, false) +
+          '<span style="font-size:22px;color:' + primaryCol + ';">➜</span>' + productChip(giftImg, giftName, giftQty, true) + '</div></div>'
+        : '<div style="background:#ffffff;border:2px dashed ' + primaryCol + ';border-radius:12px;padding:12px;margin-bottom:16px;">' +
+          '<span style="font-size:12px;color:#374151;font-weight:600;display:block;margin-bottom:4px;">' + caption + '</span>' +
+          '<span style="font-size:22px;font-weight:800;letter-spacing:2px;color:' + primaryCol + ';font-family:monospace;">' + activeCoupon + '</span>' +
+          '<span style="display:inline-block;background:' + accentCol + ';color:' + primaryCol + ';font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:8px;">' + badgeText + '</span>' +
+          (targetLabel ? '<div style="margin-top:6px;font-size:12px;font-weight:700;color:' + primaryCol + ';">🎯 خاص بمنتج: ' + targetLabel + '</div>' : '') +
+          '</div>';
       var card = document.createElement("div");
       card.style.cssText = "background:#ffffff;border-radius:20px;max-width:440px;width:100%;box-shadow:0 20px 45px rgba(0,77,91,0.25);border:2px solid " + accentCol + ";overflow:hidden;animation:popIn 0.3s cubic-bezier(0.16,1,0.3,1);";
 
@@ -611,12 +638,7 @@
         '<p style="margin:0;font-size:13px;opacity:0.92;line-height:1.5;color:#ffffff;">' + message + "</p>" +
         '</div>' +
         '<div style="padding:20px;background:#f8f8f8;text-align:center;">' +
-        '<div style="background:#ffffff;border:2px dashed ' + primaryCol + ';border-radius:12px;padding:12px;margin-bottom:16px;">' +
-        '<span style="font-size:12px;color:#374151;font-weight:600;display:block;margin-bottom:4px;">' + caption + "</span>" +
-        '<span style="font-size:22px;font-weight:800;letter-spacing:2px;color:' + primaryCol + ';font-family:monospace;">' + activeCoupon + "</span>" +
-        '<span style="display:inline-block;background:' + accentCol + ';color:' + primaryCol + ';font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:8px;">' + badgeText + "</span>" +
-        (targetLabel ? '<div style="margin-top:6px;font-size:12px;font-weight:700;color:' + primaryCol + ';">🎯 خاص بمنتج: ' + targetLabel + '</div>' : '') +
-        '</div>' +
+        couponBoxHtml +
         '<button id="salla-modal-apply" style="width:100%;padding:14px;background:' + primaryCol + ';color:#ffffff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(0,77,91,0.25);">' +
         ctaText +
         '</button>' +
@@ -633,6 +655,24 @@
       document.getElementById("salla-modal-dismiss").onclick = dismiss;
 
       document.getElementById("salla-modal-apply").onclick = function() {
+        if (isGiftOffer) {
+          dismiss();
+          var cartApi = window.salla && window.salla.cart;
+          if (!cartApi || typeof cartApi.addItem !== 'function') {
+            showToast("أضف " + buyName + " إلى سلتك لتحصل على " + giftName + " مجاناً.");
+            return;
+          }
+          cartApi.addItem({ id: buyId, quantity: buyQty }).then(function() {
+            return cartApi.addItem({ id: giftId, quantity: giftQty });
+          }).then(function() {
+            showToast("🎁 تمت إضافة " + giftName + " مجاناً إلى سلتك");
+            if (location.pathname.indexOf("/cart") !== -1) setTimeout(function() { location.reload(); }, 900);
+          }).catch(function(err) {
+            console.warn('[Salla-Incentives] gift offer add failed:', err);
+            showToast("أضف " + buyName + " (" + buyQty + ") إلى سلتك لتحصل على " + giftName + " مجاناً.");
+          });
+          return;
+        }
         try {
           localStorage.setItem("_salla_auto_coupon_" + storeId, activeCoupon);
           localStorage.setItem("_salla_auto_coupon", activeCoupon);
@@ -671,17 +711,7 @@
         }
         }
 
-        var addGift = (incType === 'free_product' && giftId && window.salla && window.salla.cart && typeof window.salla.cart.addItem === 'function')
-          ? window.salla.cart.addItem({ id: giftId, quantity: 1 }) : null;
-        if (addGift && typeof addGift.then === 'function') {
-          addGift.then(function() { doApply(); }).catch(function(err) {
-            console.warn('[Salla-Incentives] addItem(gift) rejected:', err);
-            showToast("🎁 أضف هديتك" + (giftName ? " (" + giftName + ")" : "") + " إلى سلتك، وسيُطبّق الخصم تلقائياً.");
-            showFloatingPill(pillText);
-          });
-        } else {
-          doApply();
-        }
+        doApply();
       };
     }
 

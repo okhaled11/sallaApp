@@ -8,7 +8,7 @@ import {
   saveIncentiveRules,
   loadIncentiveRules,
 } from "../../utils/visitorIncentives.js";
-import { createSallaCoupon, fetchCouponStats } from "../../utils/couponsApi.js";
+import { createSallaCoupon, createSallaSpecialOffer, fetchCouponStats } from "../../utils/couponsApi.js";
 
 const INCENTIVE_COLORS = {
   coupon_discount: { bg: "#dbeafe", text: "#1d4ed8", icon: "percent", fg: "#60a5fa" },
@@ -41,33 +41,43 @@ const ICON_OPTIONS = [
   { name: "cart", label: "سلة"  }, { name: "shoppingBag", label: "حقيبة" },
 ];
 
-/**
- * What to create in Salla for a rule. A "free product" rule becomes a 100% coupon
- * limited to the chosen gift product (Salla has no gift coupon type).
- */
+const isGiftRule = (rule) => rule.incentive.type === "free_product";
+
+/** Coupon fields for discount / free-shipping rules. */
 function buildCouponPayload(rule) {
   const inc = rule.incentive;
   const code = inc.couponCode.trim().toUpperCase();
-  const base = { code, name: rule.name || `قسيمة ${code}` };
-  if (inc.type === "free_product") {
-    return {
-      ...base,
-      discount_type: "percentage",
-      discount_value: 100,
-      free_shipping: false,
-      gift_product_id: inc.giftProductId,
-    };
-  }
   return {
-    ...base,
+    code,
+    name: rule.name || `قسيمة ${code}`,
     discount_type: inc.discountType || (inc.type === "free_shipping" ? "free_shipping" : "percentage"),
     discount_value: Number(inc.discountValue) || 15,
     free_shipping: Boolean(inc.type === "free_shipping" || inc.freeShippingThreshold > 0),
   };
 }
 
-const needsGiftProduct = (rule) => rule.incentive.type === "free_product" && !rule.incentive.giftProductId;
-const GIFT_MISSING_MSG = "اختر منتج الهدية أولاً من تبويب المكافأة";
+const offerMissingProducts = (rule) =>
+  isGiftRule(rule) && !(rule.incentive.buyProductId && rule.incentive.giftProductId);
+const OFFER_MISSING_MSG = "اختر منتج الشراء ومنتج الهدية أولاً من تبويب المكافأة";
+
+/**
+ * Creates the rule in Salla: a coupon, or for a gift rule the native
+ * "buy N get M free" special offer (applied automatically in the cart).
+ */
+async function syncRuleToSalla(token, rule) {
+  if (!isGiftRule(rule)) return createSallaCoupon(token, buildCouponPayload(rule));
+  const inc = rule.incentive;
+  const res = await createSallaSpecialOffer(token, {
+    name: rule.name,
+    buy_product_id: inc.buyProductId,
+    gift_product_id: inc.giftProductId,
+    buy_quantity: inc.buyQuantity || 1,
+    gift_quantity: inc.giftQuantity || 1,
+    existing_offer_id: inc.sallaCouponId,
+  });
+  // Same shape as a coupon response so the callers stay unchanged.
+  return res.success ? { ...res, coupon: res.offer } : res;
+}
 
 /* ─── Rule Card ─────────────────────────────────────────── */
 function RuleCard({
@@ -115,8 +125,15 @@ function RuleCard({
           {rule.trigger.type === "category_visits" && <span className="irm-meta-chip"><Icon name="filter" size={12}/>فئة: {rule.trigger.categoryName || "غير محددة"}</span>}
           {rule.incentive.type === "coupon_discount" && <span className="irm-meta-chip highlight"><Icon name="tag" size={12}/>{rule.incentive.couponCode} — خصم {rule.incentive.discountValue}{rule.incentive.discountType === "percentage" ? "%" : " ر.س"}</span>}
           {rule.incentive.type === "free_shipping"   && <span className="irm-meta-chip highlight"><Icon name="bag"  size={12}/>{rule.incentive.couponCode} — توصيل مجاني</span>}
-          {rule.incentive.type === "free_product"    && <span className="irm-meta-chip highlight"><Icon name="gift" size={12}/>{rule.incentive.couponCode} — هدية{rule.incentive.giftProductName ? `: ${rule.incentive.giftProductName}` : " (لم يُختر منتج)"}</span>}
-          {rule.incentive.type !== "custom" && rule.incentive.couponCode && (
+          {rule.incentive.type === "free_product"    && (
+            <span className="irm-meta-chip highlight">
+              <Icon name="gift" size={12}/>
+              {rule.incentive.buyProductName && rule.incentive.giftProductName
+                ? `اشترِ ${rule.incentive.buyQuantity || 1} ${rule.incentive.buyProductName} ← ${rule.incentive.giftQuantity || 1} ${rule.incentive.giftProductName} مجاناً`
+                : "لم يُختر المنتجان بعد"}
+            </span>
+          )}
+          {rule.incentive.type !== "custom" && (rule.incentive.couponCode || rule.incentive.type === "free_product") && (
             rule.incentive.isCreatedInSalla ? (
               <span className="irm-meta-chip salla-synced" title="تم إنشاء وتفعيل هذا الكوبون كقسيمة شراء حقيقية في متجر سلة">
                 <Icon name="checkCircle" size={12}/> مفعل بسلة ✓
@@ -397,17 +414,17 @@ function RuleEditorPanel({ rule, products, token, onShowToast, onSave, onCancel 
 
   const handleCreateCouponInSalla = async () => {
     const code = draft.incentive.couponCode;
-    if (!code || !code.trim()) {
+    if (!isGiftRule(draft) && (!code || !code.trim())) {
       onShowToast?.("يرجى إدخال كود الكوبون أولاً", "warning");
       return;
     }
-    if (needsGiftProduct(draft)) {
-      onShowToast?.(GIFT_MISSING_MSG, "warning");
+    if (offerMissingProducts(draft)) {
+      onShowToast?.(OFFER_MISSING_MSG, "warning");
       return;
     }
     setIsSyncingSalla(true);
     try {
-      const res = await createSallaCoupon(token, buildCouponPayload(draft));
+      const res = await syncRuleToSalla(token, draft);
       if (res.success) {
         setI("isCreatedInSalla", true);
         if (res.coupon?.id) {
@@ -578,26 +595,32 @@ function RuleEditorPanel({ rule, products, token, onShowToast, onSave, onCancel 
                   </div>
                 </div>
 
+                {draft.incentive.type !== "free_product" && (
                 <div className="irm-form-group">
                   <label className="irm-label">كود الكوبون</label>
                   <input className="irm-input irm-input-mono" value={draft.incentive.couponCode}
                     onChange={(e) => setI("couponCode", e.target.value.toUpperCase())} placeholder="SAVE20" maxLength={20}/>
                 </div>
+                )}
 
-                {draft.incentive.type !== "custom" && draft.incentive.couponCode && (
+                {draft.incentive.type !== "custom" && (draft.incentive.couponCode || draft.incentive.type === "free_product") && (
                   <div className="irm-salla-coupon-box">
                     <div className="irm-salla-coupon-info">
                       <Icon name={draft.incentive.isCreatedInSalla ? "checkCircle" : "flash"} size={18} />
                       <div>
                         <strong>
                           {draft.incentive.isCreatedInSalla
-                            ? "القسيمة مفعلة وجاهزة في متجر سلة ✓"
-                            : "تفعيل قسيمة الشراء الحقيقية في متجر سلة"}
+                            ? (isGiftRule(draft) ? "العرض الخاص مفعّل وجاهز في متجر سلة ✓" : "القسيمة مفعلة وجاهزة في متجر سلة ✓")
+                            : (isGiftRule(draft) ? "تفعيل العرض الخاص في متجر سلة" : "تفعيل قسيمة الشراء الحقيقية في متجر سلة")}
                         </strong>
                         <p>
                           {draft.incentive.isCreatedInSalla
-                            ? `تم ربط الكود (${draft.incentive.couponCode}) كقسيمة شراء حقيقية في متجرك بسلة.`
-                            : "اضغط الزر لإنشاء القسيمة الحقيقية في متجر سلة ليعمل الخصم مباشرة عند الشراء."}
+                            ? (isGiftRule(draft)
+                              ? "تم إنشاء العرض في متجرك بسلة، وتُطبَّق الهدية تلقائياً في السلة بدون كود."
+                              : `تم ربط الكود (${draft.incentive.couponCode}) كقسيمة شراء حقيقية في متجرك بسلة.`)
+                            : (isGiftRule(draft)
+                              ? "اضغط الزر لإنشاء عرض اشترِ واحصل على هدية في متجرك بسلة."
+                              : "اضغط الزر لإنشاء القسيمة الحقيقية في متجر سلة ليعمل الخصم مباشرة عند الشراء.")}
                         </p>
                       </div>
                     </div>
@@ -612,7 +635,7 @@ function RuleEditorPanel({ rule, products, token, onShowToast, onSave, onCancel 
                         ? "جاري التفعيل..."
                         : draft.incentive.isCreatedInSalla
                         ? "إعادة مزامنة مع سلة ✓"
-                        : "تفعيل القسيمة في متجر سلة ⚡"}
+                        : (isGiftRule(draft) ? "تفعيل العرض في متجر سلة ⚡" : "تفعيل القسيمة في متجر سلة ⚡")}
                     </button>
                   </div>
                 )}
@@ -634,38 +657,61 @@ function RuleEditorPanel({ rule, products, token, onShowToast, onSave, onCancel 
                   </>
                 )}
 
-                {draft.incentive.type === "free_product" && (
-                  <div className="irm-form-group">
-                    <label className="irm-label">منتج الهدية</label>
-                    <select
-                      className="irm-input"
-                      value={draft.incentive.giftProductId || ""}
-                      onChange={(e) => {
-                        const picked = (products || []).find((p) => String(p.id) === e.target.value);
-                        // The coupon is bound to the gift product, so changing it needs a re-sync.
-                        setDraft((d) => ({
-                          ...d,
-                          incentive: {
-                            ...d.incentive,
-                            giftProductId: e.target.value,
-                            giftProductName: picked?.name || "",
-                            isCreatedInSalla: false,
-                            sallaCouponId: undefined,
-                          },
-                        }));
-                      }}
-                    >
-                      <option value="">— اختر المنتج الذي يحصل عليه الزائر هدية —</option>
-                      {(products || []).map((p) => (
-                        <option key={p.id} value={String(p.id)}>{p.name}</option>
-                      ))}
-                    </select>
-                    <p className="irm-hint" style={{ margin: "6px 0 0", fontSize: "12px", opacity: 0.8 }}>
-                      عند ضغط الزائر على الزر يُضاف المنتج لسلته ويُخصم بالكامل. اختر منتجاً بدون خيارات إجبارية (مقاس/لون)
-                      لتُضاف تلقائياً.
-                    </p>
-                  </div>
-                )}
+                {draft.incentive.type === "free_product" && (() => {
+                  const inc = draft.incentive;
+                  // Any change needs a re-sync; the existing offer id is kept so Salla updates it.
+                  const setOffer = (fields) =>
+                    setDraft((d) => ({ ...d, incentive: { ...d.incentive, ...fields, isCreatedInSalla: false } }));
+                  const pickProduct = (prefix, id) => {
+                    const picked = (products || []).find((p) => String(p.id) === id);
+                    setOffer({
+                      [`${prefix}ProductId`]: id,
+                      [`${prefix}ProductName`]: picked?.name || "",
+                      [`${prefix}ProductImage`]: picked?.image || "",
+                    });
+                  };
+                  const qty = (value) => Math.min(100, Math.max(1, parseInt(value, 10) || 1));
+                  const options = (products || []).map((p) => (
+                    <option key={p.id} value={String(p.id)}>{p.name}</option>
+                  ));
+                  return (
+                    <>
+                      <div className="irm-form-row">
+                        <div className="irm-form-group">
+                          <label className="irm-label">المنتج الذي يشتريه العميل</label>
+                          <select className="irm-input" value={inc.buyProductId || ""} onChange={(e) => pickProduct("buy", e.target.value)}>
+                            <option value="">— اختر منتج الشراء —</option>
+                            {options}
+                          </select>
+                        </div>
+                        <div className="irm-form-group">
+                          <label className="irm-label">عدد القطع المطلوب شراؤها</label>
+                          <input type="number" min={1} max={100} className="irm-input" value={inc.buyQuantity || 1}
+                            onChange={(e) => setOffer({ buyQuantity: qty(e.target.value) })}/>
+                        </div>
+                      </div>
+                      <div className="irm-form-row">
+                        <div className="irm-form-group">
+                          <label className="irm-label">منتج الهدية (مجاناً)</label>
+                          <select className="irm-input" value={inc.giftProductId || ""} onChange={(e) => pickProduct("gift", e.target.value)}>
+                            <option value="">— اختر منتج الهدية —</option>
+                            {options}
+                          </select>
+                        </div>
+                        <div className="irm-form-group">
+                          <label className="irm-label">عدد القطع المجانية</label>
+                          <input type="number" min={1} max={100} className="irm-input" value={inc.giftQuantity || 1}
+                            onChange={(e) => setOffer({ giftQuantity: qty(e.target.value) })}/>
+                        </div>
+                      </div>
+                      <p className="irm-hint" style={{ margin: "0 0 12px", fontSize: "12px", opacity: 0.85 }}>
+                        {inc.buyProductName && inc.giftProductName
+                          ? `اشترِ ${inc.buyQuantity || 1} من «${inc.buyProductName}» واحصل على ${inc.giftQuantity || 1} من «${inc.giftProductName}» مجاناً. تُطبَّق تلقائياً في السلة بدون كود.`
+                          : "اختر المنتجين وحدد الأعداد. تُطبَّق الهدية تلقائياً في السلة بدون كود، وبالعدد المحدد فقط."}
+                      </p>
+                    </>
+                  );
+                })()}
 
                 {draft.incentive.type === "free_shipping" && (
                   <div className="irm-form-group">
@@ -786,7 +832,12 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
   // Load Salla usage stats; drop the "synced" mark for coupons deleted in Salla (404).
   useEffect(() => {
     const ids = rules
-      .filter((r) => r.incentive?.isCreatedInSalla && /^\d+$/.test(String(r.incentive.sallaCouponId || "")))
+      .filter(
+        (r) =>
+          r.incentive?.isCreatedInSalla &&
+          r.incentive.type !== "free_product" &&
+          /^\d+$/.test(String(r.incentive.sallaCouponId || "")),
+      )
       .map((r) => String(r.incentive.sallaCouponId));
     if (ids.length === 0) return undefined;
     let cancelled = false;
@@ -830,17 +881,17 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
   const handleSyncSingleCoupon = async (rule) => {
     if (rule.incentive?.type === "custom") return;
     const code = rule.incentive?.couponCode;
-    if (!code) {
+    if (!code && !isGiftRule(rule)) {
       onShowToast?.("القاعدة لا تحتوي على كود كوبون", "warning");
       return;
     }
-    if (needsGiftProduct(rule)) {
-      onShowToast?.(GIFT_MISSING_MSG, "warning");
+    if (offerMissingProducts(rule)) {
+      onShowToast?.(OFFER_MISSING_MSG, "warning");
       return;
     }
     setSyncingRuleId(rule.id);
     try {
-      const res = await createSallaCoupon(token, buildCouponPayload(rule));
+      const res = await syncRuleToSalla(token, rule);
       if (res.success) {
         const updated = rules.map((r) =>
           r.id === rule.id
@@ -872,7 +923,9 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
   };
 
   const handleSyncAllCoupons = async () => {
-    const couponRules = rules.filter((r) => r.enabled && r.incentive?.type !== "custom" && r.incentive?.couponCode);
+    const couponRules = rules.filter(
+      (r) => r.enabled && r.incentive?.type !== "custom" && (r.incentive?.couponCode || r.incentive?.type === "free_product"),
+    );
     if (couponRules.length === 0) {
       onShowToast?.("لا توجد قواعد نشطة تحتوي على كوبونات للمزامنة", "info");
       return;
@@ -884,11 +937,11 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
 
     for (const r of couponRules) {
       try {
-        if (needsGiftProduct(r)) {
+        if (offerMissingProducts(r)) {
           failCount++;
           continue;
         }
-        const res = await createSallaCoupon(token, buildCouponPayload(r));
+        const res = await syncRuleToSalla(token, r);
         if (res.success) {
           successCount++;
           updatedRules = updatedRules.map((item) =>

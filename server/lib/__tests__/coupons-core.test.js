@@ -7,7 +7,7 @@ const json = (status, payload) => ({
   json: () => Promise.resolve(payload),
 });
 
-describe("coupons-core: gift coupon", () => {
+describe("coupons-core", () => {
   let fetchMock;
 
   beforeEach(() => {
@@ -15,12 +15,9 @@ describe("coupons-core: gift coupon", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     process.env.SALLA_ACCESS_TOKEN = "env_token";
     fetchMock = vi.fn(async (url, opts) => {
-      if (opts?.method === "POST") return json(200, { data: { id: 99, code: "GIFT1" } });
-      if (String(url).includes("/products/")) {
-        return json(200, { data: { price: { amount: 174, currency: "SAR" }, sale_price: { amount: 0, currency: "SAR" } } });
-      }
+      if (opts?.method === "POST") return json(200, { data: { id: 99, code: "SAVE10" } });
       if (String(url).includes("/store/info")) return json(200, { data: { name: "متجر" } });
-      return json(200, { data: [{ code: "GIFT1" }] });
+      return json(200, { data: [{ code: "SAVE10" }] });
     });
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -33,64 +30,21 @@ describe("coupons-core: gift coupon", () => {
 
   const sentPayload = () => JSON.parse(fetchMock.mock.calls.find(([, o]) => o?.method === "POST")[1].body);
 
-  it("creates a 100% coupon restricted to the gift product, once per customer", async () => {
+  it("creates an active percentage coupon with the cleaned-up code", async () => {
     const res = await createCouponRequest({
       method: "POST",
-      body: JSON.stringify({
-        code: "gift1",
-        discount_type: "percentage",
-        discount_value: 100,
-        gift_product_id: 1626467363,
-      }),
+      body: JSON.stringify({ code: " save10 ", discount_type: "percentage", discount_value: 10 }),
     });
     expect(res.statusCode).toBe(200);
-    const payload = sentPayload();
-    expect(payload).toMatchObject({
-      code: "GIFT1",
-      type: "percentage",
-      amount: 100,
-      free_shipping: false,
-      products_include: ["1626467363"],
-      usage_limit: 100000,
-      usage_limit_per_user: 1,
-      maximum_amount: 174,
-    });
-    expect(payload.usage_limit_per_user).toBeLessThan(payload.usage_limit);
+    expect(sentPayload()).toMatchObject({ code: "SAVE10", type: "percentage", amount: 10, status: "active" });
+    expect(sentPayload().products_include).toBeUndefined();
   });
 
-  it("rejects a non-numeric gift product id", async () => {
-    const res = await createCouponRequest({
-      method: "POST",
-      body: JSON.stringify({ code: "gift1", gift_product_id: "abc" }),
-    });
-    expect(res.statusCode).toBe(400);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("caps the discount at the sale price when the gift is on sale", async () => {
-    fetchMock.mockImplementation(async (url, opts) => {
-      if (opts?.method === "POST") return json(200, { data: { id: 99, code: "GIFT1" } });
-      if (String(url).includes("/products/")) {
-        return json(200, { data: { price: { amount: 200 }, sale_price: { amount: 150 } } });
-      }
-      return json(200, { data: [{ code: "GIFT1" }] });
-    });
-    await createCouponRequest({ method: "POST", body: JSON.stringify({ code: "gift1", gift_product_id: 5 }) });
-    expect(sentPayload().maximum_amount).toBe(150);
-  });
-
-  it("does not create the coupon if the gift price cannot be read", async () => {
-    fetchMock.mockImplementation(async () => json(404, {}));
-    const res = await createCouponRequest({ method: "POST", body: JSON.stringify({ code: "gift1", gift_product_id: 5 }) });
-    expect(res.statusCode).toBe(502);
-    expect(fetchMock.mock.calls.some(([, o]) => o?.method === "POST")).toBe(false);
-  });
-
-  it("does not restrict products for a normal coupon", async () => {
+  it("maps free shipping to the free_shipping flag", async () => {
     await createCouponRequest({
       method: "POST",
-      body: JSON.stringify({ code: "save10", discount_type: "percentage", discount_value: 10 }),
+      body: JSON.stringify({ code: "ship", discount_type: "free_shipping" }),
     });
-    expect(sentPayload().products_include).toBeUndefined();
+    expect(sentPayload()).toMatchObject({ type: "fixed", free_shipping: true });
   });
 });

@@ -317,7 +317,9 @@ export default function VisitorIncentivesStudio({
       rules.filter(
         (r) =>
           r.enabled &&
-          (r.incentive?.type === "custom" || !r.incentive?.couponCode || r.incentive?.isCreatedInSalla),
+          (r.incentive?.type === "free_product"
+            ? r.incentive?.isCreatedInSalla
+            : r.incentive?.type === "custom" || !r.incentive?.couponCode || r.incentive?.isCreatedInSalla),
       ),
     [rules],
   );

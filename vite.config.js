@@ -16,6 +16,7 @@ function devCouponApi() {
     configureServer(server) {
       const routes = [
         ["/api/create-coupon", "/server/lib/coupons-core.js", "createCouponRequest"],
+        ["/api/create-offer", "/server/lib/special-offers-core.js", "createOfferRequest"],
         ["/api/coupon-stats", "/server/lib/coupon-stats-core.js", "couponStatsRequest"],
         ["/api/incentive-config", "/server/lib/incentive-config-core.js", "incentiveConfigRequest"],
         ["/api/incentive-offers", "/server/lib/incentive-offers-core.js", "incentiveOffersRequest"],
