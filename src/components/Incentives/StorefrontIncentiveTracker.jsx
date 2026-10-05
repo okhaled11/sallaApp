@@ -196,10 +196,10 @@ export default function StorefrontIncentiveTracker({
         if (
           window.salla &&
           window.salla.cart &&
-          window.salla.cart.applyCoupon
+          (window.salla.cart.addCoupon || window.salla.cart.applyCoupon)
         ) {
-          window.salla.cart
-            .applyCoupon(config.couponCode)
+          (window.salla.cart.addCoupon || window.salla.cart.applyCoupon)
+            .call(window.salla.cart, config.couponCode)
             .then(() => {
               window.location.href = "/cart";
             })

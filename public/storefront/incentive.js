@@ -631,15 +631,51 @@
           localStorage.setItem("_salla_auto_coupon", activeCoupon);
           navigator.clipboard.writeText(activeCoupon);
         } catch (e) {}
-
-        if (window.salla && window.salla.cart && window.salla.cart.applyCoupon) {
-          window.salla.cart.applyCoupon(activeCoupon).catch(function() {});
-        }
-
         dismiss();
-        showToast("🎉 تم تفعيل العرض بنجاح! سيُطبّق تلقائياً على أول منتج تضيفه إلى السلة.");
-        showFloatingPill(activeCoupon, discVal);
+
+        var applyReq = applySallaCoupon(activeCoupon);
+        if (applyReq && typeof applyReq.then === 'function') {
+          applyReq.then(function(res) {
+            console.log('[Salla-Incentives] addCoupon response:', res);
+            try {
+              localStorage.removeItem("_salla_auto_coupon_" + storeId);
+              localStorage.removeItem("_salla_auto_coupon");
+            } catch (e) {}
+            var pill = document.getElementById("salla-active-discount-pill");
+            if (pill) pill.remove();
+            showToast("✅ تم تطبيق كود الخصم (" + activeCoupon + ") على سلتك");
+            if (location.pathname.indexOf("/cart") !== -1) setTimeout(function() { location.reload(); }, 900);
+          }).catch(function(err) {
+            console.warn('[Salla-Incentives] addCoupon rejected:', err);
+            var why = couponErrorText(err);
+            if (cartSnap.count > 0 || getCartInfo().count > 0) {
+              showToast("⚠️ لم تقبل سلة الكود (" + activeCoupon + ")" + (why ? ": " + why : "") + ". تم نسخ الكود، الصقه في خانة الكوبون.");
+            } else {
+              showToast("🎉 تم حفظ العرض، وسيُطبّق تلقائياً عند إضافة أول منتج إلى السلة.");
+              showFloatingPill(activeCoupon, discVal);
+            }
+          });
+        } else {
+          showToast("تم نسخ الكود (" + activeCoupon + "). الصقه في خانة الكوبون داخل السلة.");
+          showFloatingPill(activeCoupon, discVal);
+        }
       };
+    }
+
+    // Twilight exposes salla.cart.addCoupon (applyCoupon does not exist).
+    function applySallaCoupon(code) {
+      var c = window.salla && window.salla.cart;
+      if (!c) return null;
+      var fn = c.addCoupon || c.applyCoupon;
+      if (typeof fn !== 'function') return null;
+      try { return fn.call(c, code); } catch (e) { return null; }
+    }
+    function couponErrorText(err) {
+      try {
+        var d = err && err.response && err.response.data;
+        var m = d && ((d.error && d.error.message) || d.message);
+        return String(m || (err && err.message) || '');
+      } catch (e) { return ''; }
     }
 
     // Helper: Show floating notification toast
@@ -680,16 +716,18 @@
       if (!pendingCoupon) return;
 
       // 1. Try Salla Twilight Cart JS API
-      if (window.salla && window.salla.cart && window.salla.cart.applyCoupon) {
-        window.salla.cart.applyCoupon(pendingCoupon).then(function() {
-          console.log("%c[Salla-Incentives] 🏷️ تم تطبيق الخصم (" + pendingCoupon + ") بنجاح في السلة!", "color:#00b259;font-weight:bold;");
+      var cartReq = applySallaCoupon(pendingCoupon);
+      if (cartReq && typeof cartReq.then === 'function') {
+        cartReq.then(function(res) {
+          console.log('[Salla-Incentives] addCoupon response:', res);
           showToast("✅ تم تطبيق كود الخصم (" + pendingCoupon + ") بنجاح على سلتك!");
           localStorage.removeItem("_salla_auto_coupon_" + storeId);
           localStorage.removeItem("_salla_auto_coupon");
           var pill = document.getElementById("salla-active-discount-pill");
           if (pill) pill.remove();
+          if (location.pathname.indexOf("/cart") !== -1) setTimeout(function() { location.reload(); }, 900);
         }).catch(function(err) {
-          console.warn("[Salla-Incentives] ⚠️ لم تقبل سلة الكوبون (" + pendingCoupon + "). تأكد من إنشاء هذا الكوبون في لوحة تحكم سلة > التسويق > قسائم التخفيض بنفس الاسم:", err);
+          console.warn("[Salla-Incentives] ⚠️ لم تقبل سلة الكوبون (" + pendingCoupon + "):", err, couponErrorText(err));
         });
       }
 
