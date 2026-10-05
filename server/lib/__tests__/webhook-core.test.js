@@ -62,7 +62,7 @@ describe("webhook-core", () => {
   });
 
   it("rejects non-POST and allows OPTIONS", async () => {
-    expect((await sallaWebhookRequest({ method: "GET", body: "" })).statusCode).toBe(405);
+    expect((await sallaWebhookRequest({ method: "PUT", body: "" })).statusCode).toBe(405);
     expect((await sallaWebhookRequest({ method: "OPTIONS", body: "" })).statusCode).toBe(204);
   });
 });

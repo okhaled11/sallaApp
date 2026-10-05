@@ -64,6 +64,25 @@ export async function saveTokenFromWebhook({ access_token, refresh_token, expire
   });
 }
 
+/**
+ * Non-secret snapshot for debugging "which token is the server using?".
+ * Never includes the token values themselves.
+ */
+export async function getTokenStatus() {
+  const stored = await readToken();
+  return {
+    storedFromWebhook: Boolean(stored?.access_token),
+    expiresAt: stored?.expires ? new Date(stored.expires * 1000).toISOString() : null,
+    expired: stored?.expires ? stored.expires * 1000 < Date.now() : null,
+    hasRefreshToken: Boolean(stored?.refresh_token),
+    canAutoRefresh: Boolean(process.env.SALLA_CLIENT_ID && process.env.SALLA_CLIENT_SECRET),
+    receivedAt: stored?.updatedAt ? new Date(stored.updatedAt).toISOString() : null,
+    persistentStorage: Boolean(getRedis()),
+    envFallbackSet: Boolean(process.env.SALLA_ACCESS_TOKEN),
+    activeSource: stored?.access_token ? "webhook" : process.env.SALLA_ACCESS_TOKEN ? "env" : "none",
+  };
+}
+
 /** Called on `app.uninstalled` so a stale token cannot keep being used. */
 export async function clearStoredToken() {
   const client = getRedis();

@@ -15,7 +15,7 @@
  */
 import crypto from "node:crypto";
 import { respond } from "./verify-token-core.js";
-import { saveTokenFromWebhook, clearStoredToken } from "./salla-tokens-core.js";
+import { saveTokenFromWebhook, clearStoredToken, getTokenStatus } from "./salla-tokens-core.js";
 import { logError } from "./errors.js";
 
 function getHeader(headers, name) {
@@ -36,6 +36,8 @@ function isValidSignature(rawBody, signature, secret) {
  */
 export async function sallaWebhookRequest({ method, body, headers = {} }) {
   if (method === "OPTIONS") return respond(204);
+  // Opening the URL in a browser shows which token the server is using (no secrets).
+  if (method === "GET") return respond(200, { success: true, token: await getTokenStatus() });
   if (method !== "POST") return respond(405, { success: false, error: "Method not allowed" });
 
   const rawBody = typeof body === "string" ? body : JSON.stringify(body ?? {});

@@ -100,7 +100,7 @@ function sallaError(result, response, fallback) {
   if (response.status === 401) {
     return new SallaAuthError(
       ERROR_CODES.SALLA_UNAUTHORIZED,
-      "Salla API returned 401: SALLA_ACCESS_TOKEN is invalid or expired. Replace it in Vercel with a new access token and redeploy.",
+      "Salla API returned 401: SALLA_ACCESS_TOKEN is invalid or expired. Reinstall the app so Salla re-sends the token to the webhook, or replace SALLA_ACCESS_TOKEN in Vercel and redeploy. Open /api/webhooks/salla to see which token the server is using.",
       401,
     );
   }
