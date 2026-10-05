@@ -579,15 +579,20 @@
       var dismissText  = (rule && rule.modal && rule.modal.dismissText)       || ACTIVE_CONFIG.dismissText;
       var incType      = (rule && rule.incentive && rule.incentive.type)      || 'coupon_discount';
       var inc_      = (rule && rule.incentive) || {};
-      var buyId     = inc_.buyProductId || '';
-      var giftId    = inc_.giftProductId || '';
-      var buyName   = inc_.buyProductName || '';
-      var giftName  = inc_.giftProductName || '';
-      var buyImg    = inc_.buyProductImage || '';
-      var giftImg   = inc_.giftProductImage || '';
+      function offerList(arr, id, name, img, url) {
+        if (Array.isArray(arr) && arr.length) return arr;
+        return id ? [{ id: id, name: name || '', image: img || '', url: url || '' }] : [];
+      }
+      var buyList   = offerList(inc_.buyProducts, inc_.buyProductId, inc_.buyProductName, inc_.buyProductImage, inc_.buyProductUrl);
+      var giftList  = offerList(inc_.giftProducts, inc_.giftProductId, inc_.giftProductName, inc_.giftProductImage, inc_.giftProductUrl);
       var buyQty    = Math.max(1, parseInt(inc_.buyQuantity, 10) || 1);
       var giftQty   = Math.max(1, parseInt(inc_.giftQuantity, 10) || 1);
-      var isGiftOffer = incType === 'free_product' && !!buyId && !!giftId;
+      var isGiftOffer = incType === 'free_product' && buyList.length > 0 && giftList.length > 0;
+      var selBuy = 0, selGift = 0;
+      function joinNames(list) { return list.map(function(p) { return p.name; }).filter(Boolean).join(' أو '); }
+      // Names for the text; replaced by the visitor's pick when the button is pressed.
+      var buyName = joinNames(buyList), giftName = joinNames(giftList);
+      var buyId = '', giftId = '', buyUrl = '', giftUrl = '';
       var discType     = (rule && rule.incentive && rule.incentive.discountType) || ACTIVE_CONFIG.discountType || 'percentage';
       var discVal      = (rule && rule.incentive && rule.incentive.discountValue !== undefined) ? rule.incentive.discountValue : (ACTIVE_CONFIG.discountValue || 15);
 
@@ -611,17 +616,20 @@
       overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,30,36,0.65);backdrop-filter:blur(5px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:PingARLT,system-ui,sans-serif;direction:rtl;";
 
       function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-      function productChip(img, name, qty, free) {
-        return '<div style="flex:1;min-width:0;text-align:center;">' +
-          (img ? '<img src="' + esc(img) + '" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid #e5e7eb;">' : '<div style="width:64px;height:64px;border-radius:10px;background:#f3f4f6;display:inline-flex;align-items:center;justify-content:center;font-size:24px;">' + (free ? '🎁' : '🛍️') + '</div>') +
-          '<div style="font-size:12px;font-weight:700;color:#111827;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(name) + '</div>' +
-          '<div style="font-size:11px;color:#374151;">' + (free ? '<span style="background:' + accentCol + ';color:' + primaryCol + ';padding:1px 8px;border-radius:999px;font-weight:700;">مجاناً × ' + qty + '</span>' : '× ' + qty) + '</div>' +
-          '</div>';
+      function productCards(list, kind) {
+        return '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' + list.map(function(p, i) {
+          var img = p.image
+            ? '<img src="' + esc(p.image) + '" alt="" style="width:56px;height:56px;object-fit:cover;border-radius:8px;">'
+            : '<div style="width:56px;height:56px;border-radius:8px;background:#f3f4f6;display:inline-flex;align-items:center;justify-content:center;font-size:22px;">' + (kind === 'gift' ? '🎁' : '🛍️') + '</div>';
+          return '<button type="button" data-pick="' + kind + '" data-idx="' + i + '" style="flex:1 1 90px;max-width:130px;min-width:80px;background:#ffffff;border:2px solid ' + (i === 0 ? primaryCol : '#e5e7eb') + ';border-radius:10px;padding:8px 6px;cursor:' + (list.length > 1 ? 'pointer' : 'default') + ';font-family:inherit;">' + img +
+            '<div style="font-size:11px;font-weight:700;color:#111827;margin-top:4px;line-height:1.3;">' + esc(p.name) + '</div></button>';
+        }).join('') + '</div>';
       }
       var couponBoxHtml = isGiftOffer
-        ? '<div style="background:#ffffff;border:2px dashed ' + primaryCol + ';border-radius:12px;padding:14px 12px;margin-bottom:16px;">' +
-          '<div style="display:flex;align-items:center;gap:10px;">' + productChip(buyImg, buyName, buyQty, false) +
-          '<span style="font-size:22px;color:' + primaryCol + ';">➜</span>' + productChip(giftImg, giftName, giftQty, true) + '</div></div>'
+        ? '<div style="background:#ffffff;border:2px dashed ' + primaryCol + ';border-radius:12px;padding:12px;margin-bottom:16px;">' +
+          '<div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;">' + (buyList.length > 1 ? 'اختر المنتج الذي تشتريه' : 'اشترِ') + ' (× ' + buyQty + ')</div>' + productCards(buyList, 'buy') +
+          '<div style="font-size:20px;color:' + primaryCol + ';margin:8px 0;">⬇</div>' +
+          '<div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px;">' + (giftList.length > 1 ? 'واختر هديتك' : 'واحصل') + ' <span style="background:' + accentCol + ';color:' + primaryCol + ';padding:1px 8px;border-radius:999px;">مجاناً × ' + giftQty + '</span></div>' + productCards(giftList, 'gift') + '</div>'
         : '<div style="background:#ffffff;border:2px dashed ' + primaryCol + ';border-radius:12px;padding:12px;margin-bottom:16px;">' +
           '<span style="font-size:12px;color:#374151;font-weight:600;display:block;margin-bottom:4px;">' + caption + '</span>' +
           '<span style="font-size:22px;font-weight:800;letter-spacing:2px;color:' + primaryCol + ';font-family:monospace;">' + activeCoupon + '</span>' +
@@ -649,6 +657,18 @@
 
       overlay.appendChild(card);
       document.body.appendChild(overlay);
+      if (isGiftOffer) {
+        var pickBtns = card.querySelectorAll('[data-pick]');
+        for (var pi = 0; pi < pickBtns.length; pi++) {
+          pickBtns[pi].onclick = function() {
+            var kind = this.getAttribute('data-pick');
+            var idx = parseInt(this.getAttribute('data-idx'), 10);
+            if (kind === 'buy') selBuy = idx; else selGift = idx;
+            var sibs = card.querySelectorAll('[data-pick="' + kind + '"]');
+            for (var si = 0; si < sibs.length; si++) sibs[si].style.borderColor = (si === idx) ? primaryCol : '#e5e7eb';
+          };
+        }
+      }
 
       function dismiss() { overlay.remove(); }
       document.getElementById("salla-modal-close").onclick = dismiss;
@@ -657,19 +677,35 @@
       document.getElementById("salla-modal-apply").onclick = function() {
         if (isGiftOffer) {
           dismiss();
+          var pb = buyList[selBuy] || buyList[0];
+          var pg = giftList[selGift] || giftList[0];
+          buyId = pb.id; buyName = pb.name; buyUrl = pb.url || '';
+          giftId = pg.id; giftName = pg.name; giftUrl = pg.url || '';
           var cartApi = window.salla && window.salla.cart;
           if (!cartApi || typeof cartApi.addItem !== 'function') {
             showToast("أضف " + buyName + " إلى سلتك لتحصل على " + giftName + " مجاناً.");
             return;
           }
-          cartApi.addItem({ id: buyId, quantity: buyQty }).then(function() {
-            return cartApi.addItem({ id: giftId, quantity: giftQty });
-          }).then(function() {
-            showToast("🎁 تمت إضافة " + giftName + " مجاناً إلى سلتك");
-            if (location.pathname.indexOf("/cart") !== -1) setTimeout(function() { location.reload(); }, 900);
-          }).catch(function(err) {
-            console.warn('[Salla-Incentives] gift offer add failed:', err);
-            showToast("أضف " + buyName + " (" + buyQty + ") إلى سلتك لتحصل على " + giftName + " مجاناً.");
+          function addOne(id, qty, label) {
+            return Promise.resolve().then(function() { return cartApi.addItem({ id: id, quantity: qty }); }).then(function() { return { ok: true }; }).catch(function(err) {
+              console.warn('[Salla-Incentives] addItem failed for', label, err);
+              return { ok: false, why: couponErrorText(err) };
+            });
+          }
+          // Add both independently so one failure (e.g. a required size/colour option) does not hide the other.
+          addOne(buyId, buyQty, buyName).then(function(b) {
+            return addOne(giftId, giftQty, giftName).then(function(g) { return { b: b, g: g }; });
+          }).then(function(r) {
+            if (r.b.ok && r.g.ok) {
+              showToast("🎁 تمت إضافة " + giftName + " مجاناً إلى سلتك");
+              if (location.pathname.indexOf("/cart") !== -1) setTimeout(function() { location.reload(); }, 900);
+              return;
+            }
+            var failedName = !r.b.ok ? buyName : giftName;
+            var why = !r.b.ok ? r.b.why : r.g.why;
+            var url = !r.b.ok ? buyUrl : giftUrl;
+            showToast("تعذّر إضافة «" + failedName + "» تلقائياً" + (why ? " (" + why + ")" : "") + ". " + (url ? "سننقلك لصفحته لاختيار الخيارات وإضافته." : "أضفه من صفحة المنتج."));
+            if (url) setTimeout(function() { location.href = url; }, 2800);
           });
           return;
         }

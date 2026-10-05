@@ -14,6 +14,14 @@ import { logError, redact } from "./errors.js";
 
 const SALLA_OFFERS_URL = "https://api.salla.dev/admin/v2/specialoffers";
 const ID_RE = /^\d+$/;
+const MAX_PRODUCTS = 50;
+
+// Accepts an array of ids, or a single id (older clients); returns clean unique ids or null.
+function parseIds(many, single) {
+  const raw = Array.isArray(many) && many.length ? many : single !== undefined && single !== "" ? [single] : [];
+  const ids = [...new Set(raw.map((v) => String(v)))];
+  return ids.length > 0 && ids.length <= MAX_PRODUCTS && ids.every((id) => ID_RE.test(id)) ? ids : null;
+}
 
 // Quantities come from the merchant: whole numbers from 1 to 100.
 function clampQty(value) {
@@ -56,13 +64,13 @@ export async function createOfferRequest({ method, body }) {
     return respond(400, { success: false, error: "Invalid JSON body" });
   }
 
-  const { token, appId, name, buy_product_id, gift_product_id, existing_offer_id } = data;
+  const { token, appId, name, existing_offer_id } = data;
   const buyQty = clampQty(data.buy_quantity);
   const giftQty = clampQty(data.gift_quantity);
-  const buyId = String(buy_product_id ?? "");
-  const giftId = String(gift_product_id ?? "");
+  const buyIds = parseIds(data.buy_product_ids, data.buy_product_id);
+  const giftIds = parseIds(data.gift_product_ids, data.gift_product_id);
 
-  if (!ID_RE.test(buyId) || !ID_RE.test(giftId)) {
+  if (!buyIds || !giftIds) {
     return respond(400, { success: false, error: "اختر منتج الشراء ومنتج الهدية" });
   }
   if (!token || !appId) {
@@ -93,8 +101,8 @@ export async function createOfferRequest({ method, body }) {
     applied_to: "product",
     start_date: dateTime(Date.now(), START_OFFSETS_MINUTES[0]),
     expiry_date: isoDate(Date.now() + 365 * 24 * 60 * 60 * 1000),
-    buy: { type: "product", quantity: buyQty, products: [Number(buyId)] },
-    get: { type: "product", discount_type: "free-product", quantity: giftQty, products: [Number(giftId)] },
+    buy: { type: "product", quantity: buyQty, products: buyIds.map(Number) },
+    get: { type: "product", discount_type: "free-product", quantity: giftQty, products: giftIds.map(Number) },
   };
 
   const headers = {

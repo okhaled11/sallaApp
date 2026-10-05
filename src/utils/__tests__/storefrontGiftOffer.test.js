@@ -11,11 +11,12 @@ const giftRule = (incentive = {}) => ({
     type: "free_product",
     couponCode: "",
     isCreatedInSalla: true,
-    buyProductId: "111",
-    buyProductName: "فستان",
+    buyProducts: [
+      { id: "111", name: "فستان", image: "", url: "https://shop.test/dress/p111" },
+      { id: "112", name: "عباية", image: "", url: "" },
+    ],
     buyQuantity: 2,
-    giftProductId: "222",
-    giftProductName: "وشاح",
+    giftProducts: [{ id: "222", name: "وشاح", image: "", url: "" }],
     giftQuantity: 1,
     ...incentive,
   },
@@ -66,6 +67,31 @@ describe("storefront gift offer (buy N get M free)", () => {
     expect(modal.textContent).not.toContain("SPECIAL3X");
   });
 
+  it("lets the visitor pick which of several products to buy", async () => {
+    await runStorefront([giftRule()]);
+    const second = document.querySelector('[data-pick="buy"][data-idx="1"]');
+    expect(second).not.toBeNull();
+    second.click();
+    document.getElementById("salla-modal-apply").click();
+    await vi.advanceTimersByTimeAsync(50);
+    expect(addItem).toHaveBeenNthCalledWith(1, { id: "112", quantity: 2 });
+    expect(addItem).toHaveBeenNthCalledWith(2, { id: "222", quantity: 1 });
+  });
+
+  it("still supports rules saved with a single product per side", async () => {
+    await runStorefront([
+      giftRule({
+        buyProducts: undefined,
+        giftProducts: undefined,
+        buyProductId: "111",
+        buyProductName: "فستان",
+        giftProductId: "222",
+        giftProductName: "وشاح",
+      }),
+    ]);
+    expect(document.getElementById("salla-freq-visitor-modal").textContent).toContain("وشاح");
+  });
+
   it("adds the buy quantity and then the free gift to the cart on click", async () => {
     await runStorefront([giftRule()]);
     document.getElementById("salla-modal-apply").click();
@@ -73,6 +99,23 @@ describe("storefront gift offer (buy N get M free)", () => {
     expect(addItem).toHaveBeenNthCalledWith(1, { id: "111", quantity: 2 });
     expect(addItem).toHaveBeenNthCalledWith(2, { id: "222", quantity: 1 });
     expect(document.getElementById("salla-freq-visitor-modal")).toBeNull();
+  });
+
+  it("still adds the gift when the buy product needs options, then sends the visitor to its page", async () => {
+    addItem
+      .mockImplementationOnce(() => Promise.reject({ response: { data: { error: { message: "اختر المقاس" } } } }))
+      .mockImplementationOnce(() => Promise.resolve({}));
+    const hrefSetter = vi.fn();
+    const loc = { ...window.location, pathname: "/", set href(v) { hrefSetter(v); } };
+    vi.stubGlobal("location", loc);
+    await runStorefront([giftRule()]);
+    document.getElementById("salla-modal-apply").click();
+    await vi.advanceTimersByTimeAsync(3500);
+    expect(addItem).toHaveBeenCalledTimes(2);
+    expect(addItem).toHaveBeenNthCalledWith(2, { id: "222", quantity: 1 });
+    expect(document.getElementById("salla-incentives-toast") || document.getElementById("salla-incentive-toast").textContent).toBeTruthy();
+    expect(document.getElementById("salla-incentive-toast").textContent).toContain("اختر المقاس");
+    expect(hrefSetter).toHaveBeenCalledWith("https://shop.test/dress/p111");
   });
 
   it("never shows a gift rule whose offer was not created in Salla", async () => {

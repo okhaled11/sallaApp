@@ -59,6 +59,8 @@ export function mapProduct(product) {
     status: product.status || null,
     price: product.price?.amount ?? null,
     currency: product.price?.currency ?? null,
+    // Product page on the storefront (used to send visitors to pick options)
+    url: product.url || product.urls?.customer || null,
     image:
       product.thumbnail || product.main_image || product.image?.url || null,
     // null means unlimited stock

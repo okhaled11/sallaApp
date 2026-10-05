@@ -43,6 +43,19 @@ const ICON_OPTIONS = [
 
 const isGiftRule = (rule) => rule.incentive.type === "free_product";
 
+/** Buy / gift products of a gift rule (older rules stored a single product per side). */
+function offerProducts(inc, prefix) {
+  if (Array.isArray(inc[`${prefix}Products`]) && inc[`${prefix}Products`].length) return inc[`${prefix}Products`];
+  return inc[`${prefix}ProductId`]
+    ? [{
+        id: String(inc[`${prefix}ProductId`]),
+        name: inc[`${prefix}ProductName`] || "",
+        image: inc[`${prefix}ProductImage`] || "",
+        url: inc[`${prefix}ProductUrl`] || "",
+      }]
+    : [];
+}
+
 /** Coupon fields for discount / free-shipping rules. */
 function buildCouponPayload(rule) {
   const inc = rule.incentive;
@@ -57,7 +70,8 @@ function buildCouponPayload(rule) {
 }
 
 const offerMissingProducts = (rule) =>
-  isGiftRule(rule) && !(rule.incentive.buyProductId && rule.incentive.giftProductId);
+  isGiftRule(rule) &&
+  (offerProducts(rule.incentive, "buy").length === 0 || offerProducts(rule.incentive, "gift").length === 0);
 const OFFER_MISSING_MSG = "اختر منتج الشراء ومنتج الهدية أولاً من تبويب المكافأة";
 
 /**
@@ -69,8 +83,8 @@ async function syncRuleToSalla(token, rule) {
   const inc = rule.incentive;
   const res = await createSallaSpecialOffer(token, {
     name: rule.name,
-    buy_product_id: inc.buyProductId,
-    gift_product_id: inc.giftProductId,
+    buy_product_ids: offerProducts(inc, "buy").map((p) => p.id),
+    gift_product_ids: offerProducts(inc, "gift").map((p) => p.id),
     buy_quantity: inc.buyQuantity || 1,
     gift_quantity: inc.giftQuantity || 1,
     existing_offer_id: inc.sallaCouponId,
@@ -128,8 +142,8 @@ function RuleCard({
           {rule.incentive.type === "free_product"    && (
             <span className="irm-meta-chip highlight">
               <Icon name="gift" size={12}/>
-              {rule.incentive.buyProductName && rule.incentive.giftProductName
-                ? `اشترِ ${rule.incentive.buyQuantity || 1} ${rule.incentive.buyProductName} ← ${rule.incentive.giftQuantity || 1} ${rule.incentive.giftProductName} مجاناً`
+              {offerProducts(rule.incentive, "buy").length && offerProducts(rule.incentive, "gift").length
+                ? `اشترِ ${rule.incentive.buyQuantity || 1} من (${offerProducts(rule.incentive, "buy").map((p) => p.name).join(" أو ")}) ← ${rule.incentive.giftQuantity || 1} مجاناً من (${offerProducts(rule.incentive, "gift").map((p) => p.name).join(" أو ")})`
                 : "لم يُختر المنتجان بعد"}
             </span>
           )}
@@ -662,52 +676,62 @@ function RuleEditorPanel({ rule, products, token, onShowToast, onSave, onCancel 
                   // Any change needs a re-sync; the existing offer id is kept so Salla updates it.
                   const setOffer = (fields) =>
                     setDraft((d) => ({ ...d, incentive: { ...d.incentive, ...fields, isCreatedInSalla: false } }));
-                  const pickProduct = (prefix, id) => {
-                    const picked = (products || []).find((p) => String(p.id) === id);
+                  const setList = (prefix, list) =>
                     setOffer({
-                      [`${prefix}ProductId`]: id,
-                      [`${prefix}ProductName`]: picked?.name || "",
-                      [`${prefix}ProductImage`]: picked?.image || "",
+                      [`${prefix}Products`]: list,
+                      [`${prefix}ProductId`]: "",
+                      [`${prefix}ProductName`]: "",
+                      [`${prefix}ProductImage`]: "",
+                      [`${prefix}ProductUrl`]: "",
                     });
+                  const addProduct = (prefix, id) => {
+                    const picked = (products || []).find((p) => String(p.id) === id);
+                    const list = offerProducts(inc, prefix);
+                    if (!picked || list.some((p) => String(p.id) === id)) return;
+                    setList(prefix, [...list, { id, name: picked.name, image: picked.image || "", url: picked.url || "" }]);
                   };
+                  const removeProduct = (prefix, id) =>
+                    setList(prefix, offerProducts(inc, prefix).filter((p) => String(p.id) !== String(id)));
                   const qty = (value) => Math.min(100, Math.max(1, parseInt(value, 10) || 1));
-                  const options = (products || []).map((p) => (
-                    <option key={p.id} value={String(p.id)}>{p.name}</option>
-                  ));
+
+                  const side = (prefix, title, qtyLabel, qtyKey) => {
+                    const list = offerProducts(inc, prefix);
+                    return (
+                      <div className="irm-form-group">
+                        <label className="irm-label">{title}</label>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
+                          {list.length === 0 && <span style={{ fontSize: "12px", opacity: 0.7 }}>لم تُضف منتجات بعد</span>}
+                          {list.map((p) => (
+                            <span key={p.id} className="irm-meta-chip highlight" style={{ gap: "6px" }}>
+                              {p.name}
+                              <button type="button" aria-label="إزالة" onClick={() => removeProduct(prefix, p.id)}
+                                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}>✕</button>
+                            </span>
+                          ))}
+                        </div>
+                        <select className="irm-input" value="" onChange={(e) => addProduct(prefix, e.target.value)}>
+                          <option value="">{list.length ? "+ إضافة منتج آخر" : "+ إضافة منتج"}</option>
+                          {(products || [])
+                            .filter((p) => !list.some((x) => String(x.id) === String(p.id)))
+                            .map((p) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
+                        </select>
+                        <label className="irm-label" style={{ marginTop: "10px" }}>{qtyLabel}</label>
+                        <input type="number" min={1} max={100} className="irm-input" value={inc[qtyKey] || 1}
+                          onChange={(e) => setOffer({ [qtyKey]: qty(e.target.value) })}/>
+                      </div>
+                    );
+                  };
+
+                  const buyNames = offerProducts(inc, "buy").map((p) => p.name).join(" أو ");
+                  const giftNames = offerProducts(inc, "gift").map((p) => p.name).join(" أو ");
                   return (
                     <>
-                      <div className="irm-form-row">
-                        <div className="irm-form-group">
-                          <label className="irm-label">المنتج الذي يشتريه العميل</label>
-                          <select className="irm-input" value={inc.buyProductId || ""} onChange={(e) => pickProduct("buy", e.target.value)}>
-                            <option value="">— اختر منتج الشراء —</option>
-                            {options}
-                          </select>
-                        </div>
-                        <div className="irm-form-group">
-                          <label className="irm-label">عدد القطع المطلوب شراؤها</label>
-                          <input type="number" min={1} max={100} className="irm-input" value={inc.buyQuantity || 1}
-                            onChange={(e) => setOffer({ buyQuantity: qty(e.target.value) })}/>
-                        </div>
-                      </div>
-                      <div className="irm-form-row">
-                        <div className="irm-form-group">
-                          <label className="irm-label">منتج الهدية (مجاناً)</label>
-                          <select className="irm-input" value={inc.giftProductId || ""} onChange={(e) => pickProduct("gift", e.target.value)}>
-                            <option value="">— اختر منتج الهدية —</option>
-                            {options}
-                          </select>
-                        </div>
-                        <div className="irm-form-group">
-                          <label className="irm-label">عدد القطع المجانية</label>
-                          <input type="number" min={1} max={100} className="irm-input" value={inc.giftQuantity || 1}
-                            onChange={(e) => setOffer({ giftQuantity: qty(e.target.value) })}/>
-                        </div>
-                      </div>
+                      {side("buy", "المنتجات التي يشتري العميل أحدها", "عدد القطع المطلوب شراؤها", "buyQuantity")}
+                      {side("gift", "منتجات الهدية المجانية", "عدد القطع المجانية", "giftQuantity")}
                       <p className="irm-hint" style={{ margin: "0 0 12px", fontSize: "12px", opacity: 0.85 }}>
-                        {inc.buyProductName && inc.giftProductName
-                          ? `اشترِ ${inc.buyQuantity || 1} من «${inc.buyProductName}» واحصل على ${inc.giftQuantity || 1} من «${inc.giftProductName}» مجاناً. تُطبَّق تلقائياً في السلة بدون كود.`
-                          : "اختر المنتجين وحدد الأعداد. تُطبَّق الهدية تلقائياً في السلة بدون كود، وبالعدد المحدد فقط."}
+                        {buyNames && giftNames
+                          ? `اشترِ ${inc.buyQuantity || 1} من (${buyNames}) واحصل على ${inc.giftQuantity || 1} مجاناً من (${giftNames}). يختار الزائر في النافذة، وتُطبَّق الهدية تلقائياً في السلة بدون كود.`
+                          : "أضف منتجاً واحداً أو أكثر في كل جهة وحدد الأعداد. تُطبَّق الهدية تلقائياً في السلة بدون كود، وبالعدد المحدد فقط."}
                       </p>
                     </>
                   );

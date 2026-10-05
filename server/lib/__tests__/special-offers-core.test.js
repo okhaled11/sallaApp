@@ -62,6 +62,19 @@ describe("special-offers-core", () => {
     });
   });
 
+  it("accepts several buy products and several gift products", async () => {
+    await request({ buy_product_ids: [111, 112, 113], gift_product_ids: ["222", "223"], buy_product_id: undefined, gift_product_id: undefined });
+    const body = JSON.parse(sallaCall()[1].body);
+    expect(body.buy.products).toEqual([111, 112, 113]);
+    expect(body.get.products).toEqual([222, 223]);
+  });
+
+  it("rejects an invalid id inside the product lists", async () => {
+    const res = await request({ buy_product_ids: [111, "abc"], buy_product_id: undefined });
+    expect(res.statusCode).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("supports buying several pieces to get several free", async () => {
     await request({ buy_quantity: 3, gift_quantity: 2 });
     const body = JSON.parse(sallaCall()[1].body);

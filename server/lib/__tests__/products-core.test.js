@@ -71,6 +71,7 @@ describe("products-core", () => {
       status: "sale",
       price: 99,
       currency: "SAR",
+      url: null,
       image: "img.png",
       quantity: 3,
       soldQuantity: 5,
