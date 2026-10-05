@@ -25,6 +25,12 @@ export default function Navbar({
       badge: contentIssuesCount > 0 ? contentIssuesCount : null,
     },
     {
+      id: "risk",
+      label: "الطلبات الخطرة",
+      subtitle: "كشف مخاطر الدفع عند الاستلام",
+      icon: "alert",
+    },
+    {
       id: "incentives",
       label: "تحفيز الزوار والخصومات",
       subtitle: "خصم الـ 3 زيارات بدون شراء",

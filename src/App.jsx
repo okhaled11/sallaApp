@@ -10,6 +10,7 @@ import StatusBar from "./components/StatusBar.jsx";
 import Navbar from "./components/Navigation/Navbar.jsx";
 import ContentStudio from "./components/ContentStudio/ContentStudio.jsx";
 import VisitorIncentivesStudio from "./components/Incentives/VisitorIncentivesStudio.jsx";
+import RiskyOrders from "./components/RiskyOrders/RiskyOrders.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
 import ProfitInsights from "./components/ProfitInsights.jsx";
@@ -213,9 +214,11 @@ function AppContent() {
     title:
       activeTab === "content"
         ? "ستوديو المحتوى والسيو"
-        : activeTab === "incentives"
-          ? "تحفيز الزوار والخصومات الذكية"
-          : "المبيعات والأرباح",
+        : activeTab === "risk"
+          ? "كاشف الطلبات الخطرة"
+          : activeTab === "incentives"
+            ? "تحفيز الزوار والخصومات الذكية"
+            : "المبيعات والأرباح",
     action: chromeAction,
     onAction: handleDashboardAction,
   });
@@ -316,6 +319,12 @@ function AppContent() {
                 </>
               ) : activeTab === "content" ? (
                 <ContentStudio products={products} />
+              ) : activeTab === "risk" ? (
+                <RiskyOrders
+                  token={token}
+                  currency={layout?.currency || "SAR"}
+                  onShowToast={showToast}
+                />
               ) : (
                 <VisitorIncentivesStudio
                   products={products}

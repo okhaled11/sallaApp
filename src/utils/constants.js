@@ -5,6 +5,7 @@ export const UPDATE_PRODUCT_FUNCTION_URL = "/api/update-product";
 export const CREATE_COUPON_FUNCTION_URL = "/api/create-coupon";
 export const CREATE_OFFER_FUNCTION_URL = "/api/create-offer";
 export const COUPON_STATS_FUNCTION_URL = "/api/coupon-stats";
+export const RISKY_ORDERS_FUNCTION_URL = "/api/risky-orders";
 export const INCENTIVE_CONFIG_FUNCTION_URL = "/api/incentive-config";
 export const INCENTIVE_OFFERS_FUNCTION_URL = "/api/incentive-offers";
 
