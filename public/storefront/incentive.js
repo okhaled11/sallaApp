@@ -577,6 +577,8 @@
       var ctaText      = (rule && rule.modal && rule.modal.ctaText)           || ACTIVE_CONFIG.ctaText;
       var dismissText  = (rule && rule.modal && rule.modal.dismissText)       || ACTIVE_CONFIG.dismissText;
       var incType      = (rule && rule.incentive && rule.incentive.type)      || 'coupon_discount';
+      var giftId   = (rule && rule.incentive && rule.incentive.giftProductId) || '';
+      var giftName = (rule && rule.incentive && rule.incentive.giftProductName) || '';
       var discType     = (rule && rule.incentive && rule.incentive.discountType) || ACTIVE_CONFIG.discountType || 'percentage';
       var discVal      = (rule && rule.incentive && rule.incentive.discountValue !== undefined) ? rule.incentive.discountValue : (ACTIVE_CONFIG.discountValue || 15);
 
@@ -590,6 +592,11 @@
       }
 
       var badgeText = incType === 'free_shipping' ? 'توصيل مجاني 🚚' : (incType === 'free_product' ? 'هدية مجانية 🎁' : ('خصم ' + discVal + (discType === 'fixed' ? ' ر.س' : '%')));
+      var pillText = incType === 'free_product'
+        ? '🎁 هديتك المجانية' + (giftName ? ' (' + giftName + ')' : '') + ' مفعّلة لطلبك القادم (كود ' + activeCoupon + ')'
+        : (incType === 'free_shipping'
+          ? '🚚 التوصيل المجاني مفعّل لطلبك القادم (كود ' + activeCoupon + ')'
+          : '🏷️ كود الخصم (' + activeCoupon + ') مفعّل لطلبك القادم (' + badgeText + ')');
       var overlay = document.createElement("div");
       overlay.id = "salla-freq-visitor-modal";
       overlay.style.cssText = "position:fixed;inset:0;background:rgba(0,30,36,0.65);backdrop-filter:blur(5px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:PingARLT,system-ui,sans-serif;direction:rtl;";
@@ -629,10 +636,12 @@
         try {
           localStorage.setItem("_salla_auto_coupon_" + storeId, activeCoupon);
           localStorage.setItem("_salla_auto_coupon", activeCoupon);
+          localStorage.setItem("_salla_auto_pill_" + storeId, pillText);
           navigator.clipboard.writeText(activeCoupon);
         } catch (e) {}
         dismiss();
 
+        function doApply() {
         var applyReq = applySallaCoupon(activeCoupon);
         if (applyReq && typeof applyReq.then === 'function') {
           applyReq.then(function(res) {
@@ -640,6 +649,7 @@
             try {
               localStorage.removeItem("_salla_auto_coupon_" + storeId);
               localStorage.removeItem("_salla_auto_coupon");
+          localStorage.removeItem("_salla_auto_pill_" + storeId);
             } catch (e) {}
             var pill = document.getElementById("salla-active-discount-pill");
             if (pill) pill.remove();
@@ -652,12 +662,25 @@
               showToast("⚠️ لم تقبل سلة الكود (" + activeCoupon + ")" + (why ? ": " + why : "") + ". تم نسخ الكود، الصقه في خانة الكوبون.");
             } else {
               showToast("🎉 تم حفظ العرض، وسيُطبّق تلقائياً عند إضافة أول منتج إلى السلة.");
-              showFloatingPill(activeCoupon, discVal);
+              showFloatingPill(pillText);
             }
           });
         } else {
           showToast("تم نسخ الكود (" + activeCoupon + "). الصقه في خانة الكوبون داخل السلة.");
-          showFloatingPill(activeCoupon, discVal);
+          showFloatingPill(pillText);
+        }
+        }
+
+        var addGift = (incType === 'free_product' && giftId && window.salla && window.salla.cart && typeof window.salla.cart.addItem === 'function')
+          ? window.salla.cart.addItem({ id: giftId, quantity: 1 }) : null;
+        if (addGift && typeof addGift.then === 'function') {
+          addGift.then(function() { doApply(); }).catch(function(err) {
+            console.warn('[Salla-Incentives] addItem(gift) rejected:', err);
+            showToast("🎁 أضف هديتك" + (giftName ? " (" + giftName + ")" : "") + " إلى سلتك، وسيُطبّق الخصم تلقائياً.");
+            showFloatingPill(pillText);
+          });
+        } else {
+          doApply();
         }
       };
     }
@@ -695,13 +718,13 @@
     }
 
     // Helper: Show floating discount pill while browsing
-    function showFloatingPill(coupon, discountVal) {
+    function showFloatingPill(text) {
       var existing = document.getElementById("salla-active-discount-pill");
       if (existing) existing.remove();
       var pill = document.createElement("div");
       pill.id = "salla-active-discount-pill";
       pill.style.cssText = "position:fixed;bottom:24px;right:24px;background:#004d5b;color:#73fcd7;padding:10px 18px;border-radius:50px;box-shadow:0 8px 30px rgba(0,0,0,0.25);z-index:999998;font-family:PingARLT,system-ui,sans-serif;font-size:13px;font-weight:bold;display:flex;align-items:center;gap:10px;border:1.5px solid #73fcd7;direction:rtl;cursor:default;";
-      pill.innerHTML = "<span>🏷️ كود الخصم (" + coupon + ") مفعّل لطلبك القادم (خصم " + discountVal + "%)!</span>" +
+      pill.innerHTML = "<span>" + text + "</span>" +
         '<button id="salla-pill-close" style="background:none;border:none;color:#ffffff;font-size:16px;cursor:pointer;padding:0 2px;opacity:0.8;">✕</button>';
       document.body.appendChild(pill);
       var closeBtn = document.getElementById("salla-pill-close");
@@ -723,6 +746,7 @@
           showToast("✅ تم تطبيق كود الخصم (" + pendingCoupon + ") بنجاح على سلتك!");
           localStorage.removeItem("_salla_auto_coupon_" + storeId);
           localStorage.removeItem("_salla_auto_coupon");
+          localStorage.removeItem("_salla_auto_pill_" + storeId);
           var pill = document.getElementById("salla-active-discount-pill");
           if (pill) pill.remove();
           if (location.pathname.indexOf("/cart") !== -1) setTimeout(function() { location.reload(); }, 900);
@@ -746,7 +770,7 @@
     // Check if user already activated discount on previous page
     var currentPending = localStorage.getItem("_salla_auto_coupon_" + storeId) || localStorage.getItem("_salla_auto_coupon");
     if (currentPending) {
-      showFloatingPill(currentPending, ACTIVE_CONFIG.discountValue || 15);
+      showFloatingPill(localStorage.getItem("_salla_auto_pill_" + storeId) || ("🏷️ كود الخصم (" + currentPending + ") مفعّل لطلبك القادم"));
       if (location.pathname.indexOf("/cart") !== -1 || (getCartInfo().count > 0)) {
         setTimeout(tryApplyAutoDiscount, 1000);
       }

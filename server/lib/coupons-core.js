@@ -49,6 +49,7 @@ export async function createCouponRequest({ method, body }) {
     discount_type = "percentage",
     discount_value = 15,
     free_shipping = false,
+    gift_product_id = null,
   } = data;
 
   if (!code || typeof code !== "string" || !code.trim()) {
@@ -112,6 +113,20 @@ export async function createCouponRequest({ method, body }) {
     expiry_date: expiryDate,
     exclude_sale_products: false,
   };
+
+  // Gift: Salla has no "free gift" coupon type, so the gift is a 100% coupon
+  // restricted to the gift product, usable once per customer.
+  if (gift_product_id !== null && gift_product_id !== undefined && gift_product_id !== "") {
+    const giftId = String(gift_product_id);
+    if (!/^\d+$/.test(giftId)) {
+      return respond(400, { success: false, error: "معرّف منتج الهدية غير صالح" });
+    }
+    payload.type = "percentage";
+    payload.amount = 100;
+    payload.free_shipping = false;
+    payload.products_include = [giftId];
+    payload.usage_limit_per_user = 1;
+  }
 
   try {
     const sallaRes = await fetch(SALLA_COUPONS_URL, {
