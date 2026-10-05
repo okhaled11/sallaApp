@@ -18,6 +18,7 @@ function devCouponApi() {
         ["/api/create-coupon", "/server/lib/coupons-core.js", "createCouponRequest"],
         ["/api/coupon-stats", "/server/lib/coupon-stats-core.js", "couponStatsRequest"],
         ["/api/incentive-config", "/server/lib/incentive-config-core.js", "incentiveConfigRequest"],
+        ["/api/incentive-offers", "/server/lib/incentive-offers-core.js", "incentiveOffersRequest"],
         ["/api/webhooks/salla", "/server/lib/webhook-core.js", "sallaWebhookRequest"],
       ];
       for (const [route, modulePath, exportName] of routes) {

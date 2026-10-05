@@ -15,7 +15,11 @@ import {
   deduplicateVisitors,
   loadIncentiveRules,
 } from "../../utils/visitorIncentives.js";
-import { publishIncentiveSettings, buildInstallSnippet } from "../../utils/incentiveConfigApi.js";
+import {
+  publishIncentiveSettings,
+  buildInstallSnippet,
+  sendIncentiveOffer,
+} from "../../utils/incentiveConfigApi.js";
 
 /**
  * VisitorIncentivesStudio:
@@ -187,6 +191,8 @@ export default function VisitorIncentivesStudio({
           const pName = member.data?.productId
             ? `منتج #${member.data.productId}`
             : "واجهة المتجر";
+          const cartCount = Number(member.data?.cartItemsCount);
+          const cartTotal = Number(member.data?.cartValue);
 
           setVisitors((prev) => {
             let idx = prev.findIndex((v) => v.id === cId);
@@ -215,6 +221,8 @@ export default function VisitorIncentivesStudio({
                 visitCount: newCount,
                 isOnline,
                 viewedProducts,
+                cartItemsCount: Number.isFinite(cartCount) ? cartCount : existingItem.cartItemsCount,
+                cartValue: Number.isFinite(cartTotal) ? cartTotal : existingItem.cartValue,
                 lastVisitedAgo: isOnline ? `متصل الآن (${path})` : "منذ قليل",
                 timeSpanText: `${newCount} زيارات خلال وقت متقارب`,
                 status:
@@ -235,8 +243,8 @@ export default function VisitorIncentivesStudio({
                   isOnline: true,
                   visitTimestamps: [Date.now()],
                   purchasesCount: 0,
-                  cartItemsCount: 0,
-                  cartValue: 0,
+                  cartItemsCount: Number.isFinite(cartCount) ? cartCount : 0,
+                  cartValue: Number.isFinite(cartTotal) ? cartTotal : 0,
                   viewedProducts: [pName],
                   status:
                     vCount >= (config.minVisits || 3)
@@ -314,6 +322,12 @@ export default function VisitorIncentivesStudio({
     [rules],
   );
 
+  // Visits needed before a visitor qualifies: taken from the live "store visits" rule.
+  const visitThreshold = useMemo(() => {
+    const rule = liveRules.find((r) => r.trigger?.type === "store_visits");
+    return Number(rule?.trigger?.minVisits) || config.minVisits || 3;
+  }, [liveRules, config.minVisits]);
+
   // Publish saved settings to the server so the storefront script (installed once) uses them.
   const [publishState, setPublishState] = useState("idle"); // idle | saving | saved | error
   const [publishNote, setPublishNote] = useState("");
@@ -378,23 +392,38 @@ export default function VisitorIncentivesStudio({
     );
   };
 
-  // Trigger instant manual discount for a visitor from the list
-  const handleOfferDirectDiscount = (visitor) => {
+  // Push an offer to one visitor: their storefront page shows the modal within ~15s.
+  const handleOfferDirectDiscount = async (visitor) => {
+    const rule = liveRules[0];
+    if (!rule) {
+      onShowToast?.(
+        "لا توجد قاعدة مفعّلة وكوبونها مفعّل في سلة. فعّل قاعدة أولاً من تبويب قواعد التحفيز.",
+        "warning",
+      );
+      return;
+    }
+    if (!token) {
+      onShowToast?.("افتح التطبيق من لوحة تحكم سلة لإرسال العرض للزائر", "warning");
+      return;
+    }
+    const res = await sendIncentiveOffer({
+      token,
+      storeId: activeStoreId,
+      clientId: visitor.id,
+      rule,
+    });
+    if (!res.success) {
+      onShowToast?.(res.error || "تعذر إرسال العرض للزائر", "error");
+      return;
+    }
     setVisitors((prev) =>
       prev.map((v) =>
         v.id === visitor.id
-          ? {
-              ...v,
-              status: "offered",
-              timeSpanText: `${v.visitCount} زيارات - تم إرسال كود ${config.couponCode} فوراً!`,
-            }
+          ? { ...v, status: "offered", timeSpanText: `تم إرسال عرض (${rule.incentive?.couponCode || rule.name}) للزائر` }
           : v,
       ),
     );
-    onShowToast?.(
-      `تم إرسال كود الخصم (${config.couponCode}) إلى ${visitor.name}`,
-      "success",
-    );
+    onShowToast?.(`تم إرسال العرض إلى ${visitor.name}، سيظهر له خلال ثوانٍ`, "success");
   };
 
   // Copy tracking script to clipboard
@@ -994,10 +1023,10 @@ export default function VisitorIncentivesStudio({
                 </thead>
                 <tbody>
                   {filteredVisitors.map((visitor) => {
-                    const isQualified = checkVisitorEligibility(
-                      visitor,
-                      config,
-                    );
+                    const isQualified = checkVisitorEligibility(visitor, {
+                      ...config,
+                      minVisits: visitThreshold,
+                    });
 
                     return (
                       <tr
@@ -1081,13 +1110,13 @@ export default function VisitorIncentivesStudio({
                           ) : isQualified ? (
                             <span className="visitor-status-tag qualified">
                               <Icon name="target" size={13} />
-                              <span>مؤهل لخصم الـ {config.minVisits} زيارات</span>
+                              <span>مؤهل لخصم الـ {visitThreshold} زيارات</span>
                             </span>
                           ) : (
                             <span className="visitor-status-tag watching">
                               <Icon name="clock" size={13} />
                               <span>
-                                بانتظار الزيارة ({visitor.visitCount || 1} / {config.minVisits || 3})
+                                بانتظار الزيارة ({visitor.visitCount || 1} / {visitThreshold})
                               </span>
                             </span>
                           )}
@@ -1506,6 +1535,28 @@ export default function VisitorIncentivesStudio({
                 <p className="section-card-desc">
                   حدد متى تنبثق النافذة للزائر تلقائياً وقناة التواجد اللحظي.
                 </p>
+
+                <div className="form-field-group">
+                  <label htmlFor="triggerModeInput" className="form-label">
+                    طريقة ظهور النافذة للزائر:
+                  </label>
+                  <select
+                    id="triggerModeInput"
+                    value={config.triggerMode || "auto"}
+                    onChange={(e) => handleConfigChange("triggerMode", e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="auto">تلقائي: تظهر عند تحقق شروط القاعدة</option>
+                    <option value="manual">
+                      يدوي: تظهر فقط عندما أضغط «تفعيل الخصم» على الزائر
+                    </option>
+                  </select>
+                  <p className="section-card-desc" style={{ margin: "6px 0 0" }}>
+                    {config.triggerMode === "manual"
+                      ? "لن تظهر أي نافذة للزائر من تلقائي. اضغط تفعيل الخصم بجانب الزائر في السجل ليصله العرض خلال ثوانٍ. لا تنس حفظ الإعدادات."
+                      : "تظهر النافذة تلقائياً للزائر عند تحقق شروط القاعدة، ويمكنك أيضاً دفع عرض يدوي لأي زائر."}
+                  </p>
+                </div>
 
                 <div className="form-field-group">
                   <label htmlFor="minVisitsInput" className="form-label">

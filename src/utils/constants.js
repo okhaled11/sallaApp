@@ -5,6 +5,7 @@ export const UPDATE_PRODUCT_FUNCTION_URL = "/api/update-product";
 export const CREATE_COUPON_FUNCTION_URL = "/api/create-coupon";
 export const COUPON_STATS_FUNCTION_URL = "/api/coupon-stats";
 export const INCENTIVE_CONFIG_FUNCTION_URL = "/api/incentive-config";
+export const INCENTIVE_OFFERS_FUNCTION_URL = "/api/incentive-offers";
 
 // App ID - can be overridden via URL parameter ?appId=XXX
 export function getAppId() {
