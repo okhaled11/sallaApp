@@ -100,7 +100,7 @@
         return mp.FaceLandmarker.createFromOptions(fileset, {
           baseOptions: { modelAssetPath: MP_MODEL, delegate: "GPU" },
           runningMode: "VIDEO",
-          numFaces: 1,
+          numFaces: 4,
         });
       });
     });
@@ -390,8 +390,8 @@
     var mode = "video";
     var photo = null;
     var type = item.type || "glasses";
-    var smoothers = {};
-    var lipSmoother = null;
+    var smoothersByFace = [];
+    var lipSmoothersByFace = [];
     var stopped = false;
     var frames = 0;
     var light = 1;
@@ -407,8 +407,8 @@
       var portrait = mobile && window.innerHeight > window.innerWidth;
       var constraints = {
         facingMode: "user",
-        width: { ideal: portrait ? 720 : 1280 },
-        height: { ideal: portrait ? 1280 : 720 },
+        width: { ideal: portrait ? 1080 : 1920, min: 720 },
+        height: { ideal: portrait ? 1920 : 1080, min: 720 },
       };
       // Match the tall modal's shape so the image fills it without needing a big crop.
       if (mobile) constraints.aspectRatio = { ideal: portrait ? 9 / 16 : 16 / 9 };
@@ -475,6 +475,8 @@
       }
       var top = p.anchor === "top" ? 0 : p.anchor === "bottom" ? -H : -H / 2;
       ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
       ctx.translate(p.x, p.y);
       ctx.rotate(p.angle);
       if (p.flip) ctx.scale(-1, 1);
@@ -532,20 +534,25 @@
     }
 
     // Draws the product for one detected face. `live` = video (smooth over time); photos are drawn as-is.
-    function paintFace(face, w, h, nowMs, live) {
+    function paintFace(face, w, h, nowMs, live, faceIdx) {
+      faceIdx = faceIdx || 0;
       var f = facePose(face, w, h);
-      if (!live || frames++ % 10 === 0) sampleLight({ x: f.cx, y: f.cy, width: f.faceWidth });
+      if (faceIdx === 0 && (!live || frames++ % 10 === 0)) sampleLight({ x: f.cx, y: f.cy, width: f.faceWidth });
       if (type === "lipstick") {
         var shape = lipShape(face, w, h);
-        if (live) shape = (lipSmoother || (lipSmoother = makeLipSmoother()))(shape, w, nowMs);
+        if (live) {
+          var smLip = lipSmoothersByFace[faceIdx] || (lipSmoothersByFace[faceIdx] = makeLipSmoother());
+          shape = smLip(shape, w, nowMs);
+        }
         drawLips(shape);
         return;
       }
+      var faceSmoothers = smoothersByFace[faceIdx] || (smoothersByFace[faceIdx] = {});
       layout(type, f, item).forEach(function (part) {
         var drawn = part;
         if (live) {
-          var sm = (smoothers[part.key] || (smoothers[part.key] = makeSmoother()))(part, w, nowMs);
-          drawn = Object.assign({}, part, sm);
+          var sm = faceSmoothers[part.key] || (faceSmoothers[part.key] = makeSmoother());
+          drawn = Object.assign({}, part, sm(part, w, nowMs));
         }
         drawProduct(drawn);
       });
@@ -607,14 +614,21 @@
       ctx.drawImage(video, 0, 0, w, h);
       ctx.restore();
       var res = landmarker.detectForVideo(video, performance.now());
-      var face = res && res.faceLandmarks && res.faceLandmarks[0];
-      var guide = guideState(face || null, w, h, type);
-      if (face) {
-        paintFace(face, w, h, performance.now(), true);
+      var faces = (res && res.faceLandmarks) || [];
+      if (faces.length > 0) {
+        faces.forEach(function (face, idx) {
+          paintFace(face, w, h, performance.now(), true, idx);
+        });
         setStatus("");
       } else {
-        smoothers = {};
-        lipSmoother = null;
+        smoothersByFace = [];
+        lipSmoothersByFace = [];
+      }
+      var primaryFace = faces[0] || null;
+      var guide = guideState(primaryFace, w, h, type);
+      if (faces.length > 1) {
+        guide.hint = "تم رصد " + faces.length + " وجوه ✓";
+        guide.ok = true;
       }
       // A picture is taken before the guide is drawn so the saved image is clean.
       if (snapRequested) {
@@ -645,11 +659,12 @@
       ctx.drawImage(photo, 0, 0, canvas.width, canvas.height);
       landmarker.setOptions({ runningMode: "IMAGE" });
       var res = landmarker.detect(photo);
-      var face = res && res.faceLandmarks && res.faceLandmarks[0];
-      if (!face) return setStatus("لم نتمكن من العثور على وجه في الصورة");
-      // Photos are not mirrored, so flip x back before reusing the shared maths.
-      var mirrored = face.map(function (pt) { return { x: 1 - pt.x, y: pt.y }; });
-      paintFace(mirrored, canvas.width, canvas.height, 0, false);
+      var faces = (res && res.faceLandmarks) || [];
+      if (faces.length === 0) return setStatus("لم نتمكن من العثور على أي وجه في الصورة");
+      faces.forEach(function (face, idx) {
+        var mirrored = face.map(function (pt) { return { x: 1 - pt.x, y: pt.y }; });
+        paintFace(mirrored, canvas.width, canvas.height, 0, false, idx);
+      });
       setStatus("");
     }
 
@@ -766,12 +781,14 @@
     }
   }
 
+  window.openSallaTryOn = openTryOn;
+
   // Lets the unit tests reach the pure maths; does nothing on a real storefront.
   if (window.__SALLA_TRYON_TEST__) {
     window.__SALLA_TRYON_TEST__.api = {
       placement: placement, facePose: facePose, layout: layout, lipShape: lipShape, makeSmoother: makeSmoother,
       makeLipSmoother: makeLipSmoother, farSideFade: farSideFade, brightnessFor: brightnessFor, guideState: guideState,
-      TYPE_FACTORS: TYPE_FACTORS, GUIDES: GUIDES,
+      TYPE_FACTORS: TYPE_FACTORS, GUIDES: GUIDES, openTryOn: openTryOn,
     };
   }
 
