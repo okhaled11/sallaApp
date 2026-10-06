@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const verifyEmbeddedToken = vi.fn();
 vi.mock("../verify-token-core.js", () => ({ verifyEmbeddedToken: (...a) => verifyEmbeddedToken(...a) }));
 
-const { tryonConfigRequest, sanitizeItem } = await import("../tryon-config-core.js");
+const { tryonConfigRequest, sanitizeItem, TYPES } = await import("../tryon-config-core.js");
+const { TRYON_TYPE_IDS } = await import("../../../src/utils/tryOnTypes.js");
 
 const PNG = "data:image/png;base64,iVBORw0KGgo=";
 const item = (extra = {}) => ({ productId: "123", name: "نظارة", image: PNG, fit: 1, offsetY: 0.1, ...extra });
@@ -44,6 +45,49 @@ describe("tryon-config-core", () => {
       expect(sanitizeItem(item({ image: "javascript:alert(1)" }))).toBeNull();
       expect(sanitizeItem(item({ productId: "../x" }))).toBeNull();
       expect(sanitizeItem(null)).toBeNull();
+    });
+
+    it("defaults to glasses and ignores unknown types", () => {
+      expect(sanitizeItem(item()).type).toBe("glasses");
+      expect(sanitizeItem(item({ type: "spaceship" })).type).toBe("glasses");
+    });
+
+    it("knows the same product types as the dashboard", () => {
+      expect(TYPES).toEqual(TRYON_TYPE_IDS);
+    });
+
+    it("keeps earrings options and defaults mirroring on", () => {
+      expect(sanitizeItem(item({ type: "earrings", offsetX: 9 }))).toMatchObject({
+        type: "earrings",
+        offsetX: 0.5,
+        mirror: true,
+      });
+      expect(sanitizeItem(item({ type: "earrings", mirror: false })).mirror).toBe(false);
+    });
+
+    it("accepts lipstick without an image and cleans its options", () => {
+      expect(sanitizeItem({ productId: "9", type: "lipstick", color: "#AA1155", opacity: 5, finish: "gloss" })).toMatchObject({
+        type: "lipstick",
+        image: "",
+        color: "#aa1155",
+        opacity: 1,
+        finish: "gloss",
+      });
+      expect(sanitizeItem({ productId: "9", type: "lipstick", color: "red; }", opacity: "x", finish: "x" })).toMatchObject({
+        color: "#c2185b",
+        opacity: 0.7,
+        finish: "matte",
+      });
+    });
+
+    it("never stores an image for lipstick", () => {
+      expect(sanitizeItem(item({ type: "lipstick" })).image).toBe("");
+    });
+
+    it("still requires an image for every other type", () => {
+      for (const type of ["glasses", "earrings", "hat", "necklace"]) {
+        expect(sanitizeItem({ productId: "9", type })).toBeNull();
+      }
     });
 
     it("rejects oversized images", () => {

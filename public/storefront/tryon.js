@@ -23,6 +23,36 @@
   var TEMPLE_A = 127;
   var TEMPLE_B = 356;
   var NOSE_TIP = 1;
+  var CHIN = 152;
+  var FOREHEAD = 10;
+  var EAR_A = 234;
+  var EAR_B = 454;
+  // Lip contours (closed loops): the outside edge and the mouth opening.
+  var LIPS = {
+    outer: [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 146],
+    inner: [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95],
+  };
+  // Fractions of the face width. Must match src/utils/tryOnTypes.js (a test checks this).
+  var TYPE_FACTORS = {
+    earrings: { width: 0.13, outward: 0.04, drop: 0.06 },
+    hat: { width: 1.25, sink: 0.05 },
+    necklace: { width: 0.95, drop: 0.18 },
+  };
+  // Where the face should sit in the frame, per product type (share of frame width / height).
+  var GUIDES = {
+    glasses: { target: 0.36, cy: 0.46 },
+    earrings: { target: 0.36, cy: 0.46 },
+    hat: { target: 0.32, cy: 0.56 },
+    necklace: { target: 0.3, cy: 0.36 },
+    lipstick: { target: 0.44, cy: 0.48 },
+  };
+  var BUTTON_TEXT = {
+    glasses: "👓 جرّبها على وجهك",
+    earrings: "💎 جرّب الأقراط على أذنك",
+    hat: "🧢 جرّب القبعة على رأسك",
+    necklace: "📿 جرّب السلسلة على رقبتك",
+    lipstick: "💄 جرّب اللون على شفايفك",
+  };
   // Most the camera image may be enlarged to fill a phone screen (1 = no cropping at all).
   var MAX_CROP_ZOOM = 1.2;
 
@@ -80,35 +110,109 @@
     return landmarkerPromise;
   }
 
+  function dist(p, q) {
+    return Math.sqrt((q.x - p.x) * (q.x - p.x) + (q.y - p.y) * (q.y - p.y));
+  }
+  function clamp01(v) {
+    return Math.max(0, Math.min(1, v));
+  }
+
   /**
-   * Where the glasses go for one face. Auto-fit: the frame is as wide as the face
-   * at the temples, centred on the eye line and tilted with it, so it suits any
-   * face without manual tuning. item.fit / item.offsetY are only small tweaks.
-   * x is mirrored (selfie view).
+   * What every product type needs to know about a face: where the eyes are, how wide the face is
+   * at the temples (the auto-fit size), the head's tilt and an approximate head turn.
+   * x is mirrored (selfie view); pt(i) gives landmark i in canvas pixels.
    */
-  function placement(landmarks, w, h, item) {
+  function facePose(landmarks, w, h) {
     function pt(i) { return { x: (1 - landmarks[i].x) * w, y: landmarks[i].y * h }; }
     var a = pt(EYE_A), b = pt(EYE_B);
     // Mirroring swaps which corner is on the left; order them so the angle stays small.
     if (b.x < a.x) { var t = a; a = b; b = t; }
-    var eyeDist = Math.sqrt((b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y));
+    var eyeDist = dist(a, b);
     var angle = Math.atan2(b.y - a.y, b.x - a.x);
     var ta = pt(TEMPLE_A), tb = pt(TEMPLE_B);
-    var templeDist = Math.sqrt((tb.x - ta.x) * (tb.x - ta.x) + (tb.y - ta.y) * (tb.y - ta.y));
-    // Head turned away: the projected face width shrinks, so the frame narrows with it.
+    var templeDist = dist(ta, tb);
+    // Head turned away: the projected face width shrinks, so the product narrows with it.
     var faceWidth = templeDist > eyeDist ? templeDist : eyeDist * 2.1;
     // Approximate head turn: how far the nose tip sits from the middle of the temples.
     var nose = pt(NOSE_TIP);
     var turn = (nose.x - (ta.x + tb.x) / 2) / (faceWidth / 2);
     var yaw = Math.asin(Math.max(-1, Math.min(1, turn / 0.6)));
+    return { pt: pt, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, eyeDist: eyeDist, angle: angle, faceWidth: faceWidth, yaw: yaw };
+  }
+
+  /** Glasses: centred on the eye line, as wide as the face at the temples. */
+  function placement(landmarks, w, h, item) {
+    return glassesPart(facePose(landmarks, w, h), item);
+  }
+  function glassesPart(f, item) {
     // Move along the face's own "down" axis so the offset follows head tilt.
-    var shift = (item.offsetY || 0) * eyeDist;
+    var shift = (item.offsetY || 0) * f.eyeDist;
     return {
-      x: (a.x + b.x) / 2 - Math.sin(angle) * shift,
-      y: (a.y + b.y) / 2 + Math.cos(angle) * shift,
-      width: faceWidth * (item.fit || 1),
-      angle: angle,
-      yaw: yaw,
+      x: f.cx - Math.sin(f.angle) * shift,
+      y: f.cy + Math.cos(f.angle) * shift,
+      width: f.faceWidth * (item.fit || 1),
+      angle: f.angle,
+      yaw: f.yaw,
+    };
+  }
+
+  // Move `base` by (dx, dy) along the head's own axes, so offsets follow the head's tilt.
+  function along(base, angle, dx, dy) {
+    return {
+      x: base.x + dx * Math.cos(angle) - dy * Math.sin(angle),
+      y: base.y + dx * Math.sin(angle) + dy * Math.cos(angle),
+    };
+  }
+
+  /**
+   * The pieces to draw for a product type: each has a position, a width, an anchor
+   * ("top" hangs from the point, "bottom" rests on it, "center" is centred on it) and
+   * optionally flip / alpha / arms. item.fit, offsetX and offsetY are small merchant tweaks.
+   */
+  function layout(type, f, item) {
+    var W = f.faceWidth, fit = item.fit || 1;
+    var ox = (item.offsetX || 0) * W, oy = (item.offsetY || 0) * W;
+    var k = TYPE_FACTORS[type];
+    var pos;
+
+    if (type === "earrings") {
+      var ears = [f.pt(EAR_A), f.pt(EAR_B)];
+      if (ears[1].x < ears[0].x) ears.reverse();
+      // Nose to the right of centre (yaw > 0) => the left ear is the far one and goes out of sight.
+      var far = f.yaw > 0 ? 0 : 1;
+      var farAlpha = clamp01(1 - (Math.abs(f.yaw) - 0.2) / 0.3);
+      return [0, 1].map(function (i) {
+        var side = i === 0 ? -1 : 1;
+        var at = along(ears[i], f.angle, side * (k.outward * W + ox), k.drop * W + oy);
+        return {
+          key: "ear" + i, x: at.x, y: at.y, width: k.width * W * fit, angle: f.angle, yaw: f.yaw,
+          anchor: "top", flip: i === 1 && item.mirror !== false, alpha: i === far ? farAlpha : 1,
+        };
+      });
+    }
+    if (type === "hat") {
+      pos = along(f.pt(FOREHEAD), f.angle, ox, k.sink * W + oy);
+      return [{ key: "hat", x: pos.x, y: pos.y, width: k.width * W * fit, angle: f.angle, yaw: f.yaw, anchor: "bottom" }];
+    }
+    if (type === "necklace") {
+      pos = along(f.pt(CHIN), f.angle, ox, k.drop * W + oy);
+      return [{ key: "necklace", x: pos.x, y: pos.y, width: k.width * W * fit, angle: f.angle, yaw: f.yaw, anchor: "top" }];
+    }
+    var g = glassesPart(f, item);
+    g.key = "glasses";
+    g.anchor = "center";
+    g.arms = true;
+    return [g];
+  }
+
+  /** The lips as two closed point loops (outside edge and mouth opening), in canvas pixels. */
+  function lipShape(landmarks, w, h) {
+    function pt(i) { return { x: (1 - landmarks[i].x) * w, y: landmarks[i].y * h }; }
+    return {
+      outer: LIPS.outer.map(pt),
+      inner: LIPS.inner.map(pt),
+      width: dist(pt(61), pt(291)),
+      centre: pt(17),
     };
   }
 
@@ -144,6 +248,24 @@
     };
   }
 
+  // Lips have 40 points; filter each coordinate so the colour does not shimmer.
+  function makeLipSmoother() {
+    var fx = [], fy = [];
+    for (var i = 0; i < LIPS.outer.length + LIPS.inner.length; i++) {
+      fx.push(makeFilter(2, 15));
+      fy.push(makeFilter(2, 15));
+    }
+    return function (shape, w, nowMs) {
+      var n = LIPS.outer.length;
+      function run(list, offset) {
+        return list.map(function (p, i) {
+          return { x: fx[offset + i](p.x / w, nowMs) * w, y: fy[offset + i](p.y / w, nowMs) * w };
+        });
+      }
+      return { outer: run(shape.outer, 0), inner: run(shape.inner, n), width: shape.width, centre: shape.centre };
+    };
+  }
+
   // When the head turns, the far end of the frame (the arm) goes behind the head: fade it out.
   var YAW_DEADZONE = 0.2;
   function farSideFade(yaw) {
@@ -155,10 +277,11 @@
 
   // Head-positioning guide. Drawn in camera-frame coordinates so it scales with the video.
   // Returns the oval to draw, whether the face is well placed, and what to tell the visitor.
-  function guideState(landmarks, w, h) {
-    var target = 0.36 * Math.min(w, h * 0.75); // ideal face width at the temples
+  function guideState(landmarks, w, h, type) {
+    var cfg = GUIDES[type] || GUIDES.glasses;
+    var target = cfg.target * Math.min(w, h * 0.75); // ideal face width at the temples
     var rx = target * 0.62;
-    var g = { cx: w / 2, cy: h * 0.46, rx: rx, ry: rx * 1.35, ok: false, hint: "ضع وجهك داخل الإطار" };
+    var g = { cx: w / 2, cy: h * cfg.cy, rx: rx, ry: rx * 1.35, ok: false, hint: "ضع وجهك داخل الإطار" };
     if (!landmarks) return g;
     function pt(i) { return { x: (1 - landmarks[i].x) * w, y: landmarks[i].y * h }; }
     var ta = pt(TEMPLE_A), tb = pt(TEMPLE_B), a = pt(EYE_A), b = pt(EYE_B);
@@ -258,7 +381,7 @@
 
     var ctx = canvas.getContext("2d");
     var glasses = new Image();
-    glasses.src = item.image;
+    if (item.image) glasses.src = item.image;
 
     var video = null;
     var stream = null;
@@ -266,8 +389,9 @@
     var landmarker = null;
     var mode = "video";
     var photo = null;
-    var smoother = makeSmoother();
-    var last = null;
+    var type = item.type || "glasses";
+    var smoothers = {};
+    var lipSmoother = null;
     var stopped = false;
     var frames = 0;
     var light = 1;
@@ -321,7 +445,7 @@
       } catch (e) {}
     }
 
-    function drawGlasses(p) {
+    function drawProduct(p) {
       if (!glasses.complete || !glasses.naturalWidth) return;
       var W = Math.max(1, Math.round(p.width));
       var H = Math.max(1, Math.round(p.width * (glasses.naturalHeight / glasses.naturalWidth)));
@@ -334,7 +458,7 @@
         sctx.clearRect(0, 0, W, H);
       }
       sctx.drawImage(glasses, 0, 0, W, H);
-      var fade = farSideFade(p.yaw || 0);
+      var fade = p.arms ? farSideFade(p.yaw || 0) : { side: null };
       if (fade.side) {
         var g = sctx.createLinearGradient(0, 0, W, 0);
         if (fade.side === "left") {
@@ -349,15 +473,82 @@
         sctx.fillRect(0, 0, W, H);
         sctx.globalCompositeOperation = "source-over";
       }
+      var top = p.anchor === "top" ? 0 : p.anchor === "bottom" ? -H : -H / 2;
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.angle);
+      if (p.flip) ctx.scale(-1, 1);
+      if (p.alpha != null) ctx.globalAlpha = p.alpha;
       if (supportsFilter) ctx.filter = "brightness(" + light.toFixed(2) + ")";
       ctx.shadowColor = "rgba(0,0,0,0.28)";
       ctx.shadowBlur = p.width * 0.03;
       ctx.shadowOffsetY = p.width * 0.018;
-      ctx.drawImage(shade, -W / 2, -H / 2);
+      ctx.drawImage(shade, -W / 2, top);
       ctx.restore();
+    }
+
+    // A smooth closed curve through the points (quadratic segments between midpoints).
+    function traceLoop(list) {
+      var n = list.length;
+      ctx.moveTo((list[n - 1].x + list[0].x) / 2, (list[n - 1].y + list[0].y) / 2);
+      for (var i = 0; i < n; i++) {
+        var p = list[i], q = list[(i + 1) % n];
+        ctx.quadraticCurveTo(p.x, p.y, (p.x + q.x) / 2, (p.y + q.y) / 2);
+      }
+      ctx.closePath();
+    }
+
+    // Tints the lips (not the mouth opening) so the real lip texture still shows through.
+    function drawLips(shape) {
+      var opacity = item.opacity > 0 ? item.opacity : 0.7;
+      ctx.save();
+      if (supportsFilter) ctx.filter = "blur(" + Math.max(0.6, shape.width * 0.012).toFixed(1) + "px)";
+      ctx.fillStyle = item.color || "#c2185b";
+      ctx.beginPath();
+      traceLoop(shape.outer);
+      traceLoop(shape.inner);
+      ctx.globalCompositeOperation = "multiply";
+      ctx.globalAlpha = opacity;
+      ctx.fill("evenodd");
+      // Multiply alone barely shows on pale lips: add a light normal-blend pass.
+      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = opacity * 0.35;
+      ctx.fill("evenodd");
+      ctx.restore();
+      if (item.finish === "gloss") {
+        ctx.save();
+        ctx.beginPath();
+        traceLoop(shape.outer);
+        traceLoop(shape.inner);
+        ctx.clip("evenodd");
+        var cx = shape.centre.x, cy = shape.centre.y - shape.width * 0.03, r = shape.width * 0.3;
+        var shine = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        shine.addColorStop(0, "rgba(255,255,255,0.55)");
+        shine.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = shine;
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+        ctx.restore();
+      }
+    }
+
+    // Draws the product for one detected face. `live` = video (smooth over time); photos are drawn as-is.
+    function paintFace(face, w, h, nowMs, live) {
+      var f = facePose(face, w, h);
+      if (!live || frames++ % 10 === 0) sampleLight({ x: f.cx, y: f.cy, width: f.faceWidth });
+      if (type === "lipstick") {
+        var shape = lipShape(face, w, h);
+        if (live) shape = (lipSmoother || (lipSmoother = makeLipSmoother()))(shape, w, nowMs);
+        drawLips(shape);
+        return;
+      }
+      layout(type, f, item).forEach(function (part) {
+        var drawn = part;
+        if (live) {
+          var sm = (smoothers[part.key] || (smoothers[part.key] = makeSmoother()))(part, w, nowMs);
+          drawn = Object.assign({}, part, sm);
+        }
+        drawProduct(drawn);
+      });
     }
 
     // The stage takes the camera's real shape (clamped to a tall modal on phones) and shows the
@@ -417,15 +608,13 @@
       ctx.restore();
       var res = landmarker.detectForVideo(video, performance.now());
       var face = res && res.faceLandmarks && res.faceLandmarks[0];
-      var guide = guideState(face || null, w, h);
+      var guide = guideState(face || null, w, h, type);
       if (face) {
-        last = smoother(placement(face, w, h, item), w, performance.now());
-        if (frames++ % 10 === 0) sampleLight(last);
-        drawGlasses(last);
+        paintFace(face, w, h, performance.now(), true);
         setStatus("");
       } else {
-        last = null;
-        smoother = makeSmoother();
+        smoothers = {};
+        lipSmoother = null;
       }
       // A picture is taken before the guide is drawn so the saved image is clean.
       if (snapRequested) {
@@ -437,7 +626,19 @@
     }
 
     function renderPhoto() {
-      if (!photo || !landmarker) return;
+      if (!photo) return;
+      if (!landmarker) {
+        // The measuring tool is still loading: finish the photo as soon as it is ready.
+        loadLandmarker()
+          .then(function (lm) {
+            landmarker = lm;
+            if (!stopped) renderPhoto();
+          })
+          .catch(function () {
+            setStatus("تعذّر تحميل أداة القياس. تحقق من اتصالك وحاول مرة أخرى.");
+          });
+        return;
+      }
       setHint("");
       fit(photo.naturalWidth, photo.naturalHeight);
       canvas.style.objectFit = "contain";
@@ -448,9 +649,7 @@
       if (!face) return setStatus("لم نتمكن من العثور على وجه في الصورة");
       // Photos are not mirrored, so flip x back before reusing the shared maths.
       var mirrored = face.map(function (pt) { return { x: 1 - pt.x, y: pt.y }; });
-      var placed = placement(mirrored, canvas.width, canvas.height, item);
-      sampleLight(placed);
-      drawGlasses(placed);
+      paintFace(mirrored, canvas.width, canvas.height, 0, false);
       setStatus("");
     }
 
@@ -523,11 +722,12 @@
     loadLandmarker()
       .then(function (lm) {
         landmarker = lm;
-        if (stopped) return;
+        // Closed, or the visitor already chose a photo instead: do not switch the camera on.
+        if (stopped || mode !== "video") return;
         return navigator.mediaDevices
           .getUserMedia({ video: cameraConstraints(), audio: false })
           .then(function (s) {
-            if (stopped) return s.getTracks().forEach(function (t) { t.stop(); });
+            if (stopped || mode !== "video") return s.getTracks().forEach(function (t) { t.stop(); });
             stream = s;
             video = document.createElement("video");
             video.playsInline = true;
@@ -552,7 +752,7 @@
     var btn = el(
       "button",
       "display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:10px;padding:12px 16px;border-radius:10px;border:1.5px solid currentColor;background:transparent;color:inherit;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;",
-      "👓 جرّبها على وجهك",
+      BUTTON_TEXT[item.type] || BUTTON_TEXT.glasses,
     );
     btn.id = BTN_ID;
     btn.type = "button";
@@ -568,7 +768,11 @@
 
   // Lets the unit tests reach the pure maths; does nothing on a real storefront.
   if (window.__SALLA_TRYON_TEST__) {
-    window.__SALLA_TRYON_TEST__.api = { placement: placement, makeSmoother: makeSmoother, farSideFade: farSideFade, brightnessFor: brightnessFor, guideState: guideState };
+    window.__SALLA_TRYON_TEST__.api = {
+      placement: placement, facePose: facePose, layout: layout, lipShape: lipShape, makeSmoother: makeSmoother,
+      makeLipSmoother: makeLipSmoother, farSideFade: farSideFade, brightnessFor: brightnessFor, guideState: guideState,
+      TYPE_FACTORS: TYPE_FACTORS, GUIDES: GUIDES,
+    };
   }
 
   var booted = false;

@@ -192,3 +192,130 @@ describe("makeSmoother", () => {
     expect(lag).toBeLessThan(30);
   });
 });
+
+// ---------------------------------------------------------------- other product types
+import { TRYON_TYPES } from "../tryOnTypes.js";
+
+// Frontal face on a 1000x1000 frame: temples 400px apart (x .3-.7), eyes at y .4, ears/forehead/chin set.
+function typedFace(extra = {}) {
+  const lm = face();
+  const set = (i, [x, y]) => (lm[i] = { x, y });
+  set(234, [0.28, 0.52]);
+  set(454, [0.72, 0.52]);
+  set(10, [0.5, 0.2]);
+  set(152, [0.5, 0.8]);
+  Object.entries(extra).forEach(([i, v]) => set(Number(i), v));
+  return lm;
+}
+const pose = (lm = typedFace()) => api.facePose(lm, SIZE, SIZE);
+
+describe("layout: earrings", () => {
+  it("hangs one earring under each ear, mirrored about the face centre", () => {
+    const [left, right] = api.layout("earrings", pose(), item());
+    expect(left.anchor).toBe("top");
+    expect(left.x).toBeLessThan(500);
+    expect(right.x).toBeGreaterThan(500);
+    expect(left.x + right.x).toBeCloseTo(1000, 3);
+    expect(left.y).toBeCloseTo(right.y, 3);
+    expect(left.y).toBeGreaterThan(520); // below the ear point
+    expect(left.width).toBeCloseTo(0.13 * 400, 3);
+  });
+
+  it("flips only the right earring, and only when mirroring is on", () => {
+    const on = api.layout("earrings", pose(), item({ mirror: true }));
+    expect([on[0].flip, on[1].flip]).toEqual([false, true]);
+    const off = api.layout("earrings", pose(), item({ mirror: false }));
+    expect([off[0].flip, off[1].flip]).toEqual([false, false]);
+  });
+
+  it("offsetX moves both earrings outward", () => {
+    const base = api.layout("earrings", pose(), item());
+    const wide = api.layout("earrings", pose(), item({ offsetX: 0.1 }));
+    expect(wide[0].x).toBeCloseTo(base[0].x - 40, 3);
+    expect(wide[1].x).toBeCloseTo(base[1].x + 40, 3);
+  });
+
+  it("hides the far earring when the head turns, keeps the near one", () => {
+    // Nose far to the right of centre => the left ear is the far one.
+    const turned = api.layout("earrings", pose(typedFace({ 1: [0.4, 0.5] })), item());
+    expect(turned[0].alpha).toBe(0);
+    expect(turned[1].alpha).toBe(1);
+    const front = api.layout("earrings", pose(), item());
+    expect([front[0].alpha, front[1].alpha]).toEqual([1, 1]);
+  });
+});
+
+describe("layout: hat and necklace", () => {
+  it("rests the hat on the forehead, wider than the face", () => {
+    const [hat] = api.layout("hat", pose(), item());
+    expect(hat.anchor).toBe("bottom");
+    expect(hat.x).toBeCloseTo(500, 3);
+    expect(hat.y).toBeCloseTo(200 + 0.05 * 400, 3);
+    expect(hat.width).toBeCloseTo(1.25 * 400, 3);
+  });
+
+  it("hangs the necklace below the chin", () => {
+    const [necklace] = api.layout("necklace", pose(), item());
+    expect(necklace.anchor).toBe("top");
+    expect(necklace.y).toBeCloseTo(800 + 0.18 * 400, 3);
+    expect(necklace.width).toBeCloseTo(0.95 * 400, 3);
+  });
+
+  it("scales with fit and moves with offsetY", () => {
+    const [big] = api.layout("necklace", pose(), item({ fit: 1.5, offsetY: 0.1 }));
+    expect(big.width).toBeCloseTo(0.95 * 400 * 1.5, 3);
+    expect(big.y).toBeCloseTo(800 + 0.18 * 400 + 0.1 * 400, 3);
+  });
+
+  it("rotates the offset with the head tilt instead of straight down", () => {
+    const tilted = typedFace({ 33: [0.4, 0.38], 263: [0.6, 0.42] });
+    const [straight] = api.layout("necklace", pose(), item({ offsetY: 0.2 }));
+    const [rolled] = api.layout("necklace", pose(tilted), item({ offsetY: 0.2 }));
+    expect(rolled.x).not.toBeCloseTo(straight.x, 1);
+    expect(rolled.angle).not.toBe(0);
+  });
+
+  it("falls back to glasses placement for the default type", () => {
+    const [g] = api.layout("glasses", pose(), item());
+    expect(g).toMatchObject({ anchor: "center", arms: true });
+    expect(g.width).toBeCloseTo(400, 3);
+  });
+});
+
+describe("lipShape", () => {
+  it("returns the two lip loops in canvas pixels, mirrored", () => {
+    const lm = typedFace({ 61: [0.4, 0.7], 291: [0.6, 0.7], 17: [0.5, 0.74] });
+    const shape = api.lipShape(lm, SIZE, SIZE);
+    expect(shape.outer).toHaveLength(20);
+    expect(shape.inner).toHaveLength(20);
+    expect(shape.width).toBeCloseTo(200, 3);
+    expect(shape.centre.x).toBeCloseTo(500, 3);
+    expect(shape.outer[0].x).toBeCloseTo(600, 3); // landmark 61 at x .4 -> mirrored to 600
+  });
+
+  it("smooths lip points over time without moving a still mouth", () => {
+    const lm = typedFace();
+    const smooth = api.makeLipSmoother();
+    let out;
+    for (let i = 0; i < 20; i++) out = smooth(api.lipShape(lm, SIZE, SIZE), SIZE, i * 33);
+    expect(out.outer[3].x).toBeCloseTo(api.lipShape(lm, SIZE, SIZE).outer[3].x, 3);
+  });
+});
+
+describe("guideState per type", () => {
+  it("moves the oval up for necklaces (room below) and down for hats", () => {
+    expect(api.guideState(null, 720, 1280, "necklace").cy).toBeCloseTo(1280 * 0.36, 3);
+    expect(api.guideState(null, 720, 1280, "hat").cy).toBeCloseTo(1280 * 0.56, 3);
+    expect(api.guideState(null, 720, 1280, "nope").cy).toBeCloseTo(1280 * 0.46, 3);
+  });
+
+  it("asks for a closer face for lipstick than for glasses", () => {
+    expect(api.guideState(null, 720, 1280, "lipstick").rx).toBeGreaterThan(api.guideState(null, 720, 1280, "glasses").rx);
+  });
+});
+
+describe("app and storefront agree on per-type sizes", () => {
+  it.each(["earrings", "hat", "necklace"])("%s factors match", (type) => {
+    expect(api.TYPE_FACTORS[type]).toEqual(TRYON_TYPES[type].factors);
+  });
+});

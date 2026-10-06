@@ -6801,7 +6801,7 @@ pre,
 .tryon-preview {
   position: relative;
   width: 200px;
-  aspect-ratio: 200 / 240;
+  aspect-ratio: 200 / 300;
   flex: none;
 }
 
@@ -6853,4 +6853,27 @@ pre,
     border-inline-end: none;
     border-bottom: 1px solid var(--border-color);
   }
+}
+
+.tryon-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 280px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.tryon-sliders .tryon-check {
+  flex-direction: row;
+  align-items: center;
+}
+
+.tryon-sliders input[type="color"] {
+  width: 56px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
 }

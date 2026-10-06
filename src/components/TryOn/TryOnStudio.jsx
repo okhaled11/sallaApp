@@ -6,45 +6,56 @@ import {
   publishTryOnItems,
 } from "../../utils/tryOnApi.js";
 import { fileToOverlayDataUrl } from "../../utils/tryOnImage.js";
+import {
+  DEFAULT_LIPSTICK,
+  TRYON_TYPES,
+  TRYON_TYPE_IDS,
+  isItemComplete,
+  typeOf,
+} from "../../utils/tryOnTypes.js";
+import FacePreview from "./FacePreview.jsx";
 
 const MAX_ITEMS = 20;
 
-// Reference face for the preview: eyes 80 apart, temples 124 apart (same auto-fit as tryon.js).
-const FACE = { eyeY: 105, eyeDist: 80, templeDist: 124, width: 200, height: 240 };
+const buildItem = (product, type, extra) => ({
+  productId: String(product.id),
+  name: product.name || "",
+  type,
+  image: "",
+  fit: 1,
+  offsetX: 0,
+  offsetY: 0,
+  mirror: true,
+  enabled: true,
+  ...(type === "lipstick" ? DEFAULT_LIPSTICK : {}),
+  ...extra,
+});
 
-function FacePreview({ item }) {
-  const pct = (value, total) => `${(value / total) * 100}%`;
-  return (
-    <div className="tryon-preview" role="img" aria-label="معاينة موضع الإكسسوار على الوجه">
-      <svg viewBox={`0 0 ${FACE.width} ${FACE.height}`} aria-hidden="true">
-        <ellipse cx="100" cy="120" rx="68" ry="92" fill="var(--bg-tertiary)" stroke="var(--border-color)" strokeWidth="2" />
-        <circle cx="60" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
-        <circle cx="140" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
-        <path d="M100 118 L92 150 L108 150" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" />
-        <path d="M78 178 Q100 192 122 178" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" />
-      </svg>
-      <img
-        src={item.image}
-        alt=""
-        className="tryon-preview-overlay"
-        style={{
-          width: pct(FACE.templeDist * item.fit, FACE.width),
-          top: pct(FACE.eyeY + item.offsetY * FACE.eyeDist, FACE.height),
-        }}
-      />
-    </div>
-  );
-}
+// Items saved before types existed have no type: they are glasses.
+const normalizeItem = (item) => ({
+  ...item,
+  type: typeOf(item),
+  offsetX: item.offsetX ?? 0,
+  offsetY: item.offsetY ?? 0,
+  mirror: item.mirror !== false,
+});
+
+const lipstickOf = (item) => ({
+  color: item.color ?? DEFAULT_LIPSTICK.color,
+  opacity: item.opacity ?? DEFAULT_LIPSTICK.opacity,
+  finish: item.finish ?? DEFAULT_LIPSTICK.finish,
+});
 
 /**
- * Try-on studio: the merchant attaches a transparent product image (glasses,
- * earrings...) to a product, tunes how it sits on a face, and publishes. The
- * storefront script then offers visitors a camera try-on for that product.
+ * Try-on studio: the merchant picks a product type (glasses, earrings, hat, necklace, lipstick),
+ * attaches a transparent image (or a lipstick colour), tunes how it sits on a face, and publishes.
+ * The storefront script then offers visitors a camera try-on for that product.
  */
 export default function TryOnStudio({ products = [], token, storeId, onShowToast }) {
   const [items, setItems] = useState([]);
   const [loadState, setLoadState] = useState("loading");
   const [selectedId, setSelectedId] = useState(null);
+  const [draftTypes, setDraftTypes] = useState({});
   const [query, setQuery] = useState("");
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -62,7 +73,7 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
     let cancelled = false;
     fetchTryOnItems(activeStoreId).then((res) => {
       if (cancelled) return;
-      setItems(res.items);
+      setItems(res.items.map(normalizeItem));
       setLoadState(res.success ? "ready" : "error");
     });
     return () => {
@@ -79,6 +90,9 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
 
   const selectedProduct = products.find((p) => String(p.id) === selectedId) || null;
   const selectedItem = selectedId ? itemById.get(selectedId) : null;
+  const type = selectedItem ? typeOf(selectedItem) : draftTypes[selectedId] || "glasses";
+  const typeInfo = TRYON_TYPES[type];
+  const incompleteCount = items.filter((i) => !isItemComplete(i)).length;
 
   const patchItem = useCallback((productId, patch) => {
     setItems((prev) => prev.map((i) => (String(i.productId) === productId ? { ...i, ...patch } : i)));
@@ -103,19 +117,27 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
     setItems((prev) => {
       const without = prev.filter((i) => String(i.productId) !== selectedId);
       const existing = prev.find((i) => String(i.productId) === selectedId);
-      return [
-        ...without,
-        {
-          productId: selectedId,
-          name: selectedProduct.name || "",
-          image: result.image,
-          fit: existing?.fit ?? 1,
-          offsetY: existing?.offsetY ?? 0,
-          enabled: true,
-        },
-      ];
+      return [...without, { ...(existing || buildItem(selectedProduct, type)), image: result.image }];
     });
     setDirty(true);
+  };
+
+  const handleActivateLipstick = () => {
+    if (items.length >= MAX_ITEMS) {
+      onShowToast?.(`الحد الأقصى ${MAX_ITEMS} منتجات`, "error");
+      return;
+    }
+    setItems((prev) => [...prev, buildItem(selectedProduct, "lipstick")]);
+    setDirty(true);
+  };
+
+  const handleTypeChange = (next) => {
+    if (!selectedItem) {
+      setDraftTypes((prev) => ({ ...prev, [selectedId]: next }));
+      return;
+    }
+    // Lipstick has no image; every other type needs one (upload it if the item has none yet).
+    patchItem(selectedId, next === "lipstick" ? { type: next, image: "", ...lipstickOf(selectedItem) } : { type: next });
   };
 
   const handleRemove = () => {
@@ -163,13 +185,13 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
       <div className="panel">
         <div className="panel-header">
           <div>
-            <span className="panel-title">التجربة الافتراضية (نظارات وإكسسوارات)</span>
+            <span className="panel-title">التجربة الافتراضية (نظارات، أقراط، قبعات، سلاسل، أحمر شفاه)</span>
             <span className="panel-subtitle">
               يجرّب الزائر المنتج على وجهه بالكاميرا. المعالجة داخل متصفحه، بلا تكلفة وبلا رفع صور.
             </span>
           </div>
           <div className="panel-actions">
-            <button type="button" className="btn btn-primary" disabled={!dirty || saving || !activeStoreId} onClick={handlePublish}>
+            <button type="button" className="btn btn-primary" disabled={!dirty || saving || !activeStoreId || incompleteCount > 0} onClick={handlePublish}>
               {saving ? "جارٍ النشر..." : "حفظ ونشر"}
             </button>
           </div>
@@ -177,6 +199,11 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
 
         {!activeStoreId && (
           <div className="tryon-notice">تعذر تحديد معرّف المتجر. افتح التطبيق من لوحة تحكم سلة.</div>
+        )}
+        {incompleteCount > 0 && (
+          <div className="tryon-notice">
+            {incompleteCount} منتج بحاجة لرفع صورة قبل النشر (أو أوقف التجربة له).
+          </div>
         )}
         {loadState === "error" && (
           <div className="tryon-notice">تعذر تحميل الإعدادات المنشورة حالياً.</div>
@@ -223,58 +250,141 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
             ) : (
               <>
                 <h3 className="tryon-editor-title">{selectedProduct.name}</h3>
+                <label className="tryon-field">
+                  نوع المنتج
+                  <select className="risk-field" value={type} onChange={(e) => handleTypeChange(e.target.value)}>
+                    {TRYON_TYPE_IDS.map((id) => (
+                      <option key={id} value={id}>
+                        {TRYON_TYPES[id].label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <input ref={fileRef} type="file" accept="image/png,image/webp" hidden onChange={handleFile} />
                 <div className="tryon-editor-actions">
-                  <button type="button" className="btn" disabled={uploading} onClick={() => fileRef.current?.click()}>
-                    <Icon name="image" size={14} />
-                    {uploading ? "جارٍ المعالجة..." : selectedItem ? "استبدال الصورة" : "رفع صورة المنتج (PNG شفاف)"}
-                  </button>
+                  {typeInfo.needsImage ? (
+                    <button type="button" className="btn" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                      <Icon name="image" size={14} />
+                      {uploading
+                        ? "جارٍ المعالجة..."
+                        : selectedItem?.image
+                          ? "استبدال الصورة"
+                          : "رفع صورة المنتج (PNG شفاف)"}
+                    </button>
+                  ) : (
+                    !selectedItem && (
+                      <button type="button" className="btn" onClick={handleActivateLipstick}>
+                        تفعيل أحمر الشفاه لهذا المنتج
+                      </button>
+                    )
+                  )}
                   {selectedItem && (
                     <button type="button" className="btn btn-danger" onClick={handleRemove}>
                       إيقاف التجربة لهذا المنتج
                     </button>
                   )}
                 </div>
-                <p className="tryon-hint">
-                  استخدم صورة للمنتج من الأمام وبخلفية شفافة (النظارة وحدها بدون وجه). يتم قص الحواف الفارغة تلقائياً.
-                </p>
+                <p className="tryon-hint">{typeInfo.hint}</p>
+                {selectedItem && typeInfo.needsImage && !selectedItem.image && (
+                  <p className="tryon-hint">ارفع صورة لهذا النوع لتظهر المعاينة ويمكن النشر.</p>
+                )}
 
-                {selectedItem && (
+                {selectedItem && isItemComplete(selectedItem) && (
                   <div className="tryon-tuner">
                     <FacePreview item={selectedItem} />
                     <div className="tryon-sliders">
-                      <p className="tryon-hint">
-                        الحجم والموضع يُضبطان تلقائياً على وجه كل زائر. استخدم السلايدرز للتعديل البسيط فقط.
-                      </p>
-                      <label>
-                        تكبير/تصغير ({Math.round((selectedItem.fit ?? 1) * 100)}%)
-                        <input
-                          type="range"
-                          min="0.5"
-                          max="1.6"
-                          step="0.01"
-                          value={selectedItem.fit ?? 1}
-                          onChange={(e) => patchItem(selectedId, { fit: Number(e.target.value) })}
-                        />
-                      </label>
-                      <label>
-                        الموضع الرأسي ({selectedItem.offsetY.toFixed(2)})
-                        <input
-                          type="range"
-                          min="-0.5"
-                          max="0.5"
-                          step="0.01"
-                          value={selectedItem.offsetY}
-                          onChange={(e) => patchItem(selectedId, { offsetY: Number(e.target.value) })}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        className="btn btn-small"
-                        onClick={() => patchItem(selectedId, { fit: 1, offsetY: 0 })}
-                      >
-                        إعادة الضبط التلقائي
-                      </button>
+                      {type === "lipstick" ? (
+                        <>
+                          <label>
+                            لون الأحمر
+                            <input
+                              type="color"
+                              value={selectedItem.color}
+                              onChange={(e) => patchItem(selectedId, { color: e.target.value })}
+                            />
+                          </label>
+                          <label>
+                            الكثافة ({Math.round(selectedItem.opacity * 100)}%)
+                            <input
+                              type="range"
+                              min="0.2"
+                              max="1"
+                              step="0.01"
+                              value={selectedItem.opacity}
+                              onChange={(e) => patchItem(selectedId, { opacity: Number(e.target.value) })}
+                            />
+                          </label>
+                          <label>
+                            اللمعة
+                            <select
+                              className="risk-field"
+                              value={selectedItem.finish}
+                              onChange={(e) => patchItem(selectedId, { finish: e.target.value })}
+                            >
+                              <option value="matte">مطفي</option>
+                              <option value="gloss">لامع</option>
+                            </select>
+                          </label>
+                        </>
+                      ) : (
+                        <>
+                          <p className="tryon-hint">
+                            الحجم والموضع يُضبطان تلقائياً على وجه كل زائر. استخدم السلايدرز للتعديل البسيط فقط.
+                          </p>
+                          <label>
+                            تكبير/تصغير ({Math.round((selectedItem.fit ?? 1) * 100)}%)
+                            <input
+                              type="range"
+                              min="0.5"
+                              max="1.6"
+                              step="0.01"
+                              value={selectedItem.fit ?? 1}
+                              onChange={(e) => patchItem(selectedId, { fit: Number(e.target.value) })}
+                            />
+                          </label>
+                          <label>
+                            الموضع الرأسي ({selectedItem.offsetY.toFixed(2)})
+                            <input
+                              type="range"
+                              min="-0.5"
+                              max="0.5"
+                              step="0.01"
+                              value={selectedItem.offsetY}
+                              onChange={(e) => patchItem(selectedId, { offsetY: Number(e.target.value) })}
+                            />
+                          </label>
+                          {type === "earrings" && (
+                            <>
+                              <label>
+                                البعد عن الأذن ({selectedItem.offsetX.toFixed(2)})
+                                <input
+                                  type="range"
+                                  min="-0.5"
+                                  max="0.5"
+                                  step="0.01"
+                                  value={selectedItem.offsetX}
+                                  onChange={(e) => patchItem(selectedId, { offsetX: Number(e.target.value) })}
+                                />
+                              </label>
+                              <label className="tryon-check">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedItem.mirror}
+                                  onChange={(e) => patchItem(selectedId, { mirror: e.target.checked })}
+                                />
+                                عكس الصورة للأذن الأخرى
+                              </label>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            className="btn btn-small"
+                            onClick={() => patchItem(selectedId, { fit: 1, offsetX: 0, offsetY: 0 })}
+                          >
+                            إعادة الضبط التلقائي
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
