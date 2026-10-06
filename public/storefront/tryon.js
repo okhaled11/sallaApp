@@ -582,18 +582,8 @@
       hintEl.style.background = ok ? "rgba(22,163,74,.92)" : "rgba(0,0,0,.65)";
     }
 
-    // Darkens everything outside the oval (no outline); fades back once the face is placed.
-    function drawGuide(g) {
-      guideFade += ((g.ok ? 0.25 : 1) - guideFade) * 0.15;
-      var cw = canvas.width, ch = canvas.height;
-      ctx.save();
-      ctx.fillStyle = "rgba(0,0,0," + (0.38 * guideFade).toFixed(3) + ")";
-      ctx.beginPath();
-      ctx.rect(0, 0, cw, ch);
-      ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, Math.PI * 2);
-      ctx.fill("evenodd");
-      ctx.restore();
-    }
+    // Clean full-camera view without darkening oval (Snapchat style)
+    function drawGuide() {}
 
     function savePicture() {
       var a = document.createElement("a");
@@ -620,23 +610,21 @@
           paintFace(face, w, h, performance.now(), true, idx);
         });
         setStatus("");
+        if (faces.length > 1) {
+          setHint("تم رصد " + faces.length + " وجوه ✓", true);
+        } else {
+          setHint("", false);
+        }
       } else {
         smoothersByFace = [];
         lipSmoothersByFace = [];
+        setHint("", false);
       }
-      var primaryFace = faces[0] || null;
-      var guide = guideState(primaryFace, w, h, type);
-      if (faces.length > 1) {
-        guide.hint = "تم رصد " + faces.length + " وجوه ✓";
-        guide.ok = true;
-      }
-      // A picture is taken before the guide is drawn so the saved image is clean.
+      // A picture is taken cleanly
       if (snapRequested) {
         snapRequested = false;
         savePicture();
       }
-      drawGuide(guide);
-      setHint(guide.hint, guide.ok);
     }
 
     function renderPhoto() {
