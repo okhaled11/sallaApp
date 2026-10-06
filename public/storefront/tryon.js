@@ -153,6 +153,30 @@
     return { side: yaw > 0 ? "left" : "right", amount: Math.min(0.4, over * 0.8) };
   }
 
+  // Head-positioning guide. Drawn in camera-frame coordinates so it scales with the video.
+  // Returns the oval to draw, whether the face is well placed, and what to tell the visitor.
+  function guideState(landmarks, w, h) {
+    var target = 0.36 * Math.min(w, h * 0.75); // ideal face width at the temples
+    var rx = target * 0.62;
+    var g = { cx: w / 2, cy: h * 0.46, rx: rx, ry: rx * 1.35, ok: false, hint: "ضع وجهك داخل الإطار" };
+    if (!landmarks) return g;
+    function pt(i) { return { x: (1 - landmarks[i].x) * w, y: landmarks[i].y * h }; }
+    var ta = pt(TEMPLE_A), tb = pt(TEMPLE_B), a = pt(EYE_A), b = pt(EYE_B);
+    var width = Math.sqrt((tb.x - ta.x) * (tb.x - ta.x) + (tb.y - ta.y) * (tb.y - ta.y));
+    var fx = (ta.x + tb.x) / 2;
+    var fy = (a.y + b.y) / 2 + 0.3 * width;
+    var size = width / target;
+    if (size < 0.8) g.hint = "قرّب وجهك قليلاً";
+    else if (size > 1.25) g.hint = "ابعد وجهك قليلاً";
+    else if (Math.abs(fx - g.cx) > rx * 0.3) g.hint = fx < g.cx ? "حرّك وجهك لليمين" : "حرّك وجهك لليسار";
+    else if (Math.abs(fy - g.cy) > g.ry * 0.25) g.hint = fy < g.cy ? "اخفض وجهك قليلاً" : "ارفع وجهك قليلاً";
+    else {
+      g.ok = true;
+      g.hint = "ممتاز ✓ ثبّت وضعك";
+    }
+    return g;
+  }
+
   // Dim rooms make the camera image dark; tone the product to match (luma 0..255 of the cheeks).
   function brightnessFor(luma) {
     return Math.min(1.1, Math.max(0.75, 0.6 + (luma / 255) * 0.6));
@@ -161,95 +185,71 @@
   function openTryOn(item) {
     if (document.getElementById(MODAL_ID)) return;
 
-    // Phones get a full-screen camera (like the native app); desktops get a centred card.
+    // Same layout everywhere: a modal card. Tall (portrait) on phones, wider on desktop.
     var mobile = !!(window.matchMedia && window.matchMedia("(max-width: 700px)").matches);
 
     var overlay = el(
       "div",
-      "position:fixed;inset:0;z-index:2147483000;display:flex;font-family:PingARLT,system-ui,sans-serif;direction:rtl;" +
-        (mobile ? "background:#000;" : "background:rgba(0,0,0,.75);align-items:center;justify-content:center;padding:12px;"),
+      "position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:12px;overflow-y:auto;background:rgba(0,0,0,.75);font-family:PingARLT,system-ui,sans-serif;direction:rtl;",
     );
     overlay.id = MODAL_ID;
     var card = el(
       "div",
-      "background:#111;color:#fff;position:relative;overflow:hidden;width:100%;" +
-        (mobile
-          ? "height:100%;display:flex;flex-direction:column;"
-          : "border-radius:16px;max-width:min(640px,calc(64vh * 1.3333));"),
+      "background:#111;color:#fff;position:relative;overflow:hidden;width:100%;margin:auto;border-radius:18px;" +
+        (mobile ? "max-width:420px;" : "max-width:min(640px,calc(64vh * 1.3333));"),
     );
+    // Phones: tall stage that still leaves room for the buttons under it.
     var stage = el(
       "div",
-      "position:relative;width:100%;background:#000;" + (mobile ? "flex:1;min-height:0;" : "aspect-ratio:4/3;"),
+      "position:relative;width:100%;background:#000;" +
+        (mobile ? "aspect-ratio:3/4;max-height:calc(100vh - 220px);max-height:calc(100dvh - 220px);" : "aspect-ratio:4/3;"),
     );
-    var canvas = el("canvas", "width:100%;height:100%;display:block;" + (mobile ? "object-fit:cover;" : ""));
+    var canvas = el("canvas", "width:100%;height:100%;display:block;object-fit:cover;");
     var status = el("div", "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:14px;", "جارٍ تجهيز الكاميرا...");
     stage.appendChild(canvas);
     stage.appendChild(status);
 
-    var safeTop = "calc(12px + env(safe-area-inset-top,0px))";
-    var safeBottom = "calc(18px + env(safe-area-inset-bottom,0px))";
     var btnStyle = "border:0;cursor:pointer;font-family:inherit;font-weight:700;";
+    var rect = btnStyle + "border-radius:12px;padding:12px 14px;font-size:14px;flex:1 1 0;";
     var fileInput = el("input");
     fileInput.type = "file";
     fileInput.accept = "image/*";
     fileInput.style.display = "none";
-    var snap, upload, close, note;
 
     var canCart = !!(item.productId && window.salla && window.salla.cart && typeof window.salla.cart.addItem === "function");
     var cartBtn = null;
+    var hintEl = el(
+      "div",
+      "position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:rgba(0,0,0,.65);color:#fff;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:700;z-index:2;white-space:nowrap;display:none;pointer-events:none;",
+    );
     var toastEl = el(
       "div",
-      "position:absolute;left:50%;transform:translateX(-50%);bottom:" + (mobile ? "170px" : "16px") +
-        ";background:rgba(0,0,0,.85);color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;z-index:3;display:none;max-width:90%;text-align:center;",
+      "position:absolute;left:50%;transform:translateX(-50%);bottom:56px;background:rgba(0,0,0,.88);color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;z-index:3;display:none;max-width:90%;text-align:center;",
     );
+    var close = el(
+      "button",
+      btnStyle + "position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:16px;z-index:3;display:flex;align-items:center;justify-content:center;",
+      "✕",
+    );
+    close.setAttribute("aria-label", "إغلاق");
+    stage.appendChild(hintEl);
     stage.appendChild(toastEl);
+    stage.appendChild(close);
 
-    if (mobile) {
-      var round = btnStyle + "border-radius:50%;display:flex;align-items:center;justify-content:center;";
-      snap = el("button", round + "width:68px;height:68px;font-size:28px;background:#fff;color:#111;border:4px solid rgba(255,255,255,.5);", "📸");
-      upload = el("button", round + "width:46px;height:46px;font-size:20px;background:rgba(0,0,0,.45);color:#fff;", "🖼️");
-      close = el("button", round + "position:absolute;top:" + safeTop + ";right:12px;width:40px;height:40px;font-size:18px;background:rgba(0,0,0,.45);color:#fff;z-index:2;", "✕");
-      note = el("div", "position:absolute;top:" + safeTop + ";left:64px;right:64px;text-align:center;font-size:11px;line-height:1.4;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);z-index:1;", "🔒 المعالجة على جهازك فقط، ولا يتم رفع الصورة");
-      snap.setAttribute("aria-label", "التقاط صورة");
-      upload.setAttribute("aria-label", "رفع صورة بدل الكاميرا");
-      close.setAttribute("aria-label", "إغلاق");
-      var mbar = el(
-        "div",
-        "position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 24px " + safeBottom + ";background:linear-gradient(transparent,rgba(0,0,0,.65));z-index:1;",
-      );
-      if (canCart) {
-        cartBtn = el("button", btnStyle + "border-radius:999px;padding:13px 22px;font-size:15px;background:#16a34a;color:#fff;width:100%;max-width:340px;box-shadow:0 4px 14px rgba(0,0,0,.4);", "🛒 أضف للسلة");
-        mbar.appendChild(cartBtn);
-      }
-      var controls = el("div", "display:flex;align-items:center;justify-content:space-around;width:100%;");
-      controls.appendChild(upload);
-      controls.appendChild(snap);
-      controls.appendChild(el("span", "width:46px;height:46px;"));
-      mbar.appendChild(controls);
-      stage.appendChild(note);
-      stage.appendChild(close);
-      stage.appendChild(mbar);
-      stage.appendChild(fileInput);
-      card.appendChild(stage);
-    } else {
-      var rect = btnStyle + "border-radius:10px;padding:10px 14px;font-size:13px;";
-      snap = el("button", rect + "background:#fff;color:#111;", "📸 التقاط صورة");
-      upload = el("button", rect + "background:#333;color:#fff;", "🖼️ ارفع صورة بدل الكاميرا");
-      close = el("button", rect + "background:#333;color:#fff;margin-inline-start:auto;", "إغلاق");
-      note = el("div", "width:100%;font-size:11px;opacity:.65;", "🔒 الصورة تُعالَج على جهازك فقط ولا يتم رفعها لأي مكان.");
-      var bar = el("div", "display:flex;gap:8px;padding:12px;flex-wrap:wrap;align-items:center;");
-      if (canCart) {
-        cartBtn = el("button", rect + "background:#16a34a;color:#fff;", "🛒 أضف للسلة");
-        bar.appendChild(cartBtn);
-      }
-      bar.appendChild(snap);
-      bar.appendChild(upload);
-      bar.appendChild(fileInput);
-      bar.appendChild(close);
-      bar.appendChild(note);
-      card.appendChild(stage);
-      card.appendChild(bar);
+    var bar = el("div", "display:flex;gap:8px;padding:12px;flex-wrap:wrap;align-items:center;");
+    if (canCart) {
+      cartBtn = el("button", rect + "flex-basis:100%;background:#16a34a;color:#fff;font-size:15px;", "🛒 أضف للسلة");
+      bar.appendChild(cartBtn);
     }
+    var snap = el("button", rect + "background:#fff;color:#111;", "📸 التقاط صورة");
+    var upload = el("button", rect + "background:#333;color:#fff;", "🖼️ رفع صورة");
+    var note = el("div", "width:100%;font-size:11px;opacity:.65;text-align:center;", "🔒 الصورة تُعالَج على جهازك فقط ولا يتم رفعها لأي مكان.");
+    bar.appendChild(snap);
+    bar.appendChild(upload);
+    bar.appendChild(fileInput);
+    bar.appendChild(note);
+    card.appendChild(stage);
+    card.appendChild(bar);
 
     overlay.appendChild(card);
     document.body.appendChild(overlay);
@@ -272,6 +272,9 @@
     var frames = 0;
     var light = 1;
     var toastTimer = 0;
+    var guideFade = 1;
+    var hintText = "";
+    var snapRequested = false;
     var shade = document.createElement("canvas");
     var supportsFilter = typeof CanvasRenderingContext2D !== "undefined" && "filter" in CanvasRenderingContext2D.prototype;
 
@@ -283,8 +286,8 @@
         width: { ideal: portrait ? 720 : 1280 },
         height: { ideal: portrait ? 1280 : 720 },
       };
-      // Match the screen's shape so the image fills it without needing a big crop.
-      if (mobile) constraints.aspectRatio = { ideal: window.innerWidth / window.innerHeight };
+      // Match the tall modal's shape so the image fills it without needing a big crop.
+      if (mobile) constraints.aspectRatio = { ideal: portrait ? 9 / 16 : 16 / 9 };
       return constraints;
     }
 
@@ -357,22 +360,52 @@
       ctx.restore();
     }
 
-    // Desktop: the card takes the camera's real aspect ratio and never grows taller than the
-    // viewport. Phones: the canvas covers the whole screen, so only its pixel size matters.
+    // The stage takes the camera's real shape (clamped to a tall modal on phones) and shows the
+    // image cropped to fill it only when that enlarges it a little; otherwise the whole frame.
     function fit(w, h) {
       if (canvas.width === w && canvas.height === h) return;
       canvas.width = w;
       canvas.height = h;
-      if (mobile) {
-        // Fill the screen only when that crops little; otherwise show the whole frame
-        // rather than zooming in on the middle of it.
-        var screenRatio = stage.clientWidth / Math.max(1, stage.clientHeight);
-        var cropZoom = Math.max(screenRatio / (w / h), (w / h) / screenRatio);
-        canvas.style.objectFit = cropZoom <= MAX_CROP_ZOOM ? "cover" : "contain";
-        return;
-      }
-      stage.style.aspectRatio = w + " / " + h;
-      card.style.maxWidth = "min(640px, calc(64vh * " + (w / h).toFixed(4) + "))";
+      var ratio = mobile ? Math.min(0.8, Math.max(0.5, w / h)) : w / h;
+      stage.style.aspectRatio = ratio.toFixed(4);
+      if (!mobile) card.style.maxWidth = "min(640px, calc(64vh * " + ratio.toFixed(4) + "))";
+      var stageRatio = stage.clientWidth / Math.max(1, stage.clientHeight);
+      var zoom = Math.max(stageRatio / (w / h), (w / h) / stageRatio);
+      canvas.style.objectFit = zoom <= MAX_CROP_ZOOM ? "cover" : "contain";
+    }
+
+    function setHint(text) {
+      if (text === hintText) return;
+      hintText = text;
+      hintEl.textContent = text;
+      hintEl.style.display = text ? "block" : "none";
+    }
+
+    // Darkens everything outside the oval and outlines it; fades back once the face is placed.
+    function drawGuide(g) {
+      guideFade += ((g.ok ? 0.25 : 1) - guideFade) * 0.15;
+      var cw = canvas.width, ch = canvas.height;
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0," + (0.38 * guideFade).toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.rect(0, 0, cw, ch);
+      ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, Math.PI * 2);
+      ctx.fill("evenodd");
+      ctx.globalAlpha = Math.max(0.35, guideFade);
+      ctx.lineWidth = Math.max(3, cw * 0.007);
+      ctx.setLineDash([cw * 0.03, cw * 0.02]);
+      ctx.strokeStyle = g.ok ? "#22c55e" : "#ffffff";
+      ctx.beginPath();
+      ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function savePicture() {
+      var a = document.createElement("a");
+      a.download = "try-on.png";
+      a.href = canvas.toDataURL("image/png");
+      a.click();
     }
 
     function frame() {
@@ -388,6 +421,7 @@
       ctx.restore();
       var res = landmarker.detectForVideo(video, performance.now());
       var face = res && res.faceLandmarks && res.faceLandmarks[0];
+      var guide = guideState(face || null, w, h);
       if (face) {
         last = smoother(placement(face, w, h, item), w, performance.now());
         if (frames++ % 10 === 0) sampleLight(last);
@@ -396,12 +430,19 @@
       } else {
         last = null;
         smoother = makeSmoother();
-        setStatus("وجّه وجهك نحو الكاميرا");
       }
+      // A picture is taken before the guide is drawn so the saved image is clean.
+      if (snapRequested) {
+        snapRequested = false;
+        savePicture();
+      }
+      drawGuide(guide);
+      setHint(guide.hint);
     }
 
     function renderPhoto() {
       if (!photo || !landmarker) return;
+      setHint("");
       fit(photo.naturalWidth, photo.naturalHeight);
       canvas.style.objectFit = "contain";
       ctx.drawImage(photo, 0, 0, canvas.width, canvas.height);
@@ -436,10 +477,8 @@
     overlay.addEventListener("click", function (e) { if (e.target === overlay) teardown(); });
 
     snap.onclick = function () {
-      var a = document.createElement("a");
-      a.download = "try-on.png";
-      a.href = canvas.toDataURL("image/png");
-      a.click();
+      if (mode === "video") snapRequested = true;
+      else savePicture();
     };
 
     if (cartBtn) {
@@ -533,7 +572,7 @@
 
   // Lets the unit tests reach the pure maths; does nothing on a real storefront.
   if (window.__SALLA_TRYON_TEST__) {
-    window.__SALLA_TRYON_TEST__.api = { placement: placement, makeSmoother: makeSmoother, farSideFade: farSideFade, brightnessFor: brightnessFor };
+    window.__SALLA_TRYON_TEST__.api = { placement: placement, makeSmoother: makeSmoother, farSideFade: farSideFade, brightnessFor: brightnessFor, guideState: guideState };
   }
 
   var booted = false;

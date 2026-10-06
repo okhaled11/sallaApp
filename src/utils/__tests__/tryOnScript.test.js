@@ -66,6 +66,61 @@ describe("placement", () => {
   });
 });
 
+describe("guideState", () => {
+  // Portrait 720x1280 frame: ideal face width = 0.36 * min(720, 960) = 259.2px, guide centred at (360, 589).
+  const W = 720;
+  const H = 1280;
+  const T = 0.36 * W;
+  // A face whose temples are `width` px apart, centred at (cx, cy) on screen (un-mirrored coords).
+  function placed(width, cx = W / 2, cy = H * 0.46) {
+    const eyeY = cy - 0.3 * width;
+    const n = (x, y) => [1 - x / W, y / H]; // screen px -> un-mirrored normalized
+    return face({
+      templeA: n(cx - width / 2, eyeY),
+      templeB: n(cx + width / 2, eyeY),
+      eyeA: n(cx - width * 0.25, eyeY),
+      eyeB: n(cx + width * 0.25, eyeY),
+    });
+  }
+
+  it("asks for a face when none is detected", () => {
+    const g = api.guideState(null, W, H);
+    expect(g.ok).toBe(false);
+    expect(g.hint).toBe("ضع وجهك داخل الإطار");
+    expect(g.cx).toBe(W / 2);
+    expect(g.ry).toBeGreaterThan(g.rx);
+  });
+
+  it("accepts a well-placed face", () => {
+    const g = api.guideState(placed(T), W, H);
+    expect(g.ok).toBe(true);
+    expect(g.hint).toContain("ممتاز");
+  });
+
+  it("tells the visitor to come closer or move back", () => {
+    expect(api.guideState(placed(T * 0.6), W, H).hint).toContain("قرّب");
+    expect(api.guideState(placed(T * 1.5), W, H).hint).toContain("ابعد");
+  });
+
+  it("points the way when the face is off to one side", () => {
+    // Face sits on the left of the screen -> move right, and vice versa.
+    expect(api.guideState(placed(T, W * 0.25), W, H).hint).toContain("لليمين");
+    expect(api.guideState(placed(T, W * 0.75), W, H).hint).toContain("لليسار");
+  });
+
+  it("points the way when the face is too high or too low", () => {
+    expect(api.guideState(placed(T, W / 2, H * 0.3), W, H).hint).toContain("اخفض");
+    expect(api.guideState(placed(T, W / 2, H * 0.62), W, H).hint).toContain("ارفع");
+  });
+
+  it("sizes the oval from the frame, not a fixed pixel size", () => {
+    const portrait = api.guideState(null, 720, 1280);
+    const landscape = api.guideState(null, 1280, 720);
+    expect(portrait.rx).toBeCloseTo(0.36 * 720 * 0.62, 5);
+    expect(landscape.rx).toBeCloseTo(0.36 * 540 * 0.62, 5);
+  });
+});
+
 describe("farSideFade", () => {
   it("does nothing for a nearly frontal face", () => {
     expect(api.farSideFade(0.1)).toEqual({ side: null, amount: 0 });
