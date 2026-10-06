@@ -45,42 +45,49 @@ export default function FacePreview({ item }) {
   const type = typeOf(item);
   const lip = FACE.mouthY;
   return (
-    <div className="tryon-preview" role="img" aria-label="معاينة موضع المنتج على الوجه">
-      <svg viewBox={`0 0 ${VB.width} ${VB.height}`} aria-hidden="true">
-        <path d="M80 205 L80 250 Q80 268 36 282 L6 300 M120 205 L120 250 Q120 268 164 282 L194 300" fill="none" stroke="var(--border-color)" strokeWidth="2" />
-        <ellipse cx="100" cy="120" rx="68" ry="92" fill="var(--bg-tertiary)" stroke="var(--border-color)" strokeWidth="2" />
-        <circle cx="60" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
-        <circle cx="140" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
-        <path d="M100 118 L92 150 L108 150" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" />
-        {type === "lipstick" ? (
-          <>
-            <path
-              d={`M78 ${lip} Q100 ${lip - 12} 122 ${lip} Q100 ${lip + 16} 78 ${lip} Z`}
-              fill={item.color}
-              opacity={item.opacity}
-            />
-            {item.finish === "gloss" && <ellipse cx="100" cy={lip + 3} rx="12" ry="3.5" fill="#fff" opacity="0.6" />}
-          </>
-        ) : (
-          <path d={`M78 ${lip} Q100 ${lip + 14} 122 ${lip}`} fill="none" stroke="var(--text-tertiary)" strokeWidth="2" />
-        )}
-      </svg>
-      {type !== "lipstick" &&
-        item.image &&
-        previewParts(item).map((part) => (
-          <img
-            key={part.key}
-            src={item.image}
-            alt=""
-            className="tryon-preview-overlay"
-            style={{
-              left: pct(part.x, VB.width),
-              top: pct(part.y, VB.height),
-              width: pct(part.width, VB.width),
-              transform: `translate(-50%, ${ANCHOR_Y[part.anchor]})${part.flip ? " scaleX(-1)" : ""}`,
-            }}
-          />
-        ))}
+    <div className="tryon-preview-stage">
+      <div className="tryon-preview-badge">
+        <span>معاينة المحاكاة الذكية</span>
+      </div>
+      <div className="tryon-preview-frame">
+        <div className="tryon-preview" role="img" aria-label="معاينة موضع المنتج على الوجه">
+          <svg viewBox={`0 0 ${VB.width} ${VB.height}`} aria-hidden="true">
+            <path d="M80 205 L80 250 Q80 268 36 282 L6 300 M120 205 L120 250 Q120 268 164 282 L194 300" fill="none" stroke="var(--border-color)" strokeWidth="2" />
+            <ellipse cx="100" cy="120" rx="68" ry="92" fill="var(--bg-tertiary)" stroke="var(--border-color)" strokeWidth="2" />
+            <circle cx="60" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
+            <circle cx="140" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
+            <path d="M100 118 L92 150 L108 150" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" />
+            {type === "lipstick" ? (
+              <>
+                <path
+                  d={`M78 ${lip} Q100 ${lip - 12} 122 ${lip} Q100 ${lip + 16} 78 ${lip} Z`}
+                  fill={item.color}
+                  opacity={item.opacity}
+                />
+                {item.finish === "gloss" && <ellipse cx="100" cy={lip + 3} rx="12" ry="3.5" fill="#fff" opacity="0.6" />}
+              </>
+            ) : (
+              <path d={`M78 ${lip} Q100 ${lip + 14} 122 ${lip}`} fill="none" stroke="var(--text-tertiary)" strokeWidth="2" />
+            )}
+          </svg>
+          {type !== "lipstick" &&
+            item.image &&
+            previewParts(item).map((part) => (
+              <img
+                key={part.key}
+                src={item.image}
+                alt=""
+                className="tryon-preview-overlay"
+                style={{
+                  left: pct(part.x, VB.width),
+                  top: pct(part.y, VB.height),
+                  width: pct(part.width, VB.width),
+                  transform: `translate(-50%, ${ANCHOR_Y[part.anchor]})${part.flip ? " scaleX(-1)" : ""}`,
+                }}
+              />
+            ))}
+        </div>
+      </div>
     </div>
   );
 }

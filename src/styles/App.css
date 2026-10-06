@@ -6681,34 +6681,137 @@ pre,
 }
 
 /* ============================================
-   Virtual try-on studio
+   Virtual try-on studio (AR Face Try-On)
    ============================================ */
 
 .tryon-studio {
   display: flex;
   flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.tryon-hero-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(16, 185, 129, 0.08) 0%,
+      rgba(59, 130, 246, 0.12) 100%
+    ),
+    var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
   gap: var(--space-md);
 }
 
+.tryon-hero-actions-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-shrink: 0;
+}
+
+.tryon-hero-pill-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tryon-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.tryon-pill-text {
+  color: var(--text-primary);
+}
+
+.tryon-pill-count {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
 .tryon-notice {
-  padding: var(--space-sm) var(--space-md);
-  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface);
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-color);
+}
+
+.tryon-notice-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fbbf24;
+}
+
+.tryon-notice-error {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.tryon-workspace-card {
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 .tryon-layout {
   display: grid;
-  grid-template-columns: minmax(240px, 320px) 1fr;
-  min-height: 360px;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  min-height: 520px;
 }
 
 .tryon-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-md);
+  gap: var(--space-md);
+  padding: var(--space-lg);
   border-inline-end: 1px solid var(--border-color);
+  background: var(--bg-surface);
+}
+
+.tryon-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tryon-list-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.tryon-search-wrap {
+  width: 100%;
+}
+
+.tryon-search-field {
+  width: 100%;
+  font-size: 13px;
 }
 
 .tryon-products {
@@ -6717,8 +6820,8 @@ pre,
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 420px;
+  gap: 6px;
+  max-height: 480px;
   overflow-y: auto;
 }
 
@@ -6727,29 +6830,36 @@ pre,
   align-items: center;
   gap: var(--space-sm);
   width: 100%;
-  padding: 6px 8px;
-  background: transparent;
+  padding: 8px 10px;
+  background: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   text-align: start;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.tryon-product:hover,
-.tryon-product.active {
+.tryon-product:hover {
   background: var(--bg-tertiary);
   border-color: var(--border-color);
 }
 
+.tryon-product.active {
+  background: var(--bg-tertiary);
+  border-color: var(--salla-primary, #004d5b);
+  box-shadow: 0 0 0 1px var(--salla-primary, #004d5b);
+}
+
 .tryon-product .product-thumb {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex: none;
   object-fit: cover;
   border-radius: var(--radius-sm);
+  background: var(--bg-surface);
 }
 
 .tryon-product-name {
@@ -6758,51 +6868,182 @@ pre,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 600;
+}
+
+.salla-badge-tag.active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
 }
 
 .tryon-editor {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--bg-secondary);
+}
+
+.tryon-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 380px;
+  text-align: center;
+  gap: 12px;
+  color: var(--text-tertiary);
+}
+
+.tryon-empty-icon {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+
+.tryon-empty-state h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-heading);
+}
+
+.tryon-empty-state p {
+  margin: 0;
+  font-size: 13px;
+  max-width: 320px;
+}
+
+.tryon-editor-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.tryon-editor-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .tryon-editor-title {
-  margin: 0;
-  font-size: 0.95rem;
+  margin: 0 0 4px 0;
+  font-size: 1.15rem;
+  font-weight: 700;
   color: var(--text-heading);
+}
+
+.tryon-editor-type-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
 }
 
 .tryon-editor-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
-.tryon-hint,
-.tryon-empty {
-  margin: 0;
-  font-size: 0.78rem;
-  color: var(--text-tertiary);
-}
-
-.tryon-empty {
-  padding: var(--space-md);
-  text-align: center;
-}
-
-.tryon-tuner {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-lg);
   align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.tryon-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tryon-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tryon-select {
+  max-width: 320px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.tryon-upload-prompt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  background: var(--bg-surface);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--space-md) var(--space-lg);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Workspace body with Preview & AI Auto-Fit */
+.tryon-workspace-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+/* Preview Stage */
+.tryon-preview-pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  align-items: center;
+}
+
+.tryon-preview-stage {
+  width: 100%;
+  position: relative;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.04) 0%, rgba(0, 0, 0, 0.3) 100%),
+    var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 12px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+}
+
+.tryon-preview-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 28px;
+}
+
+.tryon-preview-frame {
+  position: relative;
+  width: 160px;
+  height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tryon-preview {
   position: relative;
-  width: 200px;
-  aspect-ratio: 200 / 300;
-  flex: none;
+  width: 100%;
+  height: 100%;
 }
 
 .tryon-preview svg {
@@ -6813,35 +7054,202 @@ pre,
 
 .tryon-preview-overlay {
   position: absolute;
-  left: 50%;
   transform: translate(-50%, -50%);
   max-width: none;
   pointer-events: none;
 }
 
-.tryon-sliders {
+.tryon-live-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* AI Auto-Fit Card & Metrics */
+.tryon-controls-pane {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  flex: 1;
-  min-width: 200px;
+}
+
+.tryon-auto-fit-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.tryon-auto-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.tryon-auto-badge-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.tryon-card-heading {
+  margin: 0 0 4px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.tryon-card-desc {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.tryon-smart-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.tryon-metric-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tryon-metric-check {
+  color: #10b981;
+  font-weight: 900;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.tryon-metric-item strong {
+  display: block;
+  color: var(--text-heading);
+  margin-bottom: 2px;
+  font-size: 12.5px;
+}
+
+.tryon-metric-item span {
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+
+/* Collapsible Advanced Tuning */
+.tryon-advanced-tuning {
+  border-top: 1px dashed var(--border-color);
+  padding-top: var(--space-md);
+  margin-top: 4px;
+}
+
+.tryon-advanced-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.tryon-advanced-note {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+
+.tryon-sliders {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
 }
 
 .tryon-sliders label {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 0.8rem;
+  font-size: 12px;
   color: var(--text-secondary);
+}
+
+.tryon-sliders .tryon-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.tryon-lipstick-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+
+.tryon-color-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tryon-color-input {
+  width: 48px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
 }
 
 .tryon-code {
   margin: 0;
   padding: var(--space-md);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   white-space: pre-wrap;
   word-break: break-all;
   color: var(--text-secondary);
+  font-family: monospace;
+}
+
+@media (max-width: 900px) {
+  .tryon-workspace-body {
+    grid-template-columns: 1fr;
+  }
+
+  .tryon-preview-pane {
+    max-width: 320px;
+    margin: 0 auto;
+  }
 }
 
 @media (max-width: 760px) {
@@ -6853,27 +7261,14 @@ pre,
     border-inline-end: none;
     border-bottom: 1px solid var(--border-color);
   }
-}
 
-.tryon-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-width: 280px;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
+  .tryon-hero-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-.tryon-sliders .tryon-check {
-  flex-direction: row;
-  align-items: center;
-}
-
-.tryon-sliders input[type="color"] {
-  width: 56px;
-  height: 32px;
-  padding: 0;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  background: transparent;
+  .tryon-hero-actions-box {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
