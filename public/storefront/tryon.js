@@ -374,14 +374,17 @@
       canvas.style.objectFit = zoom <= MAX_CROP_ZOOM ? "cover" : "contain";
     }
 
-    function setHint(text) {
-      if (text === hintText) return;
-      hintText = text;
+    // The message turns green once the face is placed (there is no outline to colour).
+    function setHint(text, ok) {
+      var key = text + (ok ? "|ok" : "");
+      if (key === hintText) return;
+      hintText = key;
       hintEl.textContent = text;
       hintEl.style.display = text ? "block" : "none";
+      hintEl.style.background = ok ? "rgba(22,163,74,.92)" : "rgba(0,0,0,.65)";
     }
 
-    // Darkens everything outside the oval and outlines it; fades back once the face is placed.
+    // Darkens everything outside the oval (no outline); fades back once the face is placed.
     function drawGuide(g) {
       guideFade += ((g.ok ? 0.25 : 1) - guideFade) * 0.15;
       var cw = canvas.width, ch = canvas.height;
@@ -391,13 +394,6 @@
       ctx.rect(0, 0, cw, ch);
       ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, Math.PI * 2);
       ctx.fill("evenodd");
-      ctx.globalAlpha = Math.max(0.35, guideFade);
-      ctx.lineWidth = Math.max(3, cw * 0.007);
-      ctx.setLineDash([cw * 0.03, cw * 0.02]);
-      ctx.strokeStyle = g.ok ? "#22c55e" : "#ffffff";
-      ctx.beginPath();
-      ctx.ellipse(g.cx, g.cy, g.rx, g.ry, 0, 0, Math.PI * 2);
-      ctx.stroke();
       ctx.restore();
     }
 
@@ -437,7 +433,7 @@
         savePicture();
       }
       drawGuide(guide);
-      setHint(guide.hint);
+      setHint(guide.hint, guide.ok);
     }
 
     function renderPhoto() {
