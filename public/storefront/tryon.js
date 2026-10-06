@@ -22,7 +22,7 @@
   var EYE_B = 263;
   var TEMPLE_A = 127;
   var TEMPLE_B = 356;
-  var SMOOTHING = 0.45;
+  var NOSE_TIP = 1;
   // Most the camera image may be enlarged to fill a phone screen (1 = no cropping at all).
   var MAX_CROP_ZOOM = 1.2;
 
@@ -97,6 +97,10 @@
     var templeDist = Math.sqrt((tb.x - ta.x) * (tb.x - ta.x) + (tb.y - ta.y) * (tb.y - ta.y));
     // Head turned away: the projected face width shrinks, so the frame narrows with it.
     var faceWidth = templeDist > eyeDist ? templeDist : eyeDist * 2.1;
+    // Approximate head turn: how far the nose tip sits from the middle of the temples.
+    var nose = pt(NOSE_TIP);
+    var turn = (nose.x - (ta.x + tb.x) / 2) / (faceWidth / 2);
+    var yaw = Math.asin(Math.max(-1, Math.min(1, turn / 0.6)));
     // Move along the face's own "down" axis so the offset follows head tilt.
     var shift = (item.offsetY || 0) * eyeDist;
     return {
@@ -104,14 +108,54 @@
       y: (a.y + b.y) / 2 + Math.cos(angle) * shift,
       width: faceWidth * (item.fit || 1),
       angle: angle,
+      yaw: yaw,
     };
   }
 
-  function smooth(prev, next) {
-    if (!prev) return next;
-    var out = {};
-    for (var k in next) out[k] = prev[k] + (next[k] - prev[k]) * SMOOTHING;
-    return out;
+  // One Euro filter: steady when the head is still, quick to follow when it moves.
+  function alphaFor(cutoffHz, dt) {
+    var tau = 1 / (2 * Math.PI * cutoffHz);
+    return 1 / (1 + tau / dt);
+  }
+  function makeFilter(minCutoff, beta) {
+    var prev = null, prevSpeed = 0, prevT = 0;
+    return function (x, nowMs) {
+      if (prev === null) { prev = x; prevT = nowMs; return x; }
+      var dt = Math.max(0.001, (nowMs - prevT) / 1000);
+      prevT = nowMs;
+      prevSpeed += alphaFor(1, dt) * ((x - prev) / dt - prevSpeed);
+      prev += alphaFor(minCutoff + beta * Math.abs(prevSpeed), dt) * (x - prev);
+      return prev;
+    };
+  }
+  // [minCutoff Hz, beta]. Position/size are in frame-widths, angles in radians.
+  var FILTER_SPECS = { x: [1.2, 12], y: [1.2, 12], width: [1.2, 12], angle: [1.2, 1], yaw: [1, 1] };
+  function makeSmoother() {
+    var f = {};
+    for (var k in FILTER_SPECS) f[k] = makeFilter(FILTER_SPECS[k][0], FILTER_SPECS[k][1]);
+    return function (p, w, nowMs) {
+      return {
+        x: f.x(p.x / w, nowMs) * w,
+        y: f.y(p.y / w, nowMs) * w,
+        width: f.width(p.width / w, nowMs) * w,
+        angle: f.angle(p.angle, nowMs),
+        yaw: f.yaw(p.yaw || 0, nowMs),
+      };
+    };
+  }
+
+  // When the head turns, the far end of the frame (the arm) goes behind the head: fade it out.
+  var YAW_DEADZONE = 0.2;
+  function farSideFade(yaw) {
+    var over = Math.abs(yaw) - YAW_DEADZONE;
+    if (over <= 0) return { side: null, amount: 0 };
+    // Nose to the right of centre => the left side of the face is the far one.
+    return { side: yaw > 0 ? "left" : "right", amount: Math.min(0.4, over * 0.8) };
+  }
+
+  // Dim rooms make the camera image dark; tone the product to match (luma 0..255 of the cheeks).
+  function brightnessFor(luma) {
+    return Math.min(1.1, Math.max(0.75, 0.6 + (luma / 255) * 0.6));
   }
 
   function openTryOn(item) {
@@ -151,6 +195,15 @@
     fileInput.style.display = "none";
     var snap, upload, close, note;
 
+    var canCart = !!(item.productId && window.salla && window.salla.cart && typeof window.salla.cart.addItem === "function");
+    var cartBtn = null;
+    var toastEl = el(
+      "div",
+      "position:absolute;left:50%;transform:translateX(-50%);bottom:" + (mobile ? "170px" : "16px") +
+        ";background:rgba(0,0,0,.85);color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;z-index:3;display:none;max-width:90%;text-align:center;",
+    );
+    stage.appendChild(toastEl);
+
     if (mobile) {
       var round = btnStyle + "border-radius:50%;display:flex;align-items:center;justify-content:center;";
       snap = el("button", round + "width:68px;height:68px;font-size:28px;background:#fff;color:#111;border:4px solid rgba(255,255,255,.5);", "📸");
@@ -162,11 +215,17 @@
       close.setAttribute("aria-label", "إغلاق");
       var mbar = el(
         "div",
-        "position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:space-around;padding:40px 24px " + safeBottom + ";background:linear-gradient(transparent,rgba(0,0,0,.65));z-index:1;",
+        "position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 24px " + safeBottom + ";background:linear-gradient(transparent,rgba(0,0,0,.65));z-index:1;",
       );
-      mbar.appendChild(upload);
-      mbar.appendChild(snap);
-      mbar.appendChild(el("span", "width:46px;height:46px;"));
+      if (canCart) {
+        cartBtn = el("button", btnStyle + "border-radius:999px;padding:13px 22px;font-size:15px;background:#16a34a;color:#fff;width:100%;max-width:340px;box-shadow:0 4px 14px rgba(0,0,0,.4);", "🛒 أضف للسلة");
+        mbar.appendChild(cartBtn);
+      }
+      var controls = el("div", "display:flex;align-items:center;justify-content:space-around;width:100%;");
+      controls.appendChild(upload);
+      controls.appendChild(snap);
+      controls.appendChild(el("span", "width:46px;height:46px;"));
+      mbar.appendChild(controls);
       stage.appendChild(note);
       stage.appendChild(close);
       stage.appendChild(mbar);
@@ -179,6 +238,10 @@
       close = el("button", rect + "background:#333;color:#fff;margin-inline-start:auto;", "إغلاق");
       note = el("div", "width:100%;font-size:11px;opacity:.65;", "🔒 الصورة تُعالَج على جهازك فقط ولا يتم رفعها لأي مكان.");
       var bar = el("div", "display:flex;gap:8px;padding:12px;flex-wrap:wrap;align-items:center;");
+      if (canCart) {
+        cartBtn = el("button", rect + "background:#16a34a;color:#fff;", "🛒 أضف للسلة");
+        bar.appendChild(cartBtn);
+      }
       bar.appendChild(snap);
       bar.appendChild(upload);
       bar.appendChild(fileInput);
@@ -203,8 +266,14 @@
     var landmarker = null;
     var mode = "video";
     var photo = null;
+    var smoother = makeSmoother();
     var last = null;
     var stopped = false;
+    var frames = 0;
+    var light = 1;
+    var toastTimer = 0;
+    var shade = document.createElement("canvas");
+    var supportsFilter = typeof CanvasRenderingContext2D !== "undefined" && "filter" in CanvasRenderingContext2D.prototype;
 
     // Ask for a portrait stream on a portrait phone so it fills the screen without cropping much.
     function cameraConstraints() {
@@ -224,13 +293,67 @@
       status.style.display = text ? "flex" : "none";
     }
 
+    function toast(message, ms) {
+      toastEl.textContent = message;
+      toastEl.style.display = "block";
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { toastEl.style.display = "none"; }, ms || 2500);
+    }
+
+    // Average brightness of the cheek area (under the frame) -> how bright the product should be.
+    function sampleLight(p) {
+      try {
+        var x = Math.max(0, Math.round(p.x - p.width * 0.25));
+        var y = Math.max(0, Math.round(p.y + p.width * 0.05));
+        var w = Math.min(canvas.width - x, Math.round(p.width * 0.5));
+        var h = Math.min(canvas.height - y, Math.round(p.width * 0.25));
+        if (w < 2 || h < 2) return;
+        var d = ctx.getImageData(x, y, w, h).data;
+        var sum = 0, n = 0;
+        for (var i = 0; i < d.length; i += 16) {
+          sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+          n++;
+        }
+        if (n) light += (brightnessFor(sum / n) - light) * 0.4;
+      } catch (e) {}
+    }
+
     function drawGlasses(p) {
       if (!glasses.complete || !glasses.naturalWidth) return;
-      var height = p.width * (glasses.naturalHeight / glasses.naturalWidth);
+      var W = Math.max(1, Math.round(p.width));
+      var H = Math.max(1, Math.round(p.width * (glasses.naturalHeight / glasses.naturalWidth)));
+      // Draw the product on its own layer first so the far arm can be faded without touching the video.
+      var sctx = shade.getContext("2d");
+      if (shade.width !== W || shade.height !== H) {
+        shade.width = W;
+        shade.height = H;
+      } else {
+        sctx.clearRect(0, 0, W, H);
+      }
+      sctx.drawImage(glasses, 0, 0, W, H);
+      var fade = farSideFade(p.yaw || 0);
+      if (fade.side) {
+        var g = sctx.createLinearGradient(0, 0, W, 0);
+        if (fade.side === "left") {
+          g.addColorStop(0, "rgba(0,0,0,0)");
+          g.addColorStop(fade.amount, "rgba(0,0,0,1)");
+        } else {
+          g.addColorStop(1 - fade.amount, "rgba(0,0,0,1)");
+          g.addColorStop(1, "rgba(0,0,0,0)");
+        }
+        sctx.globalCompositeOperation = "destination-in";
+        sctx.fillStyle = g;
+        sctx.fillRect(0, 0, W, H);
+        sctx.globalCompositeOperation = "source-over";
+      }
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(p.angle);
-      ctx.drawImage(glasses, -p.width / 2, -height / 2, p.width, height);
+      if (supportsFilter) ctx.filter = "brightness(" + light.toFixed(2) + ")";
+      ctx.shadowColor = "rgba(0,0,0,0.28)";
+      ctx.shadowBlur = p.width * 0.03;
+      ctx.shadowOffsetY = p.width * 0.018;
+      ctx.drawImage(shade, -W / 2, -H / 2);
       ctx.restore();
     }
 
@@ -266,11 +389,13 @@
       var res = landmarker.detectForVideo(video, performance.now());
       var face = res && res.faceLandmarks && res.faceLandmarks[0];
       if (face) {
-        last = smooth(last, placement(face, w, h, item));
+        last = smoother(placement(face, w, h, item), w, performance.now());
+        if (frames++ % 10 === 0) sampleLight(last);
         drawGlasses(last);
         setStatus("");
       } else {
         last = null;
+        smoother = makeSmoother();
         setStatus("وجّه وجهك نحو الكاميرا");
       }
     }
@@ -286,7 +411,9 @@
       if (!face) return setStatus("لم نتمكن من العثور على وجه في الصورة");
       // Photos are not mirrored, so flip x back before reusing the shared maths.
       var mirrored = face.map(function (pt) { return { x: 1 - pt.x, y: pt.y }; });
-      drawGlasses(placement(mirrored, canvas.width, canvas.height, item));
+      var placed = placement(mirrored, canvas.width, canvas.height, item);
+      sampleLight(placed);
+      drawGlasses(placed);
       setStatus("");
     }
 
@@ -314,6 +441,33 @@
       a.href = canvas.toDataURL("image/png");
       a.click();
     };
+
+    if (cartBtn) {
+      cartBtn.onclick = function () {
+        var label = cartBtn.textContent;
+        cartBtn.disabled = true;
+        cartBtn.textContent = "جارٍ الإضافة...";
+        Promise.resolve()
+          .then(function () { return window.salla.cart.addItem({ id: item.productId, quantity: 1 }); })
+          .then(function () {
+            cartBtn.textContent = "✓ تمت الإضافة للسلة";
+            toast("تمت إضافة المنتج إلى سلتك 🛒", 2500);
+            setTimeout(function () { cartBtn.disabled = false; cartBtn.textContent = label; }, 3000);
+          })
+          .catch(function () {
+            // Usually a product with required options (size/colour): send them to pick on the page.
+            cartBtn.disabled = false;
+            cartBtn.textContent = label;
+            toast("اختر الخيارات (المقاس/اللون) من صفحة المنتج ثم أضفه للسلة", 2500);
+            setTimeout(function () {
+              if (stopped) return;
+              teardown();
+              var anchor = document.querySelector("salla-add-product-button, .product-form");
+              if (anchor && anchor.scrollIntoView) anchor.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 1800);
+          });
+      };
+    }
 
     upload.onclick = function () { fileInput.click(); };
     fileInput.onchange = function () {
@@ -375,6 +529,11 @@
       btn.style.cssText += "position:fixed;bottom:20px;left:20px;width:auto;margin:0;background:#111;color:#fff;border-color:#111;z-index:2147482000;";
       document.body.appendChild(btn);
     }
+  }
+
+  // Lets the unit tests reach the pure maths; does nothing on a real storefront.
+  if (window.__SALLA_TRYON_TEST__) {
+    window.__SALLA_TRYON_TEST__.api = { placement: placement, makeSmoother: makeSmoother, farSideFade: farSideFade, brightnessFor: brightnessFor };
   }
 
   var booted = false;
