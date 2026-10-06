@@ -7057,6 +7057,8 @@ pre,
   transform: translate(-50%, -50%);
   max-width: none;
   pointer-events: none;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.42)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
 }
 
 .tryon-live-btn {
@@ -7159,6 +7161,40 @@ pre,
 .tryon-metric-item span {
   color: var(--text-secondary);
   font-size: 11.5px;
+}
+
+.tryon-3d-tip-box {
+  background: rgba(115, 252, 215, 0.05);
+  border: 1px solid rgba(115, 252, 215, 0.22);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tryon-3d-tip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #73fcd7;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.tryon-3d-tip-list {
+  margin: 0;
+  padding-right: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.tryon-3d-tip-list strong {
+  color: var(--text-primary);
 }
 
 /* Collapsible Advanced Tuning */
@@ -7271,4 +7307,452 @@ pre,
     width: 100%;
     justify-content: space-between;
   }
+}
+
+/* ==========================================================
+   Snapchat-Style 3D AR Try-On Modal Styles
+   ========================================================== */
+.ar-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.88);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: arFadeIn 0.25s ease-out;
+}
+
+@keyframes arFadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.ar-modal-container {
+  width: 100%;
+  max-width: 940px;
+  height: 92vh;
+  max-height: 820px;
+  background: #111417;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+
+.ar-modal-header {
+  height: 60px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #181c20;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.ar-brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #73fcd7;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.ar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ar-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ar-btn-icon:hover, .ar-btn-icon.active {
+  background: rgba(115, 252, 215, 0.15);
+  border-color: #73fcd7;
+  color: #73fcd7;
+}
+
+.ar-btn-close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.ar-btn-close:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+/* Viewport Stage */
+.ar-viewport-stage {
+  flex: 1;
+  position: relative;
+  background: #000;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ar-camera-feed {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Front camera mirrored selfie */
+}
+
+.ar-three-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ar-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.ar-spinner {
+  width: 44px;
+  height: 44px;
+  border: 3px solid rgba(115, 252, 215, 0.2);
+  border-top-color: #73fcd7;
+  border-radius: 50%;
+  animation: arSpin 0.8s linear infinite;
+}
+
+@keyframes arSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Live HUD */
+.ar-hud-panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: #fff;
+}
+
+.ar-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.ar-status-dot.tracking {
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+}
+
+.ar-status-dot.searching {
+  background: #f59e0b;
+  box-shadow: 0 0 10px #f59e0b;
+  animation: arPulse 1.2s infinite;
+}
+
+@keyframes arPulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.ar-hud-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.ar-hud-angles {
+  color: #94a3b8;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+/* Calibration Drawer */
+.ar-calibration-drawer {
+  position: absolute;
+  top: 60px;
+  right: 16px;
+  z-index: 6;
+  width: 290px;
+  background: rgba(18, 22, 26, 0.94);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+  animation: arSlideIn 0.2s ease-out;
+}
+
+@keyframes arSlideIn {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.ar-calib-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #fff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.ar-calib-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+.ar-calib-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ar-calib-grid input[type="range"] {
+  accent-color: #73fcd7;
+}
+
+/* Floating Controls */
+.ar-floating-controls {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.ar-capture-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: #fff;
+  border: 4px solid rgba(255, 255, 255, 0.4);
+  color: #111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.ar-capture-btn:hover {
+  transform: scale(1.08);
+  background: #f1f5f9;
+}
+
+.ar-capture-btn:active {
+  transform: scale(0.95);
+}
+
+.ar-record-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.record-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  transition: all 0.2s ease;
+}
+
+.ar-record-btn.active .record-circle {
+  border-radius: 4px;
+  width: 14px;
+  height: 14px;
+  animation: arBlink 1s infinite;
+}
+
+@keyframes arBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Footer Carousel */
+.ar-modal-footer {
+  height: 84px;
+  background: #14181c;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.ar-carousel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ar-upload-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 95px;
+  height: 60px;
+  background: rgba(115, 252, 215, 0.08);
+  border: 1px dashed #73fcd7;
+  border-radius: 12px;
+  color: #73fcd7;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ar-upload-box:hover {
+  background: rgba(115, 252, 215, 0.16);
+}
+
+.ar-products-scroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+.ar-product-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ar-product-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.ar-product-pill.selected {
+  background: #73fcd7;
+  border-color: #73fcd7;
+  color: #0b1117;
+  box-shadow: 0 4px 14px rgba(115, 252, 215, 0.35);
+}
+
+/* Snapshot Modal */
+.ar-snapshot-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ar-snapshot-card {
+  background: #1e242a;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 480px;
+  width: 100%;
+}
+
+.ar-snapshot-img {
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ar-snapshot-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
 }

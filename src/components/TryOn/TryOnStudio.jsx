@@ -14,6 +14,7 @@ import {
   typeOf,
 } from "../../utils/tryOnTypes.js";
 import FacePreview from "./FacePreview.jsx";
+import ARTryOnModal from "./AR/ARTryOnModal.jsx";
 
 const MAX_ITEMS = 20;
 
@@ -61,6 +62,7 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [arModalOpen, setArModalOpen] = useState(false);
   const fileRef = useRef(null);
 
   const activeStoreId = storeId ? String(storeId) : "";
@@ -376,10 +378,23 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
                       <button
                         type="button"
                         className="btn btn-primary tryon-live-btn"
+                        onClick={() => setArModalOpen(true)}
+                        style={{
+                          background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                          color: "#fff",
+                          boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
+                        }}
+                      >
+                        <Icon name="aiSparkles" size={18} />
+                        <span>تجربة سناب شات ثلاثية الأبعاد (Snapchat 3D AR)</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary tryon-live-btn"
                         onClick={handleLiveCameraTest}
                       >
                         <Icon name="camera" size={18} />
-                        <span>تجربة الكاميرا المباشرة الآن</span>
+                        <span>معاينة المتجر بالكاميرا المباشرة</span>
                       </button>
                     </div>
 
@@ -461,10 +476,30 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
                             <div className="tryon-metric-item">
                               <Icon name="checkCircle" size={18} className="tryon-metric-check" />
                               <div>
+                                <strong>العمق والإضاءة المجسمة 3D Depth</strong>
+                                <span>إسقاط ظلال حركية تفاعلية ولمعان سطحي (Specular Sheen) لمحاكاة الواقعية ثلاثية الأبعاد مثل سناب شات</span>
+                              </div>
+                            </div>
+                            <div className="tryon-metric-item">
+                              <Icon name="checkCircle" size={18} className="tryon-metric-check" />
+                              <div>
                                 <strong>كشف متعدد الوجوه</strong>
                                 <span>تطبيق المنتج تلقائياً على جميع الوجوه الظاهرة في الفيديو</span>
                               </div>
                             </div>
+                          </div>
+
+                          {/* 3D Image Guidelines Tip for Snapchat-quality results */}
+                          <div className="tryon-3d-tip-box">
+                            <div className="tryon-3d-tip-header">
+                              <Icon name="sparkles" size={16} />
+                              <strong>كيف تجعل الصورة تبدو 3D مثل سناب شات؟</strong>
+                            </div>
+                            <ul className="tryon-3d-tip-list">
+                              <li><strong>صيغة شفافة (PNG / WebP):</strong> بدون أي خلفية بيضاء وبحواف نظيفة ومقصوصة بدقة.</li>
+                              <li><strong>زاوية التصوير:</strong> زاوية أمامية مباشرة أو مائلة قليلاً (3/4 angle) لتوضيح عمق وأذرع الإطار.</li>
+                              <li><strong>إضاءة المنتج:</strong> إضاءة استوديو ناعمة ومتوازنة بدون بقع ظل غامقة لتحقيق أقصى واقعية مع الإضاءة الحركية.</li>
+                            </ul>
                           </div>
 
                           {/* Collapsible advanced manual tuning (clean and unobtrusive) */}
@@ -558,6 +593,13 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
         </div>
         <pre className="tryon-code" dir="ltr">{snippet || "—"}</pre>
       </div>
+
+      {/* Snapchat-Style 3D AR Try-On Studio Modal */}
+      <ARTryOnModal
+        isOpen={arModalOpen}
+        onClose={() => setArModalOpen(false)}
+        initialItem={selectedItem}
+      />
     </div>
   );
 }

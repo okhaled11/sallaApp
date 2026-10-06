@@ -137,7 +137,12 @@
     var nose = pt(NOSE_TIP);
     var turn = (nose.x - (ta.x + tb.x) / 2) / (faceWidth / 2);
     var yaw = Math.asin(Math.max(-1, Math.min(1, turn / 0.6)));
-    return { pt: pt, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, eyeDist: eyeDist, angle: angle, faceWidth: faceWidth, yaw: yaw };
+    var chin = pt(CHIN), forehead = pt(FOREHEAD);
+    var faceHeight = dist(chin, forehead);
+    var expectedNoseY = forehead.y + (chin.y - forehead.y) * 0.45;
+    var pitchDiff = faceHeight > 10 ? (nose.y - expectedNoseY) / (faceHeight * 0.35) : 0;
+    var pitch = Math.max(-0.6, Math.min(0.6, pitchDiff));
+    return { pt: pt, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, eyeDist: eyeDist, angle: angle, faceWidth: faceWidth, yaw: yaw, pitch: pitch };
   }
 
   /** Glasses: centred on the eye line, as wide as the face at the temples. */
@@ -153,6 +158,7 @@
       width: f.faceWidth * (item.fit || 1),
       angle: f.angle,
       yaw: f.yaw,
+      pitch: f.pitch || 0,
     };
   }
 
@@ -185,18 +191,18 @@
         var side = i === 0 ? -1 : 1;
         var at = along(ears[i], f.angle, side * (k.outward * W + ox), k.drop * W + oy);
         return {
-          key: "ear" + i, x: at.x, y: at.y, width: k.width * W * fit, angle: f.angle, yaw: f.yaw,
+          key: "ear" + i, x: at.x, y: at.y, width: k.width * W * fit, angle: f.angle, yaw: f.yaw, pitch: f.pitch || 0,
           anchor: "top", flip: i === 1 && item.mirror !== false, alpha: i === far ? farAlpha : 1,
         };
       });
     }
     if (type === "hat") {
       pos = along(f.pt(FOREHEAD), f.angle, ox, k.sink * W + oy);
-      return [{ key: "hat", x: pos.x, y: pos.y, width: k.width * W * fit, angle: f.angle, yaw: f.yaw, anchor: "bottom" }];
+      return [{ key: "hat", x: pos.x, y: pos.y, width: k.width * W * fit, angle: f.angle, yaw: f.yaw, pitch: f.pitch || 0, anchor: "bottom" }];
     }
     if (type === "necklace") {
       pos = along(f.pt(CHIN), f.angle, ox, k.drop * W + oy);
-      return [{ key: "necklace", x: pos.x, y: pos.y, width: k.width * W * fit, angle: f.angle, yaw: f.yaw, anchor: "top" }];
+      return [{ key: "necklace", x: pos.x, y: pos.y, width: k.width * W * fit, angle: f.angle, yaw: f.yaw, pitch: f.pitch || 0, anchor: "top" }];
     }
     var g = glassesPart(f, item);
     g.key = "glasses";
@@ -233,7 +239,7 @@
     };
   }
   // [minCutoff Hz, beta]. Position/size are in frame-widths, angles in radians.
-  var FILTER_SPECS = { x: [1.2, 12], y: [1.2, 12], width: [1.2, 12], angle: [1.2, 1], yaw: [1, 1] };
+  var FILTER_SPECS = { x: [1.2, 12], y: [1.2, 12], width: [1.2, 12], angle: [1.2, 1], yaw: [1, 1], pitch: [1, 1] };
   function makeSmoother() {
     var f = {};
     for (var k in FILTER_SPECS) f[k] = makeFilter(FILTER_SPECS[k][0], FILTER_SPECS[k][1]);
@@ -244,6 +250,7 @@
         width: f.width(p.width / w, nowMs) * w,
         angle: f.angle(p.angle, nowMs),
         yaw: f.yaw(p.yaw || 0, nowMs),
+        pitch: f.pitch(p.pitch || 0, nowMs),
       };
     };
   }
@@ -308,32 +315,47 @@
   function openTryOn(item) {
     if (document.getElementById(MODAL_ID)) return;
 
-    // Same layout everywhere: a modal card. Tall (portrait) on phones, wider on desktop.
-    var mobile = !!(window.matchMedia && window.matchMedia("(max-width: 700px)").matches);
+    // Mobile phones: fullscreen immersion (like Snapchat/Instagram AR). Desktop: centered modal card.
+    var mobile = !!(window.matchMedia && window.matchMedia("(max-width: 768px)").matches);
 
-    var overlay = el(
-      "div",
-      "position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:12px;overflow-y:auto;background:rgba(0,0,0,.75);font-family:PingARLT,system-ui,sans-serif;direction:rtl;",
-    );
+    var overlayStyle =
+      "position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;z-index:2147483000;font-family:PingARLT,system-ui,sans-serif;direction:rtl;box-sizing:border-box;margin:0;padding:0;overflow:hidden;";
+    if (mobile) {
+      overlayStyle += "background:#000;";
+    } else {
+      overlayStyle += "display:grid;place-items:center;background:rgba(0,0,0,.82);padding:16px;";
+    }
+    var overlay = el("div", overlayStyle);
     overlay.id = MODAL_ID;
-    var card = el(
-      "div",
-      "background:#111;color:#fff;position:relative;overflow:hidden;width:100%;margin:auto;border-radius:18px;" +
-        (mobile ? "max-width:420px;" : "max-width:min(640px,calc(64vh * 1.3333));"),
-    );
-    // Phones: tall stage that still leaves room for the buttons under it.
-    var stage = el(
-      "div",
-      "position:relative;width:100%;background:#000;" +
-        (mobile ? "aspect-ratio:3/4;max-height:calc(100vh - 220px);max-height:calc(100dvh - 220px);" : "aspect-ratio:4/3;"),
-    );
+
+    var cardStyle;
+    if (mobile) {
+      cardStyle =
+        "background:#000;color:#fff;position:relative;overflow:hidden;width:100%;height:100%;height:100dvh;margin:0;border-radius:0;box-sizing:border-box;";
+    } else {
+      cardStyle =
+        "background:#111;color:#fff;position:relative;overflow:hidden;width:100%;max-width:min(640px,calc(64vh * 1.3333));border-radius:20px;box-shadow:0 24px 60px rgba(0,0,0,0.6);box-sizing:border-box;";
+    }
+    var card = el("div", cardStyle);
+
+    var stageStyle;
+    if (mobile) {
+      stageStyle = "position:absolute;inset:0;width:100%;height:100%;background:#000;overflow:hidden;";
+    } else {
+      stageStyle = "position:relative;width:100%;aspect-ratio:4/3;background:#000;overflow:hidden;";
+    }
+    var stage = el("div", stageStyle);
     var canvas = el("canvas", "width:100%;height:100%;display:block;object-fit:cover;");
-    var status = el("div", "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:14px;", "جارٍ تجهيز الكاميرا...");
+    var status = el(
+      "div",
+      "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:16px;font-size:14px;background:rgba(0,0,0,0.65);z-index:5;",
+      "جارٍ تجهيز الكاميرا...",
+    );
     stage.appendChild(canvas);
     stage.appendChild(status);
 
     var btnStyle = "border:0;cursor:pointer;font-family:inherit;font-weight:700;";
-    var rect = btnStyle + "border-radius:12px;padding:12px 14px;font-size:14px;flex:1 1 0;";
+    var rect = btnStyle + "border-radius:12px;padding:12px 14px;font-size:14px;flex:1 1 0;min-width:0;box-sizing:border-box;";
     var fileInput = el("input");
     fileInput.type = "file";
     fileInput.accept = "image/*";
@@ -343,15 +365,22 @@
     var cartBtn = null;
     var hintEl = el(
       "div",
-      "position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:rgba(0,0,0,.65);color:#fff;padding:7px 14px;border-radius:999px;font-size:13px;font-weight:700;z-index:2;white-space:nowrap;display:none;pointer-events:none;",
+      "position:absolute;left:50%;transform:translateX(-50%);bottom:" +
+        (mobile ? "160px" : "12px") +
+        ";background:rgba(0,0,0,.7);backdrop-filter:blur(6px);color:#fff;padding:7px 16px;border-radius:999px;font-size:13px;font-weight:700;z-index:8;white-space:nowrap;display:none;pointer-events:none;",
     );
     var toastEl = el(
       "div",
-      "position:absolute;left:50%;transform:translateX(-50%);bottom:56px;background:rgba(0,0,0,.88);color:#fff;padding:8px 14px;border-radius:999px;font-size:13px;z-index:3;display:none;max-width:90%;text-align:center;",
+      "position:absolute;left:50%;transform:translateX(-50%);bottom:" +
+        (mobile ? "200px" : "56px") +
+        ";background:rgba(0,0,0,.92);color:#fff;padding:8px 16px;border-radius:999px;font-size:13px;z-index:9;display:none;max-width:90%;text-align:center;",
     );
     var close = el(
       "button",
-      btnStyle + "position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:16px;z-index:3;display:flex;align-items:center;justify-content:center;",
+      btnStyle +
+        "position:absolute;top:" +
+        (mobile ? "max(16px,env(safe-area-inset-top,16px))" : "12px") +
+        ";right:12px;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);color:#fff;font-size:16px;z-index:20;display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.18);",
       "✕",
     );
     close.setAttribute("aria-label", "إغلاق");
@@ -359,14 +388,22 @@
     stage.appendChild(toastEl);
     stage.appendChild(close);
 
-    var bar = el("div", "display:flex;gap:8px;padding:12px;flex-wrap:wrap;align-items:center;");
+    var barStyle;
+    if (mobile) {
+      barStyle =
+        "position:absolute;bottom:0;left:0;right:0;z-index:15;padding:12px 16px;padding-bottom:max(16px,calc(env(safe-area-inset-bottom,0px) + 12px));background:linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.5) 70%,rgba(0,0,0,0) 100%);display:flex;gap:8px;flex-wrap:wrap;align-items:center;box-sizing:border-box;";
+    } else {
+      barStyle =
+        "position:relative;z-index:10;display:flex;gap:8px;padding:14px;flex-wrap:wrap;align-items:center;background:#14181c;box-sizing:border-box;";
+    }
+    var bar = el("div", barStyle);
     if (canCart) {
       cartBtn = el("button", rect + "flex-basis:100%;background:#16a34a;color:#fff;font-size:15px;", "🛒 أضف للسلة");
       bar.appendChild(cartBtn);
     }
     var snap = el("button", rect + "background:#fff;color:#111;", "📸 التقاط صورة");
     var upload = el("button", rect + "background:#333;color:#fff;", "🖼️ رفع صورة");
-    var note = el("div", "width:100%;font-size:11px;opacity:.65;text-align:center;", "🔒 الصورة تُعالَج على جهازك فقط ولا يتم رفعها لأي مكان.");
+    var note = el("div", "width:100%;font-size:11px;opacity:.65;text-align:center;color:#fff;", "🔒 الصورة تُعالَج على جهازك فقط ولا يتم رفعها لأي مكان.");
     bar.appendChild(snap);
     bar.appendChild(upload);
     bar.appendChild(fileInput);
@@ -473,18 +510,62 @@
         sctx.fillRect(0, 0, W, H);
         sctx.globalCompositeOperation = "source-over";
       }
+
+      // 3D Specular Sheen (dynamic metallic/glass light reflection as head turns)
+      sctx.save();
+      sctx.globalCompositeOperation = "source-atop";
+      var sheenX = W * (0.5 + (p.yaw || 0) * 0.85);
+      var sheenY = H * (0.5 + (p.pitch || 0) * 0.85);
+      var sheen = sctx.createLinearGradient(sheenX - W * 0.35, sheenY - H * 0.3, sheenX + W * 0.35, sheenY + H * 0.3);
+      sheen.addColorStop(0, "rgba(255,255,255,0)");
+      sheen.addColorStop(0.5, "rgba(255,255,255,0.24)");
+      sheen.addColorStop(1, "rgba(255,255,255,0)");
+      sctx.fillStyle = sheen;
+      sctx.fillRect(0, 0, W, H);
+
+      // 3D Ambient Occlusion / Depth shading on the far side as head turns
+      if (Math.abs(p.yaw || 0) > 0.08) {
+        var occGrad = sctx.createLinearGradient(0, 0, W, 0);
+        if ((p.yaw || 0) > 0) {
+          occGrad.addColorStop(0, "rgba(0,0,0,0)");
+          occGrad.addColorStop(0.65, "rgba(0,0,0,0)");
+          occGrad.addColorStop(1, "rgba(0,0,0,0.22)");
+        } else {
+          occGrad.addColorStop(0, "rgba(0,0,0,0.22)");
+          occGrad.addColorStop(0.35, "rgba(0,0,0,0)");
+          occGrad.addColorStop(1, "rgba(0,0,0,0)");
+        }
+        sctx.fillStyle = occGrad;
+        sctx.fillRect(0, 0, W, H);
+      }
+      sctx.restore();
+
       var top = p.anchor === "top" ? 0 : p.anchor === "bottom" ? -H : -H / 2;
       ctx.save();
       ctx.imageSmoothingEnabled = true;
       if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
       ctx.translate(p.x, p.y);
       ctx.rotate(p.angle);
+
+      // 3D Perspective Foreshortening & Spatial Depth
+      var yawScale = Math.cos((p.yaw || 0) * 0.8);
+      var pitchScale = Math.cos((p.pitch || 0) * 0.65);
+      ctx.scale(Math.max(0.35, yawScale), Math.max(0.45, pitchScale));
+
+      // Subtle 3D vertical skew when head turns
+      var skewY = Math.sin(p.yaw || 0) * 0.08;
+      ctx.transform(1, skewY, 0, 1, 0, 0);
+
       if (p.flip) ctx.scale(-1, 1);
       if (p.alpha != null) ctx.globalAlpha = p.alpha;
       if (supportsFilter) ctx.filter = "brightness(" + light.toFixed(2) + ")";
-      ctx.shadowColor = "rgba(0,0,0,0.28)";
-      ctx.shadowBlur = p.width * 0.03;
-      ctx.shadowOffsetY = p.width * 0.018;
+
+      // Dynamic Directional 3D Cast Shadow
+      ctx.shadowColor = "rgba(0,0,0,0.36)";
+      ctx.shadowOffsetX = -Math.sin(p.yaw || 0) * p.width * 0.04;
+      ctx.shadowOffsetY = p.width * 0.022 + Math.sin(p.pitch || 0) * p.width * 0.025;
+      ctx.shadowBlur = p.width * 0.038;
+
       ctx.drawImage(shade, -W / 2, top);
       ctx.restore();
     }
