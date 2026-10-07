@@ -626,7 +626,9 @@
       var opacity = item.opacity > 0 ? item.opacity : 0.5;
       var color = item.color || "#e57373";
       var radius = f.faceWidth * 0.16;
-      var cLeft = f.pt(116), cRight = f.pt(345);
+      // Precise cheek landmarks in MediaPipe: 50 (left cheek) and 280 (right cheek)
+      var cLeft = f.pt(50) || f.pt(123);
+      var cRight = f.pt(280) || f.pt(352);
       [cLeft, cRight].forEach(function (center) {
         ctx.save();
         var grad = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, radius);
@@ -634,8 +636,8 @@
         grad.addColorStop(0.5, color);
         grad.addColorStop(1, "rgba(255,255,255,0)");
         ctx.fillStyle = grad;
-        ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = opacity * 0.85;
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = opacity * 0.65;
         ctx.beginPath();
         ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
         ctx.fill();
@@ -647,14 +649,15 @@
     function drawEyeshadow(f) {
       var opacity = item.opacity > 0 ? item.opacity : 0.6;
       var color = item.color || "#8d6e63";
-      var leftLid = [f.pt(133), f.pt(159), f.pt(224), f.pt(223), f.pt(247)];
-      var rightLid = [f.pt(362), f.pt(386), f.pt(444), f.pt(443), f.pt(467)];
+      // Left and right eye upper crease paths
+      var leftLid = [f.pt(33), f.pt(160), f.pt(159), f.pt(158), f.pt(157), f.pt(173), f.pt(133), f.pt(243), f.pt(224), f.pt(223), f.pt(222)];
+      var rightLid = [f.pt(263), f.pt(387), f.pt(386), f.pt(385), f.pt(384), f.pt(398), f.pt(362), f.pt(463), f.pt(444), f.pt(443), f.pt(442)];
       [leftLid, rightLid].forEach(function (lid) {
         ctx.save();
         if (supportsFilter) ctx.filter = "blur(" + Math.max(1, f.faceWidth * 0.015).toFixed(1) + "px)";
         ctx.fillStyle = color;
-        ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = opacity;
+        ctx.globalCompositeOperation = "source-over";
+        ctx.globalAlpha = opacity * 0.65;
         ctx.beginPath();
         traceLoop(lid);
         ctx.fill();
@@ -667,8 +670,8 @@
       var opacity = item.opacity > 0 ? item.opacity : 0.9;
       var color = item.color || "#1a1a1a";
       var lineWidth = Math.max(1.8, f.faceWidth * 0.016);
-      var leftLine = [f.pt(133), f.pt(157), f.pt(158), f.pt(159), f.pt(160), f.pt(33)];
-      var rightLine = [f.pt(362), f.pt(384), f.pt(385), f.pt(386), f.pt(387), f.pt(263)];
+      var leftLine = [f.pt(133), f.pt(173), f.pt(157), f.pt(158), f.pt(159), f.pt(160), f.pt(161), f.pt(246), f.pt(33), f.pt(130)];
+      var rightLine = [f.pt(362), f.pt(398), f.pt(384), f.pt(385), f.pt(386), f.pt(387), f.pt(388), f.pt(466), f.pt(263), f.pt(359)];
       [leftLine, rightLine].forEach(function (line) {
         ctx.save();
         ctx.strokeStyle = color;
@@ -808,8 +811,22 @@
       fit(photo.naturalWidth, photo.naturalHeight);
       canvas.style.objectFit = "contain";
       ctx.drawImage(photo, 0, 0, canvas.width, canvas.height);
-      landmarker.setOptions({ runningMode: "IMAGE" });
-      var res = landmarker.detect(photo);
+
+      var res = null;
+      try {
+        if (typeof landmarker.detectForVideo === "function") {
+          res = landmarker.detectForVideo(photo, performance.now());
+        } else {
+          res = landmarker.detect(photo);
+        }
+      } catch (e) {
+        try {
+          res = landmarker.detect(photo);
+        } catch (e2) {
+          console.warn("MediaPipe photo detection:", e2);
+        }
+      }
+
       var faces = (res && res.faceLandmarks) || [];
       if (faces.length === 0) return setStatus("لم نتمكن من العثور على أي وجه في الصورة");
       faces.forEach(function (face, idx) {

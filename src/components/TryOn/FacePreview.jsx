@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { TRYON_TYPES, isMakeupType, typeOf } from "../../utils/tryOnTypes.js";
 
 // Reference face for the preview: temples 124 apart. The anchor points mirror the landmarks that
@@ -43,17 +44,95 @@ const ANCHOR_Y = { top: "0%", center: "-50%", bottom: "-100%" };
 const pct = (value, total) => `${(value / total) * 100}%`;
 
 export default function FacePreview({ item }) {
+  const [viewMode, setViewMode] = useState("model"); // "model" or "schematic"
+  const [customModelUrl, setCustomModelUrl] = useState(null);
+  const faceInputRef = useState(null)[0];
   const type = typeOf(item);
   const lip = FACE.mouthY;
   const isMakeup = isMakeupType(type);
 
+  const handleCustomPhoto = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setCustomModelUrl(url);
+      setViewMode("model");
+    }
+  };
+
   return (
     <div className="tryon-preview-stage">
-      <div className="tryon-preview-badge">
-        <span>معاينة المحاكاة الذكية</span>
+      <div style={{ display: "flex", gap: "6px", marginBottom: "16px", zIndex: 5, flexWrap: "wrap", justifyContent: "center" }}>
+        <button
+          type="button"
+          onClick={() => setViewMode("model")}
+          style={{
+            fontSize: "11px",
+            fontWeight: 700,
+            padding: "4px 10px",
+            borderRadius: "999px",
+            border: "1px solid var(--border-color)",
+            background: viewMode === "model" ? "var(--color-primary, #10b981)" : "var(--bg-secondary)",
+            color: viewMode === "model" ? "#fff" : "var(--text-secondary)",
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+          }}
+        >
+          عارضة أزياء واقعية
+        </button>
+        <label
+          style={{
+            fontSize: "11px",
+            fontWeight: 700,
+            padding: "4px 10px",
+            borderRadius: "999px",
+            border: "1px solid var(--border-color)",
+            background: "var(--bg-secondary)",
+            color: "var(--text-secondary)",
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "4px",
+          }}
+        >
+          <span>رفع صورة وجه 📸</span>
+          <input type="file" accept="image/*" hidden onChange={handleCustomPhoto} />
+        </label>
+        <button
+          type="button"
+          onClick={() => setViewMode("schematic")}
+          style={{
+            fontSize: "11px",
+            fontWeight: 700,
+            padding: "4px 10px",
+            borderRadius: "999px",
+            border: "1px solid var(--border-color)",
+            background: viewMode === "schematic" ? "var(--color-primary, #10b981)" : "var(--bg-secondary)",
+            color: viewMode === "schematic" ? "#fff" : "var(--text-secondary)",
+            cursor: "pointer",
+            transition: "all 0.2s ease",
+          }}
+        >
+          رسم تخطيطي
+        </button>
       </div>
-      <div className="tryon-preview-frame">
-        <div className="tryon-preview" role="img" aria-label="معاينة موضع المنتج على الوجه">
+      <div className="tryon-preview-frame" style={{ overflow: "hidden", borderRadius: "14px", border: "1px solid var(--border-color)", background: "#111827" }}>
+        {/* Real Model Photo Background */}
+        <div
+          className="tryon-preview-model-bg"
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url(${customModelUrl || "/images/model-face.jpg"})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center 24%",
+            opacity: viewMode === "model" ? 1 : 0,
+            transition: "opacity 0.3s ease",
+            pointerEvents: "none",
+          }}
+        />
+        <div className="tryon-preview" role="img" aria-label="معاينة موضع المنتج على الوجه" style={{ position: "relative", zIndex: 2 }}>
           <svg viewBox={`0 0 ${VB.width} ${VB.height}`} aria-hidden="true">
             <defs>
               <radialGradient id="blushL" cx="50%" cy="50%" r="50%">
@@ -66,8 +145,15 @@ export default function FacePreview({ item }) {
               </radialGradient>
             </defs>
 
-            <path d="M80 205 L80 250 Q80 268 36 282 L6 300 M120 205 L120 250 Q120 268 164 282 L194 300" fill="none" stroke="var(--border-color)" strokeWidth="2" />
-            <ellipse cx="100" cy="120" rx="68" ry="92" fill="var(--bg-tertiary)" stroke="var(--border-color)" strokeWidth="2" />
+            {viewMode === "schematic" && (
+              <>
+                <path d="M80 205 L80 250 Q80 268 36 282 L6 300 M120 205 L120 250 Q120 268 164 282 L194 300" fill="none" stroke="var(--border-color)" strokeWidth="2" />
+                <ellipse cx="100" cy="120" rx="68" ry="92" fill="var(--bg-tertiary)" stroke="var(--border-color)" strokeWidth="2" />
+                <circle cx="60" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
+                <circle cx="140" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
+                <path d="M100 118 L92 150 L108 150" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" />
+              </>
+            )}
 
             {/* Blush / أحمر الخدود */}
             {type === "blush" && (
@@ -120,11 +206,6 @@ export default function FacePreview({ item }) {
                 />
               </>
             )}
-
-            {/* Eyes & Nose */}
-            <circle cx="60" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
-            <circle cx="140" cy={FACE.eyeY} r="5" fill="var(--text-tertiary)" />
-            <path d="M100 118 L92 150 L108 150" fill="none" stroke="var(--text-tertiary)" strokeWidth="2" />
 
             {/* Lipstick */}
             {type === "lipstick" ? (
