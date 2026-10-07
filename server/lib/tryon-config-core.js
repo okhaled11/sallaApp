@@ -69,15 +69,21 @@ const clamp = (value, [min, max], fallback) => {
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
 };
 
-export const TYPES = ["glasses", "earrings", "hat", "necklace", "lipstick"];
+export const TYPES = ["glasses", "earrings", "hat", "necklace", "lipstick", "blush", "eyeshadow", "eyeliner"];
+export const MAKEUP_TYPES = ["lipstick", "blush", "eyeshadow", "eyeliner"];
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
 const OPACITY_RANGE = [0.2, 1];
-const DEFAULT_LIP_COLOR = "#c2185b";
+const DEFAULT_MAKEUP_COLORS = {
+  lipstick: "#c2185b",
+  blush: "#e57373",
+  eyeshadow: "#8d6e63",
+  eyeliner: "#1a1a1a",
+};
 
 /**
  * Validates one merchant-submitted item; returns the cleaned item or null.
  * Image types accept only data-URL images so the storefront never loads a remote host;
- * lipstick carries a colour instead of an image.
+ * makeup types (lipstick, blush, eyeshadow, eyeliner) carry a color instead of an image.
  */
 export function sanitizeItem(raw) {
   if (!raw || typeof raw !== "object") return null;
@@ -93,13 +99,14 @@ export function sanitizeItem(raw) {
     offsetY: clamp(raw.offsetY, OFFSET_RANGE, 0),
     enabled: raw.enabled !== false,
   };
-  if (type === "lipstick") {
+  if (MAKEUP_TYPES.includes(type)) {
+    const fallbackColor = DEFAULT_MAKEUP_COLORS[type] || "#c2185b";
     return {
       ...base,
       image: "",
-      color: typeof raw.color === "string" && COLOR_RE.test(raw.color) ? raw.color.toLowerCase() : DEFAULT_LIP_COLOR,
-      opacity: clamp(raw.opacity, OPACITY_RANGE, 0.7),
-      finish: raw.finish === "gloss" ? "gloss" : "matte",
+      color: typeof raw.color === "string" && COLOR_RE.test(raw.color) ? raw.color.toLowerCase() : fallbackColor,
+      opacity: clamp(raw.opacity, OPACITY_RANGE, type === "blush" ? 0.5 : type === "eyeliner" ? 0.9 : 0.7),
+      finish: raw.finish === "gloss" || raw.finish === "shimmer" ? raw.finish : "matte",
     };
   }
   const image = String(raw.image ?? "");

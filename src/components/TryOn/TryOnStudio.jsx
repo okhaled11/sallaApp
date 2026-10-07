@@ -8,9 +8,11 @@ import {
 import { fileToOverlayDataUrl } from "../../utils/tryOnImage.js";
 import {
   DEFAULT_LIPSTICK,
+  DEFAULT_MAKEUP,
   TRYON_TYPES,
   TRYON_TYPE_IDS,
   isItemComplete,
+  isMakeupType,
   typeOf,
 } from "../../utils/tryOnTypes.js";
 import FacePreview from "./FacePreview.jsx";
@@ -28,7 +30,7 @@ const buildItem = (product, type, extra) => ({
   offsetY: 0,
   mirror: true,
   enabled: true,
-  ...(type === "lipstick" ? DEFAULT_LIPSTICK : {}),
+  ...(isMakeupType(type) ? (DEFAULT_MAKEUP[type] || DEFAULT_LIPSTICK) : {}),
   ...extra,
 });
 
@@ -41,11 +43,14 @@ const normalizeItem = (item) => ({
   mirror: item.mirror !== false,
 });
 
-const lipstickOf = (item) => ({
-  color: item.color ?? DEFAULT_LIPSTICK.color,
-  opacity: item.opacity ?? DEFAULT_LIPSTICK.opacity,
-  finish: item.finish ?? DEFAULT_LIPSTICK.finish,
-});
+const makeupOf = (item, type = "lipstick") => {
+  const def = DEFAULT_MAKEUP[type] || DEFAULT_LIPSTICK;
+  return {
+    color: item.color ?? def.color,
+    opacity: item.opacity ?? def.opacity,
+    finish: item.finish ?? def.finish,
+  };
+};
 
 /**
  * Try-on studio: the merchant picks a product type (glasses, earrings, hat, necklace, lipstick),
@@ -124,12 +129,12 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
     setDirty(true);
   };
 
-  const handleActivateLipstick = () => {
+  const handleActivateMakeup = (targetType = type) => {
     if (items.length >= MAX_ITEMS) {
       onShowToast?.(`الحد الأقصى ${MAX_ITEMS} منتجات`, "error");
       return;
     }
-    setItems((prev) => [...prev, buildItem(selectedProduct, "lipstick")]);
+    setItems((prev) => [...prev, buildItem(selectedProduct, targetType)]);
     setDirty(true);
   };
 
@@ -138,8 +143,13 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
       setDraftTypes((prev) => ({ ...prev, [selectedId]: next }));
       return;
     }
-    // Lipstick has no image; every other type needs one (upload it if the item has none yet).
-    patchItem(selectedId, next === "lipstick" ? { type: next, image: "", ...lipstickOf(selectedItem) } : { type: next });
+    // Makeup types need no image; image types require one.
+    patchItem(
+      selectedId,
+      isMakeupType(next)
+        ? { type: next, image: "", ...makeupOf(selectedItem, next) }
+        : { type: next },
+    );
   };
 
   const handleRemove = () => {
@@ -328,9 +338,9 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
                       </button>
                     ) : (
                       !selectedItem && (
-                        <button type="button" className="btn btn-secondary" onClick={handleActivateLipstick}>
+                        <button type="button" className="btn btn-secondary" onClick={() => handleActivateMakeup(type)}>
                           <Icon name="sparkles" size={14} />
-                          <span>تفعيل أحمر الشفاه لهذا المنتج</span>
+                          <span>{type === "lipstick" ? "تفعيل أحمر الشفاه لهذا المنتج" : `تفعيل ${typeInfo.label} لهذا المنتج`}</span>
                         </button>
                       )
                     )}
@@ -400,41 +410,44 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
 
                     {/* Right: AI Auto-Fit Showcase Card */}
                     <div className="tryon-controls-pane">
-                      {type === "lipstick" ? (
+                      {isMakeupType(type) ? (
                         <div className="tryon-auto-fit-card">
-                          <h4 className="tryon-card-heading">تخصيص لون أحمر الشفاه</h4>
+                          <h4 className="tryon-card-heading">تخصيص {typeInfo.label}</h4>
                           <div className="tryon-lipstick-controls">
                             <label className="tryon-field">
-                              لون الأحمر
+                              {type === "lipstick" ? "لون الأحمر" : "اللون"}
                               <input
                                 type="color"
                                 className="tryon-color-input"
-                                value={selectedItem.color}
+                                value={selectedItem.color || "#c2185b"}
                                 onChange={(e) => patchItem(selectedId, { color: e.target.value })}
                               />
                             </label>
                             <label className="tryon-field">
-                              الكثافة ({Math.round(selectedItem.opacity * 100)}%)
+                              الكثافة ({Math.round((selectedItem.opacity ?? 0.7) * 100)}%)
                               <input
                                 type="range"
-                                min="0.2"
+                                min="0.1"
                                 max="1"
                                 step="0.01"
-                                value={selectedItem.opacity}
+                                value={selectedItem.opacity ?? 0.7}
                                 onChange={(e) => patchItem(selectedId, { opacity: Number(e.target.value) })}
                               />
                             </label>
-                            <label className="tryon-field">
-                              اللمعة
-                              <select
-                                className="risk-field"
-                                value={selectedItem.finish}
-                                onChange={(e) => patchItem(selectedId, { finish: e.target.value })}
-                              >
-                                <option value="matte">مطفي</option>
-                                <option value="gloss">لامع</option>
-                              </select>
-                            </label>
+                            {(type === "lipstick" || type === "eyeshadow") && (
+                              <label className="tryon-field">
+                                اللمعة
+                                <select
+                                  className="risk-field"
+                                  value={selectedItem.finish || "matte"}
+                                  onChange={(e) => patchItem(selectedId, { finish: e.target.value })}
+                                >
+                                  <option value="matte">مطفي</option>
+                                  {type === "lipstick" && <option value="gloss">لامع</option>}
+                                  {type === "eyeshadow" && <option value="shimmer">بريق لامع</option>}
+                                </select>
+                              </label>
+                            )}
                           </div>
                         </div>
                       ) : (

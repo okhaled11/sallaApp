@@ -45,6 +45,9 @@
     hat: { target: 0.32, cy: 0.56 },
     necklace: { target: 0.3, cy: 0.36 },
     lipstick: { target: 0.44, cy: 0.48 },
+    blush: { target: 0.42, cy: 0.48 },
+    eyeshadow: { target: 0.44, cy: 0.46 },
+    eyeliner: { target: 0.44, cy: 0.46 },
   };
   var BUTTON_TEXT = {
     glasses: "👓 جرّبها على وجهك",
@@ -52,6 +55,9 @@
     hat: "🧢 جرّب القبعة على رأسك",
     necklace: "📿 جرّب السلسلة على رقبتك",
     lipstick: "💄 جرّب اللون على شفايفك",
+    blush: "🌸 جرّب أحمر الخدود على وجهك",
+    eyeshadow: "✨ جرّب ظلال العيون على جفونك",
+    eyeliner: "👁️ جرّب الآيلاينر على عينيك",
   };
   // Most the camera image may be enlarged to fill a phone screen (1 = no cropping at all).
   var MAX_CROP_ZOOM = 1.2;
@@ -615,6 +621,69 @@
       }
     }
 
+    // Applies soft blended blush on cheekbones using radial blur gradients
+    function drawBlush(f) {
+      var opacity = item.opacity > 0 ? item.opacity : 0.5;
+      var color = item.color || "#e57373";
+      var radius = f.faceWidth * 0.16;
+      var cLeft = f.pt(116), cRight = f.pt(345);
+      [cLeft, cRight].forEach(function (center) {
+        ctx.save();
+        var grad = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, radius);
+        grad.addColorStop(0, color);
+        grad.addColorStop(0.5, color);
+        grad.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = grad;
+        ctx.globalCompositeOperation = "multiply";
+        ctx.globalAlpha = opacity * 0.85;
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    // Applies eyeshadow softly along the upper eyelids
+    function drawEyeshadow(f) {
+      var opacity = item.opacity > 0 ? item.opacity : 0.6;
+      var color = item.color || "#8d6e63";
+      var leftLid = [f.pt(133), f.pt(159), f.pt(224), f.pt(223), f.pt(247)];
+      var rightLid = [f.pt(362), f.pt(386), f.pt(444), f.pt(443), f.pt(467)];
+      [leftLid, rightLid].forEach(function (lid) {
+        ctx.save();
+        if (supportsFilter) ctx.filter = "blur(" + Math.max(1, f.faceWidth * 0.015).toFixed(1) + "px)";
+        ctx.fillStyle = color;
+        ctx.globalCompositeOperation = "multiply";
+        ctx.globalAlpha = opacity;
+        ctx.beginPath();
+        traceLoop(lid);
+        ctx.fill();
+        ctx.restore();
+      });
+    }
+
+    // Applies crisp eyeliner along upper eyelash line
+    function drawEyeliner(f) {
+      var opacity = item.opacity > 0 ? item.opacity : 0.9;
+      var color = item.color || "#1a1a1a";
+      var lineWidth = Math.max(1.8, f.faceWidth * 0.016);
+      var leftLine = [f.pt(133), f.pt(157), f.pt(158), f.pt(159), f.pt(160), f.pt(33)];
+      var rightLine = [f.pt(362), f.pt(384), f.pt(385), f.pt(386), f.pt(387), f.pt(263)];
+      [leftLine, rightLine].forEach(function (line) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.globalAlpha = opacity;
+        ctx.beginPath();
+        ctx.moveTo(line[0].x, line[0].y);
+        for (var i = 1; i < line.length; i++) ctx.lineTo(line[i].x, line[i].y);
+        ctx.stroke();
+        ctx.restore();
+      });
+    }
+
     // Draws the product for one detected face. `live` = video (smooth over time); photos are drawn as-is.
     function paintFace(face, w, h, nowMs, live, faceIdx) {
       faceIdx = faceIdx || 0;
@@ -627,6 +696,18 @@
           shape = smLip(shape, w, nowMs);
         }
         drawLips(shape);
+        return;
+      }
+      if (type === "blush") {
+        drawBlush(f);
+        return;
+      }
+      if (type === "eyeshadow") {
+        drawEyeshadow(f);
+        return;
+      }
+      if (type === "eyeliner") {
+        drawEyeliner(f);
         return;
       }
       var faceSmoothers = smoothersByFace[faceIdx] || (smoothersByFace[faceIdx] = {});

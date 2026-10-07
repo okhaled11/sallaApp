@@ -78,7 +78,7 @@ describe("TryOnStudio", () => {
       await user.click(screen.getByText(name));
     };
 
-    it("offers all five product types", async () => {
+    it("offers all product types including automatic virtual makeup", async () => {
       const user = userEvent.setup();
       await openProduct(user, "حقيبة جلد");
       const select = screen.getByLabelText("نوع المنتج");
@@ -89,6 +89,9 @@ describe("TryOnStudio", () => {
         "قبعة / كاب / إيشارب راس",
         "سلسلة / عقد",
         "أحمر شفاه",
+        "أحمر خدود / بلاشر",
+        "ظلال عيون / آيشادو",
+        "آيلاينر / محدد عيون",
       ]);
     });
 
