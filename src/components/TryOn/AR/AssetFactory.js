@@ -324,6 +324,7 @@ export function create3DAssetFrom2DImage(imageUrl, type = "glasses") {
   textureLoader.load(imageUrl, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
     const img = tex.image;
+    const aspect = img && img.width > 0 ? img.height / img.width : 0.45;
     const isHat = type === "hat";
     const width = isHat ? 0.146 : 0.142; // Calibrated skull width
     const height = width * aspect;

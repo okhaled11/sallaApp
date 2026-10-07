@@ -8,6 +8,7 @@ import {
   createCapHat,
   createEarrings,
   createFaceMask,
+  create3DAssetFrom2DImage,
   AR_PRODUCT_CATALOG,
 } from "../AssetFactory.js";
 
@@ -128,5 +129,11 @@ describe("AssetFactory (3D AR Models)", () => {
       expect(typeof prod.defaultScale).toBe("number");
       expect(typeof prod.factory).toBe("function");
     }
+  });
+
+  it("creates 3D asset group from 2D image without throwing ReferenceError", () => {
+    const asset = create3DAssetFrom2DImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "hat");
+    expect(asset).toBeInstanceOf(THREE.Group);
+    expect(asset.name).toBe("Custom3DProduct_hat");
   });
 });
