@@ -1,8 +1,27 @@
 import * as THREE from "three";
+import { FilesetResolver, FaceLandmarker } from "@mediapipe/tasks-vision";
 
-const MEDIAPIPE_VISION_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
-const MODEL_ASSET_URL =
-  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const WASM_SOURCES = [
+  "/wasm",
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
+  "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm",
+];
+
+const MODEL_SOURCES = [
+  "/models/face_landmarker.task",
+  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+];
+
+async function getVisionFileset() {
+  for (const src of WASM_SOURCES) {
+    try {
+      return await FilesetResolver.forVisionTasks(src);
+    } catch (e) {
+      console.warn(`FilesetResolver failed for ${src}, trying next source...`, e);
+    }
+  }
+  throw new Error("Unable to resolve MediaPipe vision fileset from any source");
+}
 
 /**
  * Production-grade Face Tracker using MediaPipe FaceLandmarker.
@@ -28,30 +47,36 @@ export class FaceTracker {
 
     this.loading = true;
     try {
-      if (!window.FaceLandmarker) {
-        const visionModule = await import(/* @vite-ignore */ `${MEDIAPIPE_VISION_URL}/vision_bundle.mjs`);
-        const { FilesetResolver, FaceLandmarker } = visionModule;
-        const fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_VISION_URL);
+      const fileset = await getVisionFileset();
+      const modelAssetPath = MODEL_SOURCES[0];
+
+      try {
         this.landmarker = await FaceLandmarker.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: MODEL_ASSET_URL, delegate: "GPU" },
+          baseOptions: { modelAssetPath, delegate: "GPU" },
           runningMode: "VIDEO",
           numFaces: 1,
           outputFacialTransformationMatrixes: true,
         });
-      }
-    } catch (err) {
-      console.warn("Falling back to CPU vision delegate for FaceLandmarker:", err);
-      try {
-        const visionModule = await import(/* @vite-ignore */ `${MEDIAPIPE_VISION_URL}/vision_bundle.mjs`);
-        const { FilesetResolver, FaceLandmarker } = visionModule;
-        const fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_VISION_URL);
+      } catch (gpuErr) {
+        console.warn("Falling back to CPU vision delegate for FaceLandmarker:", gpuErr);
         this.landmarker = await FaceLandmarker.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: MODEL_ASSET_URL, delegate: "CPU" },
+          baseOptions: { modelAssetPath, delegate: "CPU" },
           runningMode: "VIDEO",
           numFaces: 1,
         });
-      } catch (e2) {
-        console.error("Failed to load FaceLandmarker:", e2);
+      }
+    } catch (err) {
+      console.error("Failed to load FaceLandmarker:", err);
+      // Attempt remote model fallback if local model failed
+      try {
+        const fileset = await FilesetResolver.forVisionTasks(WASM_SOURCES[1]);
+        this.landmarker = await FaceLandmarker.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: MODEL_SOURCES[1], delegate: "CPU" },
+          runningMode: "VIDEO",
+          numFaces: 1,
+        });
+      } catch (fallbackErr) {
+        console.error("All FaceLandmarker fallbacks failed:", fallbackErr);
       }
     } finally {
       this.loading = false;

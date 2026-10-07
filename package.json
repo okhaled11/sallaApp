@@ -43,6 +43,7 @@
   "dependencies": {
     "@hugeicons/core-free-icons": "^4.3.5",
     "@hugeicons/react": "^1.1.10",
+    "@mediapipe/tasks-vision": "0.10.14",
     "@salla.sa/embedded-sdk": "v0.2.6",
     "@upstash/redis": "^1.39.0",
     "react": "^19.2.3",

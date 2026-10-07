@@ -98,18 +98,37 @@
     return node;
   }
 
+  var MP_BUNDLES = [
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@" + MP_VERSION + "/vision_bundle.mjs",
+    "https://unpkg.com/@mediapipe/tasks-vision@" + MP_VERSION + "/vision_bundle.mjs",
+  ];
+  var MP_WASMS = [
+    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@" + MP_VERSION + "/wasm",
+    "https://unpkg.com/@mediapipe/tasks-vision@" + MP_VERSION + "/wasm",
+  ];
+
   var landmarkerPromise = null;
   function loadLandmarker() {
     if (landmarkerPromise) return landmarkerPromise;
-    landmarkerPromise = import(MP_BUNDLE).then(function (mp) {
-      return mp.FilesetResolver.forVisionTasks(MP_WASM).then(function (fileset) {
-        return mp.FaceLandmarker.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: MP_MODEL, delegate: "GPU" },
-          runningMode: "VIDEO",
-          numFaces: 4,
+
+    function tryLoad(idx) {
+      if (idx >= MP_BUNDLES.length) return Promise.reject(new Error("All MediaPipe bundles failed"));
+      return import(MP_BUNDLES[idx])
+        .then(function (mp) {
+          return mp.FilesetResolver.forVisionTasks(MP_WASMS[idx] || MP_WASMS[0]).then(function (fileset) {
+            return mp.FaceLandmarker.createFromOptions(fileset, {
+              baseOptions: { modelAssetPath: MP_MODEL, delegate: "GPU" },
+              runningMode: "VIDEO",
+              numFaces: 4,
+            });
+          });
+        })
+        .catch(function () {
+          return tryLoad(idx + 1);
         });
-      });
-    });
+    }
+
+    landmarkerPromise = tryLoad(0);
     landmarkerPromise.catch(function () {
       landmarkerPromise = null;
     });

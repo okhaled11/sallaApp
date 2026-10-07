@@ -5,12 +5,32 @@
  * and wearables (hat, glasses, earrings, necklace).
  */
 
-const MEDIAPIPE_VISION_URL = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm";
-const MODEL_ASSET_URL =
-  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+import { FilesetResolver, FaceLandmarker } from "@mediapipe/tasks-vision";
+
+const WASM_SOURCES = [
+  "/wasm",
+  "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
+  "https://unpkg.com/@mediapipe/tasks-vision@0.10.14/wasm",
+];
+
+const MODEL_SOURCES = [
+  "/models/face_landmarker.task",
+  "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+];
 
 let landmarkerInstance = null;
 let landmarkerPromise = null;
+
+async function getVisionFileset() {
+  for (const src of WASM_SOURCES) {
+    try {
+      return await FilesetResolver.forVisionTasks(src);
+    } catch (e) {
+      console.warn(`FilesetResolver failed for ${src}, trying next source...`, e);
+    }
+  }
+  throw new Error("Unable to resolve MediaPipe vision fileset from any source");
+}
 
 export async function getImageLandmarker() {
   if (
@@ -25,27 +45,38 @@ export async function getImageLandmarker() {
 
   landmarkerPromise = (async () => {
     try {
-      const visionModule = await import(/* @vite-ignore */ `${MEDIAPIPE_VISION_URL}/vision_bundle.mjs`);
-      const { FilesetResolver, FaceLandmarker } = visionModule;
-      const fileset = await FilesetResolver.forVisionTasks(MEDIAPIPE_VISION_URL);
+      const fileset = await getVisionFileset();
+      const modelAssetPath = MODEL_SOURCES[0];
+
       try {
         landmarkerInstance = await FaceLandmarker.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: MODEL_ASSET_URL, delegate: "GPU" },
+          baseOptions: { modelAssetPath, delegate: "GPU" },
           runningMode: "IMAGE",
           numFaces: 1,
         });
       } catch (gpuErr) {
         console.warn("GPU failed for image landmarker, using CPU fallback:", gpuErr);
         landmarkerInstance = await FaceLandmarker.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: MODEL_ASSET_URL, delegate: "CPU" },
+          baseOptions: { modelAssetPath, delegate: "CPU" },
           runningMode: "IMAGE",
           numFaces: 1,
         });
       }
       return landmarkerInstance;
     } catch (e) {
-      console.error("Failed to initialize image FaceLandmarker:", e);
-      return null;
+      console.warn("Local model or wasm failed, trying CDN fallback:", e);
+      try {
+        const fileset = await FilesetResolver.forVisionTasks(WASM_SOURCES[1]);
+        landmarkerInstance = await FaceLandmarker.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: MODEL_SOURCES[1], delegate: "CPU" },
+          runningMode: "IMAGE",
+          numFaces: 1,
+        });
+        return landmarkerInstance;
+      } catch (fallbackErr) {
+        console.error("All image FaceLandmarker fallbacks failed:", fallbackErr);
+        return null;
+      }
     } finally {
       landmarkerPromise = null;
     }
