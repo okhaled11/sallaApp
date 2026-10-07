@@ -20,6 +20,37 @@ import ARTryOnModal from "./AR/ARTryOnModal.jsx";
 
 const MAX_ITEMS = 20;
 
+const MAKEUP_PRESETS = {
+  lipstick: [
+    { hex: "#c2185b", name: "كرزي جذاب" },
+    { hex: "#b71c1c", name: "أحمر كلاسيكي" },
+    { hex: "#d81b60", name: "وردي مخملي" },
+    { hex: "#e57373", name: "مرجاني ناعم" },
+    { hex: "#8d6e63", name: "نيود طبيعي" },
+    { hex: "#4a148c", name: "برقوقي داكن" },
+  ],
+  blush: [
+    { hex: "#e57373", name: "وردي مشرق" },
+    { hex: "#ff8a65", name: "خوخي دافئ" },
+    { hex: "#f48fb1", name: "وردي ناعم" },
+    { hex: "#d81b60", name: "توتي منعش" },
+    { hex: "#ba68c8", name: "موف أنيق" },
+  ],
+  eyeshadow: [
+    { hex: "#8d6e63", name: "ترابي دافئ" },
+    { hex: "#d7ccc8", name: "شامبانيا" },
+    { hex: "#3e2723", name: "شوكولاتة داكنة" },
+    { hex: "#c2185b", name: "وردي نحاسي" },
+    { hex: "#1a1a1a", name: "سموكي أسود" },
+  ],
+  eyeliner: [
+    { hex: "#1a1a1a", name: "أسود كحلي" },
+    { hex: "#3e2723", name: "بني داكن" },
+    { hex: "#1e3a8a", name: "كحلي ليلي" },
+    { hex: "#14532d", name: "زيتي ملكي" },
+  ],
+};
+
 const buildItem = (product, type, extra) => ({
   productId: String(product.id),
   name: product.name || "",
@@ -353,25 +384,35 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
                   </div>
                 </div>
 
-                <div className="tryon-field-row">
-                  <label className="tryon-field">
-                    نوع المنتج
-                    <select className="risk-field tryon-select" value={type} onChange={(e) => handleTypeChange(e.target.value)}>
-                      {TRYON_TYPE_IDS.map((id) => (
-                        <option key={id} value={id}>
-                          {TRYON_TYPES[id].label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <p className="tryon-hint">{typeInfo.hint}</p>
+                <div className="tryon-field-row salla-metric-card" style={{ padding: "14px 18px", marginBottom: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+                    <label className="tryon-field" style={{ margin: 0, fontWeight: 700, display: "flex", alignItems: "center", gap: "8px" }}>
+                      <Icon name="tag" size={16} />
+                      <span>نوع المنتج</span>
+                      <select className="risk-field tryon-select" value={type} onChange={(e) => handleTypeChange(e.target.value)}>
+                        {TRYON_TYPE_IDS.map((id) => (
+                          <option key={id} value={id}>
+                            {TRYON_TYPES[id].label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <span className="salla-metric-badge salla-badge-good">
+                      <Icon name="sparkles" size={12} />
+                      <span>{typeInfo.needsImage ? "يتطلب صورة مفرغة PNG" : "تطبيق تجميلي ذكي تلقائي"}</span>
+                    </span>
+                  </div>
+                  <p className="tryon-hint" style={{ marginTop: "8px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Icon name="help" size={13} />
+                    <span>{typeInfo.hint}</span>
+                  </p>
                 </div>
 
                 <input ref={fileRef} type="file" accept="image/png,image/webp" hidden onChange={handleFile} />
 
                 {selectedItem && typeInfo.needsImage && !selectedItem.image && (
-                  <div className="tryon-upload-prompt">
-                    <Icon name="image" size={24} />
+                  <div className="tryon-upload-prompt salla-metric-card">
+                    <Icon name="image" size={28} />
                     <span>ارفع صورة مفرّغة بخلفية شفافة (PNG) لتطبيق المنتج على الوجه تلقائياً.</span>
                     <button type="button" className="btn btn-primary" onClick={() => fileRef.current?.click()}>
                       <Icon name="image" size={14} />
@@ -387,13 +428,8 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
                       <FacePreview item={selectedItem} />
                       <button
                         type="button"
-                        className="btn btn-primary tryon-live-btn"
+                        className="btn btn-primary tryon-live-btn tryon-snapchat-btn"
                         onClick={() => setArModalOpen(true)}
-                        style={{
-                          background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                          color: "#fff",
-                          boxShadow: "0 4px 14px rgba(16, 185, 129, 0.35)",
-                        }}
                       >
                         <Icon name="aiSparkles" size={18} />
                         <span>تجربة سناب شات ثلاثية الأبعاد (Snapchat 3D AR)</span>
@@ -411,42 +447,135 @@ export default function TryOnStudio({ products = [], token, storeId, onShowToast
                     {/* Right: AI Auto-Fit Showcase Card */}
                     <div className="tryon-controls-pane">
                       {isMakeupType(type) ? (
-                        <div className="tryon-auto-fit-card">
-                          <h4 className="tryon-card-heading">تخصيص {typeInfo.label}</h4>
-                          <div className="tryon-lipstick-controls">
-                            <label className="tryon-field">
-                              {type === "lipstick" ? "لون الأحمر" : "اللون"}
-                              <input
-                                type="color"
-                                className="tryon-color-input"
-                                value={selectedItem.color || "#c2185b"}
-                                onChange={(e) => patchItem(selectedId, { color: e.target.value })}
+                        <div className="tryon-auto-fit-card salla-metric-card">
+                          <div className="salla-card-header">
+                            <div className="salla-card-title-group">
+                              <Icon
+                                name={
+                                  type === "blush"
+                                    ? "blushBrush"
+                                    : type === "eyeliner"
+                                      ? "aiPaintbrush"
+                                      : "brush"
+                                }
+                                size={20}
                               />
-                            </label>
-                            <label className="tryon-field">
-                              الكثافة ({Math.round((selectedItem.opacity ?? 0.7) * 100)}%)
-                              <input
-                                type="range"
-                                min="0.1"
-                                max="1"
-                                step="0.01"
-                                value={selectedItem.opacity ?? 0.7}
-                                onChange={(e) => patchItem(selectedId, { opacity: Number(e.target.value) })}
-                              />
-                            </label>
+                              <div>
+                                <h4 className="salla-metric-title">تخصيص {typeInfo.label}</h4>
+                                <span className="salla-metric-subtext">تطبيق مباشر على الوجه بالذكاء الاصطناعي</span>
+                              </div>
+                            </div>
+                            <span className="salla-metric-badge salla-badge-good">
+                              <Icon name="sparkles" size={12} />
+                              <span>تلقائي 100%</span>
+                            </span>
+                          </div>
+
+                          <div className="tryon-cosmetics-panel">
+                            {/* Color Palette & Presets */}
+                            <div className="tryon-form-group">
+                              <div className="tryon-form-label-row">
+                                <label className="tryon-form-label" htmlFor={`color-input-${selectedId}`}>
+                                  <Icon name="colors" size={15} />
+                                  <span>{type === "lipstick" ? "لون الأحمر" : "اللون"}</span>
+                                </label>
+                                <span className="tryon-color-hex-tag">{selectedItem.color || "#c2185b"}</span>
+                              </div>
+
+                              <div className="tryon-color-palette-row">
+                                {(MAKEUP_PRESETS[type] || MAKEUP_PRESETS.lipstick).map((swatch) => (
+                                  <button
+                                    key={swatch.hex}
+                                    type="button"
+                                    className={`tryon-swatch-btn ${selectedItem.color === swatch.hex ? "active" : ""}`}
+                                    style={{ backgroundColor: swatch.hex }}
+                                    title={swatch.name}
+                                    onClick={() => patchItem(selectedId, { color: swatch.hex })}
+                                  >
+                                    {selectedItem.color === swatch.hex && <Icon name="check" size={13} />}
+                                  </button>
+                                ))}
+
+                                <label className="tryon-custom-color-btn" title="اختيار لون مخصص">
+                                  <Icon name="colorPicker" size={14} />
+                                  <span>مخصص</span>
+                                  <input
+                                    id={`color-input-${selectedId}`}
+                                    aria-label={type === "lipstick" ? "لون الأحمر" : "اللون"}
+                                    type="color"
+                                    className="tryon-hidden-color-input"
+                                    value={selectedItem.color || "#c2185b"}
+                                    onChange={(e) => patchItem(selectedId, { color: e.target.value })}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+
+                            {/* Opacity Slider */}
+                            <div className="tryon-form-group">
+                              <div className="tryon-form-label-row">
+                                <label className="tryon-form-label">
+                                  <Icon name="aiSparkles" size={15} />
+                                  <span>الكثافة والشفافية</span>
+                                </label>
+                                <span className="salla-metric-badge salla-badge-neutral">
+                                  {Math.round((selectedItem.opacity ?? 0.7) * 100)}%
+                                </span>
+                              </div>
+                              <div className="tryon-slider-track-wrap">
+                                <input
+                                  type="range"
+                                  min="0.1"
+                                  max="1"
+                                  step="0.01"
+                                  className="tryon-styled-range"
+                                  value={selectedItem.opacity ?? 0.7}
+                                  onChange={(e) => patchItem(selectedId, { opacity: Number(e.target.value) })}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Finish Selection */}
                             {(type === "lipstick" || type === "eyeshadow") && (
-                              <label className="tryon-field">
-                                اللمعة
-                                <select
-                                  className="risk-field"
-                                  value={selectedItem.finish || "matte"}
-                                  onChange={(e) => patchItem(selectedId, { finish: e.target.value })}
-                                >
-                                  <option value="matte">مطفي</option>
-                                  {type === "lipstick" && <option value="gloss">لامع</option>}
-                                  {type === "eyeshadow" && <option value="shimmer">بريق لامع</option>}
-                                </select>
-                              </label>
+                              <div className="tryon-form-group">
+                                <label className="tryon-form-label">
+                                  <Icon name="sparkles" size={15} />
+                                  <span>اللمسة النهائية</span>
+                                </label>
+                                <div className="studio-tabs-bar tryon-finish-tabs" role="radiogroup">
+                                  <button
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={selectedItem.finish !== "gloss" && selectedItem.finish !== "shimmer"}
+                                    className={`studio-tab-btn ${selectedItem.finish !== "gloss" && selectedItem.finish !== "shimmer" ? "active" : ""}`}
+                                    onClick={() => patchItem(selectedId, { finish: "matte" })}
+                                  >
+                                    <span>مطفي (Matte)</span>
+                                  </button>
+                                  {type === "lipstick" && (
+                                    <button
+                                      type="button"
+                                      role="radio"
+                                      aria-checked={selectedItem.finish === "gloss"}
+                                      className={`studio-tab-btn ${selectedItem.finish === "gloss" ? "active" : ""}`}
+                                      onClick={() => patchItem(selectedId, { finish: "gloss" })}
+                                    >
+                                      <span>لامع (Gloss)</span>
+                                    </button>
+                                  )}
+                                  {type === "eyeshadow" && (
+                                    <button
+                                      type="button"
+                                      role="radio"
+                                      aria-checked={selectedItem.finish === "shimmer"}
+                                      className={`studio-tab-btn ${selectedItem.finish === "shimmer" ? "active" : ""}`}
+                                      onClick={() => patchItem(selectedId, { finish: "shimmer" })}
+                                    >
+                                      <span>بريق (Shimmer)</span>
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
