@@ -61,8 +61,29 @@ export default function ARTryOnModal({ isOpen, onClose, initialItem = null }) {
   // Custom user-uploaded products
   const [customProducts, setCustomProducts] = useState([]);
 
+  useEffect(() => {
+    if (initialItem && initialItem.image) {
+      const customId = "studio-item-" + (initialItem.productId || "current");
+      const isHat = initialItem.type === "hat";
+      const customProd = {
+        id: customId,
+        name: initialItem.name || "المنتج المختار",
+        type: initialItem.type || "glasses",
+        anchor: isHat ? "forehead" : initialItem.type === "necklace" ? "mouth_chin" : "nose_bridge",
+        customImage: initialItem.image,
+        defaultScale: 1.0,
+        defaultOffset: { x: 0, y: isHat ? 0.048 : 0, z: isHat ? -0.018 : 0 },
+        defaultRotation: { x: isHat ? -0.06 : 0, y: 0, z: 0 },
+      };
+      setCustomProducts([customProd]);
+      setSelectedProductId(customId);
+    }
+  }, [initialItem]);
+
   const allProducts = [...AR_PRODUCT_CATALOG, ...customProducts];
   const activeProduct = allProducts.find((p) => p.id === selectedProductId) || allProducts[0];
+
+  const [cameraError, setCameraError] = useState(null);
 
   // 1. Initialize Camera and WebGL Scene
   useEffect(() => {
@@ -75,6 +96,7 @@ export default function ARTryOnModal({ isOpen, onClose, initialItem = null }) {
 
     async function initAR() {
       setLoading(true);
+      setCameraError(null);
 
       // Start front-facing camera
       try {
@@ -98,6 +120,26 @@ export default function ARTryOnModal({ isOpen, onClose, initialItem = null }) {
         }
       } catch (err) {
         console.error("Failed to access camera:", err);
+        const isIframe = typeof window !== "undefined" && window.self !== window.top;
+        let msg = "تعذّر الوصول إلى الكاميرا.";
+        let code = "UNKNOWN";
+
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          code = isIframe ? "IFRAME_BLOCKED" : "PERMISSION_DENIED";
+          msg = isIframe
+            ? "الكاميرا محجوبة تلقائياً داخل إطار لوحة تحكم سلة (Iframe Security). افتح المعاينة في نافذة مستقلة لتشغيل الكاميرا فوراً."
+            : "تم رفض الإذن للكاميرا من المتصفح. اضغط على أيقونة القفل أو الكاميرا في شريط عنوان المتصفح لتفعيلها.";
+        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+          code = "NO_DEVICE";
+          msg = "لم يتم العثور على كاميرا متصلة بجهازك.";
+        } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+          code = "DEVICE_BUSY";
+          msg = "الكاميرا قيد الاستخدام حالياً في تطبيق آخر (مثل Zoom أو Teams).";
+        } else if (typeof window !== "undefined" && window.location.protocol !== "https:" && window.location.hostname !== "localhost") {
+          code = "INSECURE_ORIGIN";
+          msg = "المتصفحات تمنع الكاميرا في المواقع غير المشفرة. يلزم اتصال آمن (HTTPS).";
+        }
+        setCameraError({ name: err.name, message: msg, code, isIframe });
       }
 
       if (!isMounted) return;
@@ -156,6 +198,8 @@ export default function ARTryOnModal({ isOpen, onClose, initialItem = null }) {
                   pitch: Math.round(pose.angles.pitch),
                   roll: Math.round(pose.angles.roll),
                   distanceCm: Math.round(pose.distance * 100),
+                  headWidthCm: pose.headWidthCm || 14,
+                  scalePercent: Math.round((pose.scale?.x || 1) * 100),
                   detected: true,
                 });
               } else {
@@ -398,7 +442,85 @@ export default function ARTryOnModal({ isOpen, onClose, initialItem = null }) {
 
         {/* Live AR Camera Viewport */}
         <div className="ar-viewport-stage">
-          {loading && (
+          {cameraError && (
+            <div
+              className="ar-camera-error-overlay"
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(15, 23, 42, 0.94)",
+                backdropFilter: "blur(10px)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "24px",
+                textAlign: "center",
+                zIndex: 35,
+                color: "#fff",
+              }}
+            >
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "50%",
+                  background: "rgba(239, 68, 68, 0.15)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "16px",
+                  color: "#ef4444",
+                }}
+              >
+                <Icon name="camera" size={28} />
+              </div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: "bold", marginBottom: "8px" }}>
+                {cameraError.code === "IFRAME_BLOCKED"
+                  ? "الكاميرا محجوبة داخل لوحة تحكم سلة"
+                  : "تعذر تشغيل الكاميرا"}
+              </h3>
+              <p
+                style={{
+                  maxWidth: "440px",
+                  color: "#94a3b8",
+                  fontSize: "0.95rem",
+                  lineHeight: 1.6,
+                  marginBottom: "20px",
+                }}
+              >
+                {cameraError.message}
+              </p>
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => window.open(window.location.href, "_blank")}
+                  style={{
+                    background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                    color: "#fff",
+                    padding: "10px 20px",
+                  }}
+                >
+                  <Icon name="link" size={16} />
+                  <span>فتح المعاينة في نافذة مستقلة (تفتح الكاميرا فوراً)</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setCameraError(null);
+                    setLoading(true);
+                  }}
+                >
+                  <Icon name="refresh" size={16} />
+                  <span>إعادة المحاولة</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {loading && !cameraError && (
             <div className="ar-loading-overlay">
               <div className="ar-spinner" />
               <span>جارٍ تحميل محرك 3D وتتبع الوجه بالذكاء الاصطناعي...</span>
@@ -415,10 +537,14 @@ export default function ARTryOnModal({ isOpen, onClose, initialItem = null }) {
           <div className="ar-hud-panel">
             <div className={`ar-status-dot ${hud.detected ? "tracking" : "searching"}`} />
             <div className="ar-hud-stats">
-              <span>{hud.detected ? "تتبع 3D نشط" : "ابحث عن وجهك أمام الكاميرا..."}</span>
+              <span>
+                {hud.detected
+                  ? `تحليل الرأس: عرض الجمجمة ${hud.headWidthCm || 14} سم • التحجيم التلقائي نَشِط 100%`
+                  : "ابحث عن وجهك أمام الكاميرا..."}
+              </span>
               {hud.detected && (
                 <span className="ar-hud-angles">
-                  Yaw: {hud.yaw}° | Pitch: {hud.pitch}° | Roll: {hud.roll}° | {hud.distanceCm} cm | {hud.fps} FPS
+                  المقاس التلقائي: {hud.scalePercent || 100}% | زوايا: Y {hud.yaw}° P {hud.pitch}° R {hud.roll}° | مسافة: {hud.distanceCm} سم | {hud.fps} FPS
                 </span>
               )}
             </div>

@@ -35,7 +35,7 @@
   // Fractions of the face width. Must match src/utils/tryOnTypes.js (a test checks this).
   var TYPE_FACTORS = {
     earrings: { width: 0.13, outward: 0.04, drop: 0.06 },
-    hat: { width: 1.25, sink: 0.05 },
+    hat: { width: 0.98, sink: 0.25 },
     necklace: { width: 0.95, drop: 0.18 },
   };
   // Where the face should sit in the frame, per product type (share of frame width / height).
@@ -142,7 +142,8 @@
     var expectedNoseY = forehead.y + (chin.y - forehead.y) * 0.45;
     var pitchDiff = faceHeight > 10 ? (nose.y - expectedNoseY) / (faceHeight * 0.35) : 0;
     var pitch = Math.max(-0.6, Math.min(0.6, pitchDiff));
-    return { pt: pt, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, eyeDist: eyeDist, angle: angle, faceWidth: faceWidth, yaw: yaw, pitch: pitch };
+    var cranialWidth = templeDist > eyeDist ? templeDist : eyeDist * 2.1;
+    return { pt: pt, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, eyeDist: eyeDist, angle: angle, faceWidth: faceWidth, cranialWidth: cranialWidth, yaw: yaw, pitch: pitch };
   }
 
   /** Glasses: centred on the eye line, as wide as the face at the temples. */

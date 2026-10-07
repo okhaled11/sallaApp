@@ -160,20 +160,31 @@ export class FaceTracker {
     const pitchDeg = THREE.MathUtils.radToDeg(euler.x);
     const rollDeg = THREE.MathUtils.radToDeg(euler.z);
 
-    // Compute cranial scale multiplier based on temple distance
-    const templeDist = Math.abs(pRightEar.x - pLeftEar.x);
-    const scaleFactor = (templeDist / 0.42); // Normalizes against reference proportion
+    // Biometric Cranial & Temple Analysis (Snapchat-style biometric head scaling):
+    // Analyze physical skull width across temples (127 & 356) and ears (234 & 454)
+    const pLeftTemple = lm[127] || pLeftEar;
+    const pRightTemple = lm[356] || pRightEar;
+    const templeDx = (pRightTemple.x - pLeftTemple.x) * W;
+    const templeDy = (pRightTemple.y - pLeftTemple.y) * H;
+    const templeDistPx = Math.sqrt(templeDx * templeDx + templeDy * templeDy);
+
+    // Metric skull width at distance zDepth using camera focal length f:
+    // Average adult human cranial width across temples is ~140mm (0.140m)
+    const measuredHeadWidthM = (templeDistPx * zDepth) / f;
+    const cranialScaleFactor = Math.max(0.75, Math.min(1.4, measuredHeadWidthM / 0.140));
+    const headWidthCm = Math.round(measuredHeadWidthM * 100);
 
     return {
       position: facePosition,
       quaternion: faceQuaternion,
-      scale: new THREE.Vector3(scaleFactor, scaleFactor, scaleFactor),
+      scale: new THREE.Vector3(cranialScaleFactor, cranialScaleFactor, cranialScaleFactor),
       angles: {
         yaw: yawDeg,
         pitch: pitchDeg,
         roll: rollDeg,
       },
       distance: zDepth,
+      headWidthCm: headWidthCm,
       landmarks: {
         noseBridge: pNoseBridge,
         noseTip: pNoseTip,

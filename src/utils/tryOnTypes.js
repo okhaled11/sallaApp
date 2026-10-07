@@ -17,7 +17,7 @@ export const TRYON_TYPES = {
   hat: {
     label: "قبعة / كاب / إيشارب راس",
     needsImage: true,
-    factors: { width: 1.25, sink: 0.05 },
+    factors: { width: 0.98, sink: 0.25 },
     hint: "صورة للقبعة من الأمام بخلفية شفافة. حافتها السفلية تستقر على الجبهة.",
   },
   necklace: {

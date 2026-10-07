@@ -147,6 +147,7 @@ export class ARScene {
     // Apply smoothed transform to both the face anchor and head occluder
     this.faceAnchorGroup.position.copy(smoothed.position);
     this.faceAnchorGroup.quaternion.copy(smoothed.quaternion);
+    this.faceAnchorGroup.scale.copy(smoothed.scale);
 
     // Update head occluder so it matches head movements and depth
     this.occluderManager.update({

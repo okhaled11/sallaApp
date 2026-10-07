@@ -246,12 +246,12 @@ describe("layout: earrings", () => {
 });
 
 describe("layout: hat and necklace", () => {
-  it("rests the hat on the forehead, wider than the face", () => {
+  it("rests the hat naturally on the forehead and crown", () => {
     const [hat] = api.layout("hat", pose(), item());
     expect(hat.anchor).toBe("bottom");
     expect(hat.x).toBeCloseTo(500, 3);
-    expect(hat.y).toBeCloseTo(200 + 0.05 * 400, 3);
-    expect(hat.width).toBeCloseTo(1.25 * 400, 3);
+    expect(hat.y).toBeCloseTo(200 + 0.25 * 400, 3);
+    expect(hat.width).toBeCloseTo(0.98 * 400, 3);
   });
 
   it("hangs the necklace below the chin", () => {

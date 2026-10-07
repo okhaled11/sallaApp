@@ -324,35 +324,37 @@ export function create3DAssetFrom2DImage(imageUrl, type = "glasses") {
   textureLoader.load(imageUrl, (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
     const img = tex.image;
-    const aspect = img.width && img.height ? img.height / img.width : 0.4;
-    const width = 0.142; // Standard 142mm
+    const isHat = type === "hat";
+    const width = isHat ? 0.146 : 0.142; // Calibrated skull width
     const height = width * aspect;
+    const yCenter = isHat ? 0.048 + height / 2 : 0;
+    const zCenter = isHat ? -0.018 : 0;
 
     // 1. Front High-Res Layer
     const frontMat = new THREE.MeshPhysicalMaterial({
       map: tex,
       transparent: true,
-      roughness: 0.2,
-      metalness: 0.1,
-      clearcoat: 0.8,
+      roughness: isHat ? 0.8 : 0.2,
+      metalness: isHat ? 0.05 : 0.1,
+      clearcoat: isHat ? 0.1 : 0.8,
       clearcoatRoughness: 0.15,
       side: THREE.DoubleSide,
       depthWrite: true,
     });
     const frontGeom = new THREE.PlaneGeometry(width, height);
     const frontMesh = new THREE.Mesh(frontGeom, frontMat);
-    frontMesh.position.set(0, 0, 0.003);
+    frontMesh.position.set(0, yCenter, zCenter + 0.003);
     group.add(frontMesh);
 
     // 2. Physical 3D Thickness Body (Box Backing with Bevel)
     const bodyMat = new THREE.MeshStandardMaterial({
       color: 0x18181b,
-      roughness: 0.4,
-      metalness: 0.2,
+      roughness: isHat ? 0.85 : 0.4,
+      metalness: isHat ? 0.02 : 0.2,
     });
-    const bodyGeom = new THREE.BoxGeometry(width * 0.96, height * 0.94, 0.006);
+    const bodyGeom = new THREE.BoxGeometry(width * 0.96, height * 0.94, isHat ? 0.012 : 0.006);
     const bodyMesh = new THREE.Mesh(bodyGeom, bodyMat);
-    bodyMesh.position.set(0, 0, 0.0);
+    bodyMesh.position.set(0, yCenter, zCenter);
     group.add(bodyMesh);
 
     // 3. For sunglasses/glasses: Generate REAL 3D Temple Arms extending back along -Z
