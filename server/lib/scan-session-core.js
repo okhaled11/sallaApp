@@ -450,7 +450,7 @@ async function handlePublish(data, headers) {
   const accessToken = await getActiveAccessToken();
   if (!accessToken) return json(500, { success: false, error: "SALLA_ACCESS_TOKEN غير مضبوط على السيرفر" });
 
-  const imageUrls = session.images.map((t) => `${origin}/api/scan-session?img=${t}`);
+  const imageUrls = session.images.map((t) => `${origin}/scan-img/${t}.jpg`);
   const created = await sallaPost(SALLA_PRODUCTS_URL, accessToken, buildSallaPayload(checked.value, imageUrls));
   if (!created.ok) {
     const message = created.result?.error?.message || created.result?.message || `Salla ${created.status}`;
