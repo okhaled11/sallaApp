@@ -11,6 +11,8 @@
  *   create   {token, appId}                  dashboard (embedded-token protected)
  *   poll     {sid, deskKey}                  dashboard
  *   publish  {token, appId, sid, deskKey, product}  dashboard (embedded-token protected)
+ *   publish  {sid, phoneKey, product}        phone (the QR key authorises it)
+ *   reset    {sid, phoneKey|deskKey}         start another product in the same session
  *   join     {sid, phoneKey}                 phone
  *   upload   {sid, phoneKey, image}          phone (image = data URL)
  *   analyze  {sid, phoneKey}                 phone (runs the AI on the photos)
@@ -346,6 +348,7 @@ async function handlePoll(data) {
       draft: session.draft,
       warning: session.warning,
       error: session.error,
+      result: session.result || null,
     },
   });
 }
@@ -416,21 +419,55 @@ async function handleAnalyze(data) {
     return json(502, { success: false, error: session.error });
   }
   await saveSession(data.sid, session);
+  return json(200, {
+    success: true,
+    data: { status: session.status, draft: session.draft, warning: session.warning },
+  });
+}
+
+async function handleReset(data) {
+  let { session, error, expired } = await loadSession(data.sid, data.phoneKey, "phoneKey");
+  if (error && data.deskKey) {
+    const deskRes = await loadSession(data.sid, data.deskKey, "deskKey");
+    if (!deskRes.error) {
+      session = deskRes.session;
+      error = null;
+      expired = false;
+    }
+  }
+  if (error) return json(expired ? 410 : 403, { success: false, error, expired: Boolean(expired) });
+  session.images = [];
+  session.draft = null;
+  session.warning = "";
+  session.error = "";
+  session.result = null;
+  session.status = "connected";
+  await saveSession(data.sid, session);
   return json(200, { success: true, data: { status: session.status } });
 }
 
 async function handlePublish(data, headers) {
   const { token, appId } = data;
-  if (!token || !appId) return json(400, { success: false, error: "token و appId مطلوبان" });
-  const { session, error, expired } = await loadSession(data.sid, data.deskKey, "deskKey");
+  const fromPhone = Boolean(data.phoneKey) && !data.deskKey;
+  if (!fromPhone && (!token || !appId)) {
+    return json(400, { success: false, error: "token و appId مطلوبان" });
+  }
+  const { session, error, expired } = fromPhone
+    ? await loadSession(data.sid, data.phoneKey, "phoneKey")
+    : await loadSession(data.sid, data.deskKey, "deskKey");
   if (error) return json(expired ? 410 : 403, { success: false, error, expired: Boolean(expired) });
   if (session.images.length === 0) return json(400, { success: false, error: "لا توجد صور" });
+  if (session.status === "published") {
+    return json(409, { success: false, error: "تم نشر هذا المنتج بالفعل" });
+  }
 
   const checked = validateProduct(data.product);
   if (checked.error) return json(400, { success: false, error: checked.error });
 
-  let merchantId = "dev-merchant";
-  if (token !== "dev-token" && !token.startsWith("dev-")) {
+  // The phone holds no Salla token: the session was created by an authenticated
+  // dashboard and the QR key authorises publishing to that merchant's store.
+  let merchantId = session.owner || "dev-merchant";
+  if (!fromPhone && token !== "dev-token" && !token.startsWith("dev-")) {
     const { result } = await verifyEmbeddedToken({ token, appId });
     if (!result?.success) return json(401, { success: false, error: "جلسة التطبيق غير صالحة" });
     merchantId = String(result.data?.merchant_id ?? result.merchant_id ?? "");
@@ -491,6 +528,7 @@ async function handlePublish(data, headers) {
   }
 
   session.status = "published";
+  session.result = { productId: product.id ?? null, url: product.url || product.urls?.admin || null, warnings };
   await saveSession(data.sid, session);
   return json(200, {
     success: true,
@@ -523,6 +561,7 @@ const ACTIONS = {
   upload: (data) => handleUpload(data),
   analyze: (data) => handleAnalyze(data),
   publish: (data, headers) => handlePublish(data, headers),
+  reset: (data) => handleReset(data),
 };
 
 /**

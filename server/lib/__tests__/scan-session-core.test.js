@@ -46,7 +46,7 @@ describe("buildSallaPayload", () => {
   it("marks the first image default and omits empty optionals", () => {
     const { value } = validateProduct({ name: "a", price: 10, quantity: 1 });
     const payload = buildSallaPayload(value, ["https://x/1", "https://x/2"]);
-    expect(payload.images[0]).toMatchObject({ original: "https://x/1", default: true, sort: 0 });
+    expect(payload.images[0]).toMatchObject({ original: "https://x/1", default: true, sort: 1 });
     expect(payload.images[1].default).toBe(false);
     expect(payload).not.toHaveProperty("cost_price");
     expect(payload).not.toHaveProperty("categories");

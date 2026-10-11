@@ -58,8 +58,11 @@ export default function ScanToProduct({
   const [uploadingDirect, setUploadingDirect] = useState(false);
   const [captureMode, setCaptureMode] = useState("direct"); // "direct" | "qr"
   const [result, setResult] = useState(null);
+  const [resultFromPhone, setResultFromPhone] = useState(false);
   const [baseUrl, setBaseUrl] = useState(window.location.origin);
   const draftAppliedRef = useRef(false);
+  const callbacksRef = useRef({});
+  callbacksRef.current = { onShowToast, onPublished };
   const fileInputRef = useRef(null);
   const cameraInputRef = useRef(null);
 
@@ -75,6 +78,7 @@ export default function ScanToProduct({
     setCreating(true);
     setError("");
     setResult(null);
+    setResultFromPhone(false);
     setForm(EMPTY_FORM);
     draftAppliedRef.current = false;
     setRemote({ status: "waiting", images: [], draft: null, warning: "" });
@@ -89,13 +93,25 @@ export default function ScanToProduct({
 
   // Poll the session until published or form ready
   useEffect(() => {
-    if (!session || result) return undefined;
+    // Keep polling after a phone-side publish so a new product started on the phone shows up here too.
+    if (!session || (result && !resultFromPhone)) return undefined;
     let stopped = false;
     const tick = async () => {
       const res = await pollScanSession(session.sid, session.deskKey);
       if (stopped) return;
       if (res.success) {
         setRemote(res.data);
+        if (res.data.status === "published" && res.data.result && !result) {
+          setResult(res.data.result);
+          setResultFromPhone(true);
+          callbacksRef.current.onShowToast?.("تم نشر المنتج في سلة من الهاتف", "success");
+          callbacksRef.current.onPublished?.();
+        } else if (res.data.status !== "published" && resultFromPhone) {
+          setResult(null);
+          setResultFromPhone(false);
+          setForm(EMPTY_FORM);
+          draftAppliedRef.current = false;
+        }
       } else if (res.expired) {
         setSession(null);
         setError("انتهت صلاحية الجلسة. أنشئ جلسة جديدة");
@@ -107,7 +123,7 @@ export default function ScanToProduct({
       stopped = true;
       clearInterval(id);
     };
-  }, [session, result]);
+  }, [session, result, resultFromPhone]);
 
   // Fill the form once when the AI draft arrives
   useEffect(() => {

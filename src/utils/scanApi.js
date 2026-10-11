@@ -62,5 +62,9 @@ export const analyzeScanSessionFromDashboard = (sid, deskKey, apiKey = getClient
 export const joinScanSession = (sid, phoneKey) => post({ action: "join", sid, phoneKey }, "Scan join");
 export const uploadScanImage = (sid, phoneKey, image) =>
   post({ action: "upload", sid, phoneKey, image }, "Scan upload");
+export const publishScannedProductFromPhone = (sid, phoneKey, product) =>
+  post({ action: "publish", sid, phoneKey, product }, "Scan publish (phone)");
+export const resetScanSession = (sid, key) =>
+  post({ action: "reset", sid, phoneKey: key }, "Scan reset");
 export const analyzeScanSession = (sid, phoneKey, apiKey = getClientGeminiApiKey()) =>
   post({ action: "analyze", sid, phoneKey, ...(apiKey ? { apiKey } : {}) }, "Scan analyze");

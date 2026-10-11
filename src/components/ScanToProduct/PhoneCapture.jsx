@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   analyzeScanSession,
   joinScanSession,
+  publishScannedProductFromPhone,
+  resetScanSession,
   uploadScanImage,
 } from "../../utils/scanApi.js";
 import { fileToScanDataUrl } from "../../utils/scanImage.js";
@@ -9,6 +11,30 @@ import "./scan.css";
 import Icon from "../Icon.jsx";
 
 const MAX_IMAGES = 6;
+
+const EMPTY_FORM = {
+  name: "",
+  category: "",
+  description: "",
+  price: "",
+  quantity: "1",
+  status: "sale",
+  colors: [],
+  sizes: "",
+  metaTitle: "",
+  metaDescription: "",
+};
+
+const formFromDraft = (draft) => ({
+  ...EMPTY_FORM,
+  name: draft?.name || "",
+  category: draft?.category || "",
+  description: draft?.description || "",
+  colors: Array.isArray(draft?.colors) ? draft.colors : [],
+  sizes: Array.isArray(draft?.sizes) ? draft.sizes.join("، ") : "",
+  metaTitle: draft?.metaTitle || "",
+  metaDescription: draft?.metaDescription || "",
+});
 
 /**
  * Phone-side page opened from the dashboard QR (?m=capture&s=<sid>&k=<key>).
@@ -20,7 +46,11 @@ export default function PhoneCapture() {
   const sid = params.get("s") || "";
   const key = params.get("k") || "";
 
-  const [phase, setPhase] = useState("joining"); // joining | capture | analyzing | done | error
+  const [phase, setPhase] = useState("joining"); // joining | capture | analyzing | review | done | error
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [publishing, setPublishing] = useState(false);
+  const [result, setResult] = useState(null);
+  const [showDescription, setShowDescription] = useState(false);
   const [thumbs, setThumbs] = useState([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -80,7 +110,9 @@ export default function PhoneCapture() {
     setMessage("");
     const res = await analyzeScanSession(sid, key);
     if (res.success) {
-      setPhase("done");
+      setForm(formFromDraft(res.data?.draft));
+      setShowDescription(false);
+      setPhase("review");
       navigator.vibrate?.([20, 40, 20]);
     } else {
       setMessage(res.error || "تعذّر التحليل");
@@ -88,8 +120,55 @@ export default function PhoneCapture() {
     }
   };
 
-  const reset = () => {
+  const setField = (field) => (event) => setForm((prev) => ({ ...prev, [field]: event.target.value }));
+
+  const removeColor = (index) =>
+    setForm((prev) => ({ ...prev, colors: prev.colors.filter((_, i) => i !== index) }));
+
+  const handlePublish = async (event) => {
+    event.preventDefault();
+    setPublishing(true);
+    setMessage("");
+    const product = {
+      name: form.name,
+      description: form.description,
+      price: Number(form.price),
+      quantity: form.quantity === "" ? 0 : Number(form.quantity),
+      status: form.status,
+      colors: form.colors.filter((c) => c.name.trim()),
+      sizes: form.sizes
+        .split(/[,،\n]/)
+        .map((v) => v.trim())
+        .filter(Boolean),
+      metaTitle: form.metaTitle,
+      metaDescription: form.metaDescription,
+    };
+    const res = await publishScannedProductFromPhone(sid, key, product);
+    setPublishing(false);
+    if (!res.success) {
+      setMessage(res.error || "فشل نشر المنتج");
+      if (res.expired) setPhase("error");
+      return;
+    }
+    setResult(res.data);
+    setPhase("done");
+    navigator.vibrate?.([20, 40, 20]);
+  };
+
+  // Start another product in the same session (the dashboard resets too).
+  const addAnother = async () => {
+    setBusy(true);
+    setMessage("");
+    const res = await resetScanSession(sid, key);
+    setBusy(false);
+    if (!res.success) {
+      setMessage(res.error || "تعذّر بدء منتج جديد");
+      if (res.expired) setPhase("error");
+      return;
+    }
     setThumbs([]);
+    setForm(EMPTY_FORM);
+    setResult(null);
     setPhase("capture");
   };
 
@@ -263,21 +342,168 @@ export default function PhoneCapture() {
           </>
         )}
 
+        {phase === "review" && (
+          <form className="scan-phone-form" onSubmit={handlePublish}>
+            <div className="scan-phone-main">
+              <div className="scan-phone-hero">
+                <h1>راجع بيانات المنتج</h1>
+                <p className="scan-phone-muted">
+                  استخرج الذكاء الاصطناعي البيانات من صورك. أضف السعر وانشر مباشرة.
+                </p>
+              </div>
+
+              <div className="scan-phone-strip">
+                {thumbs.map((src, i) => (
+                  <img key={i} src={src} alt={`صورة ${i + 1}`} />
+                ))}
+              </div>
+
+              <label className="scan-phone-field scan-phone-price">
+                <span>السعر (ر.س) *</span>
+                <input
+                  required
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={form.price}
+                  onChange={setField("price")}
+                  placeholder="0.00"
+                />
+              </label>
+
+              <label className="scan-phone-field">
+                <span>اسم المنتج *</span>
+                <input required value={form.name} onChange={setField("name")} />
+                {form.category && <small>التصنيف المقترح: {form.category}</small>}
+              </label>
+
+              <div className="scan-phone-row">
+                <label className="scan-phone-field">
+                  <span>الكمية</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputMode="numeric"
+                    value={form.quantity}
+                    onChange={setField("quantity")}
+                  />
+                </label>
+                <label className="scan-phone-field">
+                  <span>المقاسات</span>
+                  <input value={form.sizes} onChange={setField("sizes")} placeholder="S، M، L" />
+                </label>
+              </div>
+
+              <div className="scan-phone-field">
+                <span>حالة النشر</span>
+                <div className="scan-phone-seg" role="radiogroup">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={form.status === "sale"}
+                    className={form.status === "sale" ? "active" : ""}
+                    onClick={() => setForm((p) => ({ ...p, status: "sale" }))}
+                  >
+                    معروض للبيع
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={form.status === "hidden"}
+                    className={form.status === "hidden" ? "active" : ""}
+                    onClick={() => setForm((p) => ({ ...p, status: "hidden" }))}
+                  >
+                    مسودة
+                  </button>
+                </div>
+              </div>
+
+              {form.colors.length > 0 && (
+                <div className="scan-phone-field">
+                  <span>الألوان المكتشفة</span>
+                  <div className="scan-phone-chips">
+                    {form.colors.map((c, i) => (
+                      <span className="scan-phone-chip" key={i}>
+                        <i style={{ background: c.hex }} />
+                        {c.name}
+                        <button type="button" aria-label="حذف اللون" onClick={() => removeColor(i)}>
+                          <Icon name="close" size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="scan-phone-field">
+                <button
+                  type="button"
+                  className="scan-phone-toggle"
+                  onClick={() => setShowDescription((v) => !v)}
+                  aria-expanded={showDescription}
+                >
+                  <span>الوصف والسيو</span>
+                  <Icon name="chevronDown" size={16} />
+                </button>
+                {showDescription && (
+                  <>
+                    <textarea rows={6} value={form.description} onChange={setField("description")} />
+                    <input
+                      value={form.metaTitle}
+                      onChange={setField("metaTitle")}
+                      maxLength={70}
+                      placeholder="عنوان السيو"
+                    />
+                  </>
+                )}
+              </div>
+
+              {message && <p className="scan-phone-error">{message}</p>}
+            </div>
+
+            <div className="scan-phone-dock">
+              <button type="submit" className="scan-btn scan-btn-primary" disabled={publishing}>
+                <Icon name={publishing ? "package" : "rocket"} size={18} />
+                {publishing ? "جارٍ النشر على سلة…" : "نشر على سلة الآن"}
+              </button>
+              <button
+                type="button"
+                className="scan-btn scan-btn-ghost"
+                disabled={publishing}
+                onClick={() => setPhase("capture")}
+              >
+                رجوع للصور
+              </button>
+            </div>
+          </form>
+        )}
+
         {phase === "done" && (
           <>
             <div className="scan-phone-center">
               <div className="scan-phone-check">
                 <Icon name="check" size={40} />
               </div>
-              <h1>تم الإرسال!</h1>
-              <p className="scan-phone-muted">
-                افتح لوحة التاجر على الكمبيوتر: بيانات المنتج جاهزة، أضف السعر والألوان وانشر.
-              </p>
+              <h1>تم نشر المنتج!</h1>
+              <p className="scan-phone-muted">أصبح المنتج في متجرك على سلة بصوره وبياناته.</p>
+              {result?.warnings?.map((w) => (
+                <p key={w} className="scan-phone-error">
+                  {w}
+                </p>
+              ))}
             </div>
             <div className="scan-phone-dock">
-              <button type="button" className="scan-btn scan-btn-ghost" onClick={reset}>
-                إضافة صور أخرى وإعادة التحليل
+              <button type="button" className="scan-btn scan-btn-primary" disabled={busy} onClick={addAnother}>
+                <Icon name="add" size={18} /> إضافة منتج آخر
               </button>
+              {result?.url && (
+                <a className="scan-btn scan-btn-ghost" href={result.url} target="_blank" rel="noopener noreferrer">
+                  عرض المنتج
+                </a>
+              )}
+              {message && <p className="scan-phone-error">{message}</p>}
             </div>
           </>
         )}
