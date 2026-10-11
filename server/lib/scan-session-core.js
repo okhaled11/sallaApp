@@ -276,7 +276,7 @@ export function buildSallaPayload(value, imageUrls) {
       thumbnail: url,
       alt: value.name,
       default: i === 0,
-      sort: i,
+      sort: i + 1,
     })),
   };
   if (value.costPrice !== null) payload.cost_price = value.costPrice;
