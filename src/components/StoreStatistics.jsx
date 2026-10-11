@@ -147,7 +147,7 @@ export default function StoreStatistics({
             <span className="stats-kpi-value salla-big-number">
               {formatMoney(kpis.totalRevenue, resolvedCurrency)}
             </span>
-            <span className="salla-metric-badge salla-badge-neutral">▲ 0%</span>
+            <span className="salla-metric-badge salla-badge-neutral"><Icon name="arrowUp" size={12} /> 0%</span>
           </div>
 
           <div className="salla-metric-progress-track">
@@ -188,10 +188,10 @@ export default function StoreStatistics({
             </span>
             {kpis.overallMargin !== null ? (
               <span className="salla-metric-badge salla-badge-good">
-                ▲ {percentFormat.format(kpis.overallMargin)}
+                <Icon name="arrowUp" size={12} /> {percentFormat.format(kpis.overallMargin)}
               </span>
             ) : (
-              <span className="salla-metric-badge salla-badge-neutral">▲ 0%</span>
+              <span className="salla-metric-badge salla-badge-neutral"><Icon name="arrowUp" size={12} /> 0%</span>
             )}
           </div>
 

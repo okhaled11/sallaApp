@@ -150,7 +150,7 @@ function RuleCard({
           {rule.incentive.type !== "custom" && (rule.incentive.couponCode || rule.incentive.type === "free_product") && (
             rule.incentive.isCreatedInSalla ? (
               <span className="irm-meta-chip salla-synced" title="تم إنشاء وتفعيل هذا الكوبون كقسيمة شراء حقيقية في متجر سلة">
-                <Icon name="checkCircle" size={12}/> مفعل بسلة ✓
+                <Icon name="checkCircle" size={12}/> مفعل بسلة
               </span>
             ) : (
               <button
@@ -164,7 +164,7 @@ function RuleCard({
                 title="إنشاء وتفعيل هذه القسيمة في متجر سلة الآن"
               >
                 <Icon name={isSyncingCoupon ? "refresh" : "flash"} size={11}/>
-                {isSyncingCoupon ? "جاري التفعيل..." : "تفعيل بسلة ⚡"}
+                {isSyncingCoupon ? "جاري التفعيل..." : "تفعيل بسلة"}
               </button>
             )
           )}
@@ -349,7 +349,7 @@ function ProductTargetSelector({ trigger, products = [], onChange, onApplyAutoTe
                         {p.price ? `${p.price} ر.س` : ""} · #{p.id}
                       </div>
                     </div>
-                    {isCur && <span style={{ color: "#00b259", fontWeight: "bold" }}>✓ محدد</span>}
+                    {isCur && <span style={{ color: "#00b259", fontWeight: "bold" }}><Icon name="check" size={12} /> محدد</span>}
                   </button>
                 );
               })}
@@ -624,7 +624,7 @@ function RuleEditorPanel({ rule, products, token, onShowToast, onSave, onCancel 
                       <div>
                         <strong>
                           {draft.incentive.isCreatedInSalla
-                            ? (isGiftRule(draft) ? "العرض الخاص مفعّل وجاهز في متجر سلة ✓" : "القسيمة مفعلة وجاهزة في متجر سلة ✓")
+                            ? (isGiftRule(draft) ? "العرض الخاص مفعّل وجاهز في متجر سلة" : "القسيمة مفعلة وجاهزة في متجر سلة")
                             : (isGiftRule(draft) ? "تفعيل العرض الخاص في متجر سلة" : "تفعيل قسيمة الشراء الحقيقية في متجر سلة")}
                         </strong>
                         <p>
@@ -648,8 +648,8 @@ function RuleEditorPanel({ rule, products, token, onShowToast, onSave, onCancel 
                       {isSyncingSalla
                         ? "جاري التفعيل..."
                         : draft.incentive.isCreatedInSalla
-                        ? "إعادة مزامنة مع سلة ✓"
-                        : (isGiftRule(draft) ? "تفعيل العرض في متجر سلة ⚡" : "تفعيل القسيمة في متجر سلة ⚡")}
+                        ? "إعادة مزامنة مع سلة"
+                        : (isGiftRule(draft) ? "تفعيل العرض في متجر سلة" : "تفعيل القسيمة في متجر سلة")}
                     </button>
                   </div>
                 )}
@@ -705,7 +705,7 @@ function RuleEditorPanel({ rule, products, token, onShowToast, onSave, onCancel 
                             <span key={p.id} className="irm-meta-chip highlight" style={{ gap: "6px" }}>
                               {p.name}
                               <button type="button" aria-label="إزالة" onClick={() => removeProduct(prefix, p.id)}
-                                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}>✕</button>
+                                style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}><Icon name="close" size={12} /></button>
                             </span>
                           ))}
                         </div>
@@ -990,7 +990,7 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
     persistRules(updatedRules);
     setIsSyncingAll(false);
     if (failCount === 0) {
-      onShowToast?.(`تم تفعيل جميع القسائم (${successCount}) في متجر سلة بنجاح! ⚡`, "success");
+      onShowToast?.(`تم تفعيل جميع القسائم (${successCount}) في متجر سلة بنجاح!`, "success");
     } else {
       onShowToast?.(`تم تفعيل ${successCount} قسيمة، وتعذر تفعيل ${failCount}`, "warning");
     }
@@ -1023,9 +1023,9 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
       </div>
 
       <div className="irm-how-it-works">
-        <span className="irm-how-step"><Icon name="target"   size={13}/>حدد الشرط</span><span className="irm-arrow">←</span>
-        <span className="irm-how-step"><Icon name="gift"     size={13}/>اختر المكافأة</span><span className="irm-arrow">←</span>
-        <span className="irm-how-step"><Icon name="layout"   size={13}/>صمم النافذة</span><span className="irm-arrow">←</span>
+        <span className="irm-how-step"><Icon name="target"   size={13}/>حدد الشرط</span><span className="irm-arrow"><Icon name="arrowLeft" size={13} /></span>
+        <span className="irm-how-step"><Icon name="gift"     size={13}/>اختر المكافأة</span><span className="irm-arrow"><Icon name="arrowLeft" size={13} /></span>
+        <span className="irm-how-step"><Icon name="layout"   size={13}/>صمم النافذة</span><span className="irm-arrow"><Icon name="arrowLeft" size={13} /></span>
         <span className="irm-how-step"><Icon name="sparkles" size={13}/>تظهر تلقائياً</span>
       </div>
 
@@ -1035,7 +1035,7 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
         </button>
         <button type="button" className="irm-btn-sync-all" onClick={handleSyncAllCoupons} disabled={isSyncingAll}>
           <Icon name={isSyncingAll ? "refresh" : "cloudUpload"} size={14}/>
-          {isSyncingAll ? "جاري مزامنة القسائم..." : "تفعيل جميع القسائم في سلة ⚡"}
+          {isSyncingAll ? "جاري مزامنة القسائم..." : "تفعيل جميع القسائم في سلة"}
         </button>
       </div>
 
@@ -1070,7 +1070,7 @@ export default function IncentiveRulesManager({ products = [], token = null, onS
 
       <div className="irm-info-footer">
         <Icon name="help" size={13}/>
-        <span>القواعد تُطبَّق بالترتيب — الأولى في القائمة لها أعلى أولوية. اضغط "تفعيل بسلة ⚡" لإنشاء القسيمة ككود شراء حقيقي في متجرك.</span>
+        <span>القواعد تُطبَّق بالترتيب — الأولى في القائمة لها أعلى أولوية. اضغط "تفعيل بسلة" لإنشاء القسيمة ككود شراء حقيقي في متجرك.</span>
       </div>
     </div>
   );

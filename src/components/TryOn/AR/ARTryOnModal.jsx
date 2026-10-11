@@ -655,8 +655,8 @@ export default function ARTryOnModal({ isOpen, onClose, initialItem = null }) {
               onClick={() => fileInputRef.current?.click()}
               title="رفع صورة فلات لتحويلها إلى مجسم 3D"
             >
-              <Icon name="image" size={20} />
-              <span>رفع 2D ➔ 3D</span>
+              <Icon name="threeD" size={20} />
+              <span>رفع صورة 2D إلى 3D</span>
             </button>
             <input ref={fileInputRef} type="file" accept="image/png,image/webp" hidden onChange={handleUploadImage} />
 

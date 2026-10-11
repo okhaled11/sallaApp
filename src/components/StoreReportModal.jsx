@@ -267,7 +267,7 @@ export default function StoreReportModal({
               {lossMakers.length > 0 && (
                 <div className="doc-audit-box doc-audit-danger">
                   <strong>
-                    ⚠️ تنبيه: {lossMakers.length} منتجات تباع بخسارة تسببت في
+                    <Icon name="alert" size={16} /> تنبيه: {lossMakers.length} منتجات تباع بخسارة تسببت في
                     نزيف أرباح قدره {formatMoney(totalLoss, currency)}:
                   </strong>
                   <ul>

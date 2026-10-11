@@ -638,7 +638,7 @@ export default function VisitorIncentivesStudio({
             <span className="salla-metric-badge salla-badge-good">
               {visitors.filter((v) => v.isOnline).length > 0
                 ? `${visitors.filter((v) => v.isOnline).length} متصل الآن`
-                : "▲ نشط بالمتجر"}
+                : <><Icon name="arrowUp" size={12} /> نشط بالمتجر</>}
             </span>
           </div>
 
@@ -679,7 +679,7 @@ export default function VisitorIncentivesStudio({
 
           <div className="salla-metric-value-row">
             <span className="salla-big-number kpi-mini-val">{qualifiedCount}</span>
-            <span className="salla-metric-badge salla-badge-good">▲ فرصة بيع</span>
+            <span className="salla-metric-badge salla-badge-good"><Icon name="arrowUp" size={12} /> فرصة بيع</span>
           </div>
 
           <div className="salla-metric-progress-track">
@@ -722,7 +722,7 @@ export default function VisitorIncentivesStudio({
             <span className="salla-metric-badge salla-badge-good">
               {qualifiedCount > 0
                 ? `${Math.round((convertedCount / Math.max(1, qualifiedCount)) * 100)}% تحويل`
-                : "▲ مبيعات مستعادة"}
+                : <><Icon name="arrowUp" size={12} /> مبيعات مستعادة</>}
             </span>
           </div>
 
@@ -1842,7 +1842,7 @@ export default function VisitorIncentivesStudio({
             >
               <Icon name="copy" size={16} />
               <span>
-                {scriptCopied ? "تم النسخ بنجاح! ✓" : "نسخ كود التتبع"}
+                {scriptCopied ? "تم النسخ بنجاح!" : "نسخ كود التتبع"}
               </span>
             </button>
           </div>
@@ -1906,7 +1906,7 @@ export default function VisitorIncentivesStudio({
               <strong>الصق هذا السطر مرة واحدة فقط.</strong> القواعد والتصميم يتحدثان
               تلقائياً من التطبيق بدون إعادة اللصق.{" "}
               {publishState === "saving" && "جاري نشر الإعدادات..."}
-              {publishState === "saved" && "تم نشر آخر الإعدادات ✓"}
+              {publishState === "saved" && "تم نشر آخر الإعدادات"}
               {publishState === "error" && `تعذر النشر: ${publishNote}`}
               {publishState === "saved" && publishNote ? ` ${publishNote}` : ""}
             </p>

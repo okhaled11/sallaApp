@@ -1,21 +1,22 @@
 /* Scan-to-Product: dashboard studio + phone capture page */
 .scan-studio,
 .scan-phone {
-  --scan-bg: #12151c;
-  --scan-card: #1a1f2b;
-  --scan-line: #2a3142;
-  --scan-text: #e8ecf4;
-  --scan-muted: #8d97ad;
-  --scan-brand: #7c5cff;
-  --scan-brand-2: #00d4b4;
-  --scan-danger: #ff6b6b;
+  --scan-bg: var(--bg-primary, #181b1c);
+  --scan-card: var(--bg-secondary, #212527);
+  --scan-line: rgba(255, 255, 255, 0.08);
+  --scan-text: var(--text-primary, #f2f4f5);
+  --scan-muted: var(--text-secondary, #8c969e);
+  --scan-brand: var(--accent-primary, #73fcd7);
+  --scan-brand-2: var(--accent-success, #00b259);
+  --scan-on-brand: #0d1f1b;
+  --scan-danger: #f5434a;
   --scan-warn: #ffc857;
   font-family: inherit;
   color: var(--scan-text);
 }
 
 .scan-studio {
-  background: linear-gradient(160deg, #181c27, #12151c);
+  background: var(--scan-card);
   border: 1px solid var(--scan-line);
   border-radius: 18px;
   padding: 24px;
@@ -31,10 +32,7 @@
 .scan-studio-head h2 {
   margin: 0 0 6px;
   font-size: 1.35rem;
-  background: linear-gradient(90deg, #fff, #b6a8ff);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text-heading, #fff);
 }
 .scan-studio-head p {
   margin: 0;
@@ -44,6 +42,10 @@
 
 /* Buttons */
 .scan-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: 0;
   border-radius: 12px;
   padding: 12px 20px;
@@ -60,14 +62,14 @@
   transform: translateY(-1px);
 }
 .scan-btn-primary {
-  background: linear-gradient(135deg, var(--scan-brand), #5b8cff);
-  color: #fff;
-  box-shadow: 0 8px 24px rgba(124, 92, 255, 0.35);
+  background: var(--scan-brand);
+  color: var(--scan-on-brand);
+  box-shadow: 0 6px 18px rgba(115, 252, 215, 0.22);
 }
 .scan-btn-accent {
-  background: linear-gradient(135deg, var(--scan-brand-2), #3bd16f);
-  color: #06201b;
-  box-shadow: 0 8px 24px rgba(0, 212, 180, 0.3);
+  background: var(--scan-brand);
+  color: var(--scan-on-brand);
+  box-shadow: 0 6px 18px rgba(115, 252, 215, 0.22);
 }
 .scan-btn-ghost {
   background: transparent;
@@ -128,7 +130,7 @@
   background: #fff;
   border-radius: 18px;
   padding: 10px;
-  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.25), 0 20px 50px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 0 0 4px rgba(115, 252, 215, 0.25), 0 20px 50px rgba(0, 0, 0, 0.4);
   line-height: 0;
 }
 .scan-steps {
@@ -160,18 +162,19 @@
 }
 .scan-steps li.active {
   color: var(--scan-text);
-  background: rgba(124, 92, 255, 0.12);
-  border-color: rgba(124, 92, 255, 0.4);
+  background: rgba(115, 252, 215, 0.12);
+  border-color: rgba(115, 252, 215, 0.4);
 }
 .scan-steps li.active b {
   background: var(--scan-brand);
+  color: var(--scan-on-brand);
 }
 .scan-steps li.done {
-  color: var(--scan-brand-2);
+  color: var(--scan-brand);
 }
 .scan-steps li.done b {
-  background: var(--scan-brand-2);
-  color: #06201b;
+  background: var(--scan-brand);
+  color: var(--scan-on-brand);
 }
 .scan-status {
   display: inline-flex;
@@ -203,8 +206,7 @@
     transform: scale(1.5);
   }
 }
-.scan-thumbs,
-.scan-phone-thumbs {
+.scan-thumbs {
   list-style: none;
   padding: 0;
   margin: 14px 0 0;
@@ -259,7 +261,7 @@
   bottom: 6px;
   inset-inline-start: 6px;
   background: var(--scan-brand);
-  color: #fff;
+  color: var(--scan-on-brand);
   font-size: 0.7rem;
   border-radius: 6px;
   padding: 2px 6px;
@@ -279,7 +281,7 @@
   color: var(--scan-muted);
 }
 .scan-field em {
-  color: var(--scan-brand-2);
+  color: var(--scan-brand);
   font-style: normal;
 }
 .scan-field input,
@@ -303,7 +305,7 @@
 }
 .scan-highlight input {
   border-color: var(--scan-brand);
-  box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.18);
+  box-shadow: 0 0 0 4px rgba(115, 252, 215, 0.18);
   font-size: 1.1rem;
   font-weight: 700;
 }
@@ -362,85 +364,239 @@
   place-items: center;
   font-size: 2.2rem;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--scan-brand-2), #3bd16f);
-  color: #06201b;
+  background: var(--scan-brand);
+  color: var(--scan-on-brand);
   animation: scan-pop 0.4s ease;
 }
 
 /* Phone page */
 .scan-phone {
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  background: radial-gradient(circle at 20% 0%, #2a2056, transparent 55%), #0d1017;
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgba(115, 252, 215, 0.14), transparent 60%),
+    var(--scan-bg);
 }
 .scan-phone-card {
   width: 100%;
-  max-width: 420px;
-  background: var(--scan-card);
-  border: 1px solid var(--scan-line);
-  border-radius: 24px;
-  padding: 24px 20px;
-  text-align: center;
-  display: grid;
-  gap: 14px;
+  max-width: 480px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) 18px calc(env(safe-area-inset-bottom, 0px) + 18px);
+  box-sizing: border-box;
+  text-align: right;
 }
-.scan-phone-card h1 {
-  margin: 0;
-  font-size: 1.3rem;
+.scan-phone-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 .scan-phone-badge {
-  justify-self: center;
-  font-size: 0.8rem;
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 14px;
   border-radius: 999px;
-  background: rgba(124, 92, 255, 0.18);
-  color: #c7bbff;
+  background: rgba(115, 252, 215, 0.1);
+  border: 1px solid rgba(115, 252, 215, 0.25);
+  color: var(--scan-brand);
+}
+.scan-phone-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--scan-muted);
+}
+.scan-phone-live::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--scan-brand-2);
+  box-shadow: 0 0 0 4px rgba(0, 178, 89, 0.18);
+}
+.scan-phone-hero h1 {
+  margin: 0 0 6px;
+  font-size: 1.55rem;
+  line-height: 1.35;
+  color: var(--text-heading, #fff);
 }
 .scan-phone-muted {
   margin: 0;
   color: var(--scan-muted);
-  font-size: 0.92rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
 }
 .scan-phone-error {
   margin: 0;
-  color: var(--scan-danger);
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(245, 67, 74, 0.1);
+  border: 1px solid rgba(245, 67, 74, 0.35);
+  color: #ff9ea2;
   font-size: 0.9rem;
+}
+.scan-phone-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.scan-phone-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--scan-muted);
+}
+.scan-phone-counter b {
+  color: var(--scan-brand);
+  font-size: 1rem;
+}
+.scan-phone-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--scan-line);
+  overflow: hidden;
+}
+.scan-phone-progress i {
+  display: block;
+  height: 100%;
+  background: var(--scan-brand);
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+.scan-phone-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.scan-phone-slot {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--scan-card);
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.22);
+}
+.scan-phone-slot.filled {
+  border: 1px solid rgba(115, 252, 215, 0.35);
+  animation: scan-pop 0.3s ease;
+}
+.scan-phone-slot img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.scan-phone-slot span {
+  position: absolute;
+  bottom: 6px;
+  inset-inline-start: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--scan-brand);
+  color: var(--scan-on-brand);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+.scan-phone-tips {
+  margin: 0;
+  padding: 14px 16px;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  border-radius: 16px;
+  background: var(--scan-card);
+  border: 1px solid var(--scan-line);
+  font-size: 0.85rem;
+  color: var(--scan-muted);
+}
+.scan-phone-tips li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.scan-phone-tips svg {
+  color: var(--scan-brand);
+  flex: none;
+}
+.scan-phone-dock {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  background: linear-gradient(to top, var(--scan-bg) 65%, transparent);
 }
 .scan-phone-actions {
   display: grid;
+  grid-template-columns: 1fr auto;
   gap: 10px;
 }
-.scan-phone-actions .scan-btn,
-.scan-phone-card > .scan-btn {
-  width: 100%;
-  padding: 16px;
-  font-size: 1.05rem;
+.scan-phone-card .scan-btn {
+  min-height: 54px;
+  padding: 14px 18px;
+  font-size: 1rem;
+  border-radius: 16px;
 }
-.scan-phone-thumbs {
+.scan-phone-card .scan-btn-ghost {
+  background: var(--scan-card);
+}
+.scan-phone-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  gap: 14px;
+  text-align: center;
 }
-.scan-phone-thumbs li {
-  position: relative;
+.scan-phone-center h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-heading, #fff);
 }
-.scan-phone-thumbs img {
-  width: 76px;
-  height: 76px;
-  object-fit: cover;
-  border-radius: 12px;
-  border: 1px solid var(--scan-line);
-  animation: scan-pop 0.3s ease;
+.scan-phone-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--scan-line);
+  border-top-color: var(--scan-brand);
+  animation: scan-spin 0.8s linear infinite;
 }
-.scan-phone-thumbs span {
-  position: absolute;
-  bottom: 4px;
-  inset-inline-start: 4px;
-  font-size: 0.6rem;
-  background: var(--scan-brand);
-  color: #fff;
-  border-radius: 5px;
-  padding: 1px 5px;
+@keyframes scan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.scan-phone-check {
+  width: 88px;
+  height: 88px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(115, 252, 215, 0.12);
+  border: 1px solid rgba(115, 252, 215, 0.4);
+  color: var(--scan-brand);
+  box-shadow: 0 0 0 10px rgba(115, 252, 215, 0.06);
+  animation: scan-pop 0.4s ease;
 }
 
 @media (max-width: 720px) {
@@ -464,9 +620,9 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(124, 92, 255, 0.15);
-  border: 1px solid rgba(124, 92, 255, 0.35);
-  color: #c7bbff;
+  background: rgba(115, 252, 215, 0.15);
+  border: 1px solid rgba(115, 252, 215, 0.35);
+  color: #baefe3;
   font-size: 0.8rem;
   font-weight: 600;
   padding: 4px 12px;
@@ -506,9 +662,9 @@
 }
 .scan-mode-tab.active {
   background: var(--scan-card);
-  color: #fff;
+  color: var(--text-heading, #fff);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(124, 92, 255, 0.4);
+  border: 1px solid rgba(115, 252, 215, 0.4);
 }
 
 /* Direct upload card & dropzone */
@@ -517,8 +673,8 @@
   gap: 20px;
 }
 .scan-dropzone {
-  border: 2px dashed rgba(124, 92, 255, 0.4);
-  background: rgba(26, 31, 43, 0.5);
+  border: 2px dashed rgba(115, 252, 215, 0.4);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 18px;
   padding: 36px 20px;
   text-align: center;
@@ -526,7 +682,7 @@
 }
 .scan-dropzone:hover {
   border-color: var(--scan-brand);
-  background: rgba(26, 31, 43, 0.8);
+  background: rgba(115, 252, 215, 0.04);
 }
 .scan-dropzone-icon {
   margin-bottom: 12px;
@@ -577,7 +733,7 @@
   inset-inline-start: 6px;
   font-size: 0.65rem;
   background: var(--scan-brand);
-  color: #fff;
+  color: var(--scan-on-brand);
   border-radius: 6px;
   padding: 2px 6px;
   font-weight: 700;
@@ -598,9 +754,9 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  background: linear-gradient(135deg, rgba(124, 92, 255, 0.2), rgba(0, 212, 180, 0.1));
-  border: 1px solid rgba(124, 92, 255, 0.4);
-  color: #dcd3ff;
+  background: rgba(115, 252, 215, 0.08);
+  border: 1px solid rgba(115, 252, 215, 0.4);
+  color: #d9fff4;
   font-size: 0.92rem;
   font-weight: 600;
   padding: 10px 16px;
@@ -609,7 +765,7 @@
   box-sizing: border-box;
 }
 .scan-category-tag {
-  color: var(--scan-brand-2);
+  color: var(--scan-brand);
   font-size: 0.85rem;
   font-style: normal;
   margin-inline-start: 6px;
@@ -643,7 +799,45 @@
   color: var(--scan-text);
 }
 .scan-success-icon {
-  color: var(--scan-brand-2);
+  color: var(--scan-brand);
   margin-bottom: 12px;
 }
 
+
+/* Phone polish */
+.scan-phone-check-warn {
+  background: rgba(245, 67, 74, 0.1);
+  border-color: rgba(245, 67, 74, 0.4);
+  color: #ff9ea2;
+  box-shadow: 0 0 0 10px rgba(245, 67, 74, 0.05);
+}
+.scan-phone-slot.filled {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+.scan-phone-grid.is-analyzing .scan-phone-slot.filled::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  height: 40%;
+  background: linear-gradient(to bottom, transparent, rgba(115, 252, 215, 0.45));
+  border-bottom: 2px solid var(--scan-brand);
+  animation: scan-sweep 1.6s ease-in-out infinite;
+}
+@keyframes scan-sweep {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(250%);
+  }
+}
+.scan-phone-card .scan-btn:not(:disabled):active {
+  transform: scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  .scan-phone-grid.is-analyzing .scan-phone-slot.filled::after,
+  .scan-phone-spinner {
+    animation: none;
+  }
+}

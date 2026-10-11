@@ -104,11 +104,11 @@ export default function StorefrontModalPreview({
                 }}
               >
                 {config.incentiveType === "free_shipping"
-                  ? "توصيل مجاني 🚚"
+                  ? <><Icon name="delivery" size={14} /> توصيل مجاني</>
                   : config.incentiveType === "free_product"
-                  ? "هدية مجانية 🎁"
+                  ? <><Icon name="gift" size={14} /> هدية مجانية</>
                   : config.incentiveType === "custom"
-                  ? "عرض حصري ✨"
+                  ? <><Icon name="sparkles" size={14} /> عرض حصري</>
                   : `خصم ${config.discountValue || 0}${config.discountType === "fixed" ? " ر.س" : "%"}`}
               </span>
             </div>

@@ -6,6 +6,7 @@ import {
 } from "../../utils/scanApi.js";
 import { fileToScanDataUrl } from "../../utils/scanImage.js";
 import "./scan.css";
+import Icon from "../Icon.jsx";
 
 const MAX_IMAGES = 6;
 
@@ -63,6 +64,7 @@ export default function PhoneCapture() {
           }
           count = res.data.count;
           setThumbs((prev) => [...prev, dataUrl]);
+          navigator.vibrate?.(15);
         } catch {
           setMessage("تعذّر قراءة الصورة");
           break;
@@ -77,8 +79,10 @@ export default function PhoneCapture() {
     setPhase("analyzing");
     setMessage("");
     const res = await analyzeScanSession(sid, key);
-    if (res.success) setPhase("done");
-    else {
+    if (res.success) {
+      setPhase("done");
+      navigator.vibrate?.([20, 40, 20]);
+    } else {
       setMessage(res.error || "تعذّر التحليل");
       setPhase("capture");
     }
@@ -93,45 +97,101 @@ export default function PhoneCapture() {
     return (
       <main className="scan-phone" dir="rtl">
         <div className="scan-phone-card">
-          <h1>رابط غير صالح</h1>
-          <p>امسح رمز QR من لوحة التاجر مرة أخرى.</p>
+          <div className="scan-phone-center">
+            <div className="scan-phone-check scan-phone-check-warn">
+              <Icon name="alert" size={36} />
+            </div>
+            <h1>رابط غير صالح</h1>
+            <p className="scan-phone-muted">امسح رمز QR من لوحة التاجر مرة أخرى.</p>
+          </div>
         </div>
       </main>
     );
   }
 
+  const isCapturing = phase === "capture" || phase === "analyzing";
+  const analyzing = phase === "analyzing";
+  const limitReached = thumbs.length >= MAX_IMAGES;
+  const locked = busy || analyzing;
+
   return (
     <main className="scan-phone" dir="rtl">
       <div className="scan-phone-card">
-        <div className="scan-phone-badge">📸 تصوير منتج جديد</div>
+        <header className="scan-phone-top">
+          <div className="scan-phone-badge">
+            <Icon name="camera" size={16} /> منتج جديد
+          </div>
+          {phase !== "error" && <span className="scan-phone-live">متصل بلوحة التاجر</span>}
+        </header>
 
-        {phase === "joining" && <p className="scan-phone-muted">جارٍ الاتصال بمتجرك…</p>}
+        {phase === "joining" && (
+          <div className="scan-phone-center">
+            <div className="scan-phone-spinner" />
+            <p className="scan-phone-muted">جارٍ الاتصال بمتجرك…</p>
+          </div>
+        )}
 
         {phase === "error" && (
-          <>
+          <div className="scan-phone-center">
+            <div className="scan-phone-check scan-phone-check-warn">
+              <Icon name="alert" size={36} />
+            </div>
             <h1>تعذّر المتابعة</h1>
             <p className="scan-phone-error">{message}</p>
             <p className="scan-phone-muted">ارجع للوحة التاجر وأنشئ رمز QR جديدًا.</p>
-          </>
+          </div>
         )}
 
-        {(phase === "capture" || phase === "analyzing") && (
+        {isCapturing && (
           <>
-            <h1>صوّر المنتج من عدة زوايا</h1>
-            <p className="scan-phone-muted">
-              صورة واضحة بإضاءة جيدة تكفي. يمكنك إضافة حتى {MAX_IMAGES} صور.
-            </p>
+            <div className="scan-phone-main">
+              <div className="scan-phone-hero">
+                <h1>صوّر المنتج من عدة زوايا</h1>
+                <p className="scan-phone-muted">
+                  الصورة الأولى هي الصورة الرئيسية للمنتج في متجرك.
+                </p>
+              </div>
 
-            {thumbs.length > 0 && (
-              <ul className="scan-phone-thumbs">
-                {thumbs.map((src, i) => (
-                  <li key={src.slice(-40) + i}>
-                    <img src={src} alt={`صورة ${i + 1}`} />
-                    {i === 0 && <span>الرئيسية</span>}
+              <div>
+                <div className="scan-phone-counter">
+                  <span>الصور المرفوعة</span>
+                  <span>
+                    <b>{thumbs.length}</b> / {MAX_IMAGES}
+                  </span>
+                </div>
+                <div className="scan-phone-progress">
+                  <i style={{ width: `${(thumbs.length / MAX_IMAGES) * 100}%` }} />
+                </div>
+              </div>
+
+              <ul className={`scan-phone-grid${analyzing ? " is-analyzing" : ""}`}>
+                {Array.from({ length: MAX_IMAGES }, (_, i) => (
+                  <li key={i} className={`scan-phone-slot${thumbs[i] ? " filled" : ""}`}>
+                    {thumbs[i] ? (
+                      <>
+                        <img src={thumbs[i]} alt={`صورة ${i + 1}`} />
+                        {i === 0 && <span>الرئيسية</span>}
+                      </>
+                    ) : (
+                      <Icon name="image" size={26} />
+                    )}
                   </li>
                 ))}
               </ul>
-            )}
+
+              {thumbs.length === 0 && (
+                <ul className="scan-phone-tips">
+                  <li>
+                    <Icon name="sparkles" size={16} /> استخدم إضاءة جيدة وخلفية بسيطة
+                  </li>
+                  <li>
+                    <Icon name="camera" size={16} /> صوّر المنتج من الأمام والجانب والتفاصيل
+                  </li>
+                </ul>
+              )}
+
+              {message && <p className="scan-phone-error">{message}</p>}
+            </div>
 
             <input
               ref={cameraRef}
@@ -156,51 +216,69 @@ export default function PhoneCapture() {
               }}
             />
 
-            <div className="scan-phone-actions">
+            <div className="scan-phone-dock">
+              <div className="scan-phone-actions">
+                <button
+                  type="button"
+                  id="scan-phone-camera"
+                  className={`scan-btn ${thumbs.length ? "scan-btn-ghost" : "scan-btn-primary"}`}
+                  disabled={locked || limitReached}
+                  onClick={() => cameraRef.current?.click()}
+                >
+                  {busy ? (
+                    "جارٍ الرفع…"
+                  ) : thumbs.length ? (
+                    <>
+                      <Icon name="add" size={18} /> صورة أخرى
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="camera" size={18} /> افتح الكاميرا
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  id="scan-phone-gallery"
+                  className="scan-btn scan-btn-ghost"
+                  aria-label="من المعرض"
+                  disabled={locked || limitReached}
+                  onClick={() => galleryRef.current?.click()}
+                >
+                  <Icon name="image" size={20} />
+                </button>
+              </div>
+
               <button
                 type="button"
-                id="scan-phone-camera"
-                className="scan-btn scan-btn-primary"
-                disabled={busy || phase === "analyzing" || thumbs.length >= MAX_IMAGES}
-                onClick={() => cameraRef.current?.click()}
+                id="scan-phone-analyze"
+                className="scan-btn scan-btn-accent"
+                disabled={thumbs.length === 0 || locked}
+                onClick={handleAnalyze}
               >
-                {busy ? "جارٍ الرفع…" : thumbs.length ? "＋ صورة أخرى" : "📷 افتح الكاميرا"}
-              </button>
-              <button
-                type="button"
-                id="scan-phone-gallery"
-                className="scan-btn scan-btn-ghost"
-                disabled={busy || phase === "analyzing" || thumbs.length >= MAX_IMAGES}
-                onClick={() => galleryRef.current?.click()}
-              >
-                🖼️ من المعرض
+                <Icon name="aiSparkles" size={18} />
+                {analyzing ? "الذكاء الاصطناعي يحلل الصور…" : "تحليل وإرسال للوحة"}
               </button>
             </div>
-
-            {message && <p className="scan-phone-error">{message}</p>}
-
-            <button
-              type="button"
-              id="scan-phone-analyze"
-              className="scan-btn scan-btn-accent"
-              disabled={thumbs.length === 0 || busy || phase === "analyzing"}
-              onClick={handleAnalyze}
-            >
-              {phase === "analyzing" ? "✨ الذكاء الاصطناعي يحلل الصور…" : "✨ تحليل وإرسال للوحة"}
-            </button>
           </>
         )}
 
         {phase === "done" && (
           <>
-            <div className="scan-phone-check">✓</div>
-            <h1>تم الإرسال!</h1>
-            <p className="scan-phone-muted">
-              افتح لوحة التاجر على الكمبيوتر: بيانات المنتج جاهزة، أضف السعر والألوان وانشر.
-            </p>
-            <button type="button" className="scan-btn scan-btn-ghost" onClick={reset}>
-              إضافة صور أخرى وإعادة التحليل
-            </button>
+            <div className="scan-phone-center">
+              <div className="scan-phone-check">
+                <Icon name="check" size={40} />
+              </div>
+              <h1>تم الإرسال!</h1>
+              <p className="scan-phone-muted">
+                افتح لوحة التاجر على الكمبيوتر: بيانات المنتج جاهزة، أضف السعر والألوان وانشر.
+              </p>
+            </div>
+            <div className="scan-phone-dock">
+              <button type="button" className="scan-btn scan-btn-ghost" onClick={reset}>
+                إضافة صور أخرى وإعادة التحليل
+              </button>
+            </div>
           </>
         )}
       </div>

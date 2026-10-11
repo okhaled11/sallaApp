@@ -406,7 +406,7 @@ export default function ScanToProduct({
                       onClick={handleAnalyzeDirect}
                     >
                       <Icon name="aiSparkles" size={20} />
-                      {isAnalyzing ? "✨ جارٍ تحليل الصور بالذكاء الاصطناعي (Gemini)…" : "✨ تحليل الصور واستخراج بيانات المنتج (Gemini AI)"}
+                      {isAnalyzing ? "جارٍ تحليل الصور بالذكاء الاصطناعي (Gemini)…" : "تحليل الصور واستخراج بيانات المنتج (Gemini AI)"}
                     </button>
                   </div>
                 </div>
@@ -433,7 +433,7 @@ export default function ScanToProduct({
                   <li className={isAnalyzing ? "active" : ""}>
                     <b>٣</b>
                     <span>
-                      {isAnalyzing ? "✨ الذكاء الاصطناعي يحلل الصور…" : "اضغط «تحليل» في الهاتف أو هنا"}
+                      {isAnalyzing ? "الذكاء الاصطناعي يحلل الصور…" : "اضغط «تحليل» في الهاتف أو هنا"}
                     </span>
                   </li>
                 </ol>
@@ -442,7 +442,7 @@ export default function ScanToProduct({
                   <span className="scan-dot" />
                   {remote.status === "waiting" && "بانتظار مسح الرمز من كاميرا الهاتف…"}
                   {remote.status === "connected" &&
-                    (hasPhotos ? `تم استلام ${remote.images.length} صور من الهاتف` : "الهاتف متصل ✓ بانتظار التقاط الصور")}
+                    (hasPhotos ? `تم استلام ${remote.images.length} صور من الهاتف` : "الهاتف متصل، بانتظار التقاط الصور")}
                   {remote.status === "analyzing" && "جارٍ تحليل الصور عبر Gemini AI…"}
                 </div>
 
@@ -597,7 +597,7 @@ export default function ScanToProduct({
                       className="scan-btn-delete-color"
                       onClick={() => removeColor(i)}
                     >
-                      ×
+                      <Icon name="multiply" size={14} />
                     </button>
                   </div>
                 ))}
@@ -634,8 +634,8 @@ export default function ScanToProduct({
               className="scan-btn scan-btn-primary scan-btn-publish"
               disabled={publishing}
             >
-              <Icon name="package" size={20} />
-              {publishing ? "جارٍ نشر المنتج على متجر سلة…" : "🚀 نشر المنتج فوراً على سلة"}
+              <Icon name={publishing ? "package" : "rocket"} size={20} />
+              {publishing ? "جارٍ نشر المنتج على متجر سلة…" : "نشر المنتج فوراً على سلة"}
             </button>
           </div>
         </form>
