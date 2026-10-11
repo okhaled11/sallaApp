@@ -5,7 +5,7 @@
  */
 import { scanSessionRequest } from "../server/lib/scan-session-core.js";
 
-export const config = { maxDuration: 30 };
+export const config = { maxDuration: 60 };
 
 export default async function handler(req, res) {
   const { statusCode, headers, body, isBase64Encoded } = await scanSessionRequest({

@@ -6,7 +6,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/risky-orders.js": { "maxDuration": 30 },
-    "api/scan-session.js": { "maxDuration": 30 }
+    "api/scan-session.js": { "maxDuration": 60 }
   },
   "headers": [
     {

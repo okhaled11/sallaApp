@@ -195,8 +195,12 @@ async function analyzeImages(dataUrls, customKey) {
     "gemini-3.8-flash",
   ])).filter(Boolean);
 
+  // Stay under the function's maxDuration so we return a JSON error instead of a gateway 504.
+  const deadline = Date.now() + 50_000;
   let lastError = null;
   for (const model of candidateModels) {
+    const remaining = deadline - Date.now();
+    if (remaining < 3000) break;
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -207,6 +211,7 @@ async function analyzeImages(dataUrls, customKey) {
             contents: [{ role: "user", parts }],
             generationConfig: { responseMimeType: "application/json", temperature: 0.4 },
           }),
+          signal: AbortSignal.timeout(Math.min(remaining, 25_000)),
         },
       );
       const result = await response.json().catch(() => ({}));
