@@ -253,6 +253,7 @@ export function validateProduct(product) {
       price,
       quantity,
       costPrice: cost,
+      weight: Number(product.weight) > 0 ? Number(product.weight) : 0,
       status: product.status === "hidden" ? "hidden" : "sale",
       categoryIds,
     },
@@ -268,6 +269,8 @@ export function buildSallaPayload(value, imageUrls) {
     product_type: "product",
     description: value.description,
     require_shipping: true,
+    weight: value.weight > 0 ? value.weight : 0.5,
+    weight_type: "kg",
     images: imageUrls.map((url, i) => ({
       original: url,
       thumbnail: url,
