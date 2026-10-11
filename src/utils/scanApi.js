@@ -33,6 +33,9 @@ export function buildPhoneUrl(baseUrl, sid, phoneKey) {
   return url.toString();
 }
 
+export const getClientGeminiApiKey = () =>
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_GEMINI_API_KEY) || "";
+
 // dashboard
 export const createScanSession = (token) =>
   post({ action: "create", token, appId: getAppId() }, "Scan create");
@@ -42,12 +45,12 @@ export const publishScannedProduct = (token, sid, deskKey, product) =>
   post({ action: "publish", token, appId: getAppId(), sid, deskKey, product }, "Scan publish");
 export const uploadScanImageFromDashboard = (sid, deskKey, image) =>
   post({ action: "upload", sid, deskKey, image }, "Scan upload (desk)");
-export const analyzeScanSessionFromDashboard = (sid, deskKey, apiKey) =>
-  post({ action: "analyze", sid, deskKey, apiKey }, "Scan analyze (desk)");
+export const analyzeScanSessionFromDashboard = (sid, deskKey, apiKey = getClientGeminiApiKey()) =>
+  post({ action: "analyze", sid, deskKey, ...(apiKey ? { apiKey } : {}) }, "Scan analyze (desk)");
 
 // phone
 export const joinScanSession = (sid, phoneKey) => post({ action: "join", sid, phoneKey }, "Scan join");
 export const uploadScanImage = (sid, phoneKey, image) =>
   post({ action: "upload", sid, phoneKey, image }, "Scan upload");
-export const analyzeScanSession = (sid, phoneKey) =>
-  post({ action: "analyze", sid, phoneKey }, "Scan analyze");
+export const analyzeScanSession = (sid, phoneKey, apiKey = getClientGeminiApiKey()) =>
+  post({ action: "analyze", sid, phoneKey, ...(apiKey ? { apiKey } : {}) }, "Scan analyze");

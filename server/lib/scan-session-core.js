@@ -165,7 +165,7 @@ export function sanitizeDraft(raw) {
 
 async function analyzeImages(dataUrls, customKey) {
   const apiKey = customKey || process.env.GEMINI_API_KEY;
-  if (!apiKey) return { draft: { ...EMPTY_DRAFT }, warning: "GEMINI_API_KEY غير مضبوط: أكمل البيانات يدويًا" };
+  if (!apiKey) return { draft: { ...EMPTY_DRAFT }, warning: "GEMINI_API_KEY غير مضبوط في .env: أكمل البيانات يدويًا" };
 
   const parts = [{ text: PROMPT }];
   for (const url of dataUrls) {
