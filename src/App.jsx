@@ -12,6 +12,7 @@ import ContentStudio from "./components/ContentStudio/ContentStudio.jsx";
 import VisitorIncentivesStudio from "./components/Incentives/VisitorIncentivesStudio.jsx";
 import RiskyOrders from "./components/RiskyOrders/RiskyOrders.jsx";
 import TryOnStudio from "./components/TryOn/TryOnStudio.jsx";
+import ScanToProduct from "./components/ScanToProduct/ScanToProduct.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
 import ProfitInsights from "./components/ProfitInsights.jsx";
@@ -227,7 +228,9 @@ function AppContent() {
           ? "كاشف الطلبات الخطرة"
           : activeTab === "tryon"
             ? "التجربة الافتراضية"
-            : activeTab === "incentives"
+            : activeTab === "scan"
+              ? "أضف منتجًا بالتصوير"
+              : activeTab === "incentives"
             ? "تحفيز الزوار والخصومات الذكية"
             : "المبيعات والأرباح",
     action: chromeAction,
@@ -335,6 +338,14 @@ function AppContent() {
                   token={token}
                   currency={layout?.currency || "SAR"}
                   onShowToast={showToast}
+                />
+              ) : activeTab === "scan" ? (
+                <ScanToProduct
+                  products={products}
+                  token={token}
+                  currency={layout?.currency || "SAR"}
+                  onShowToast={showToast}
+                  onPublished={reload}
                 />
               ) : activeTab === "tryon" ? (
                 <TryOnStudio

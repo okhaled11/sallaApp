@@ -22,6 +22,7 @@ function devCouponApi() {
         ["/api/incentive-config", "/server/lib/incentive-config-core.js", "incentiveConfigRequest"],
         ["/api/incentive-offers", "/server/lib/incentive-offers-core.js", "incentiveOffersRequest"],
         ["/api/tryon-config", "/server/lib/tryon-config-core.js", "tryonConfigRequest"],
+        ["/api/scan-session", "/server/lib/scan-session-core.js", "scanSessionRequest"],
         ["/api/webhooks/salla", "/server/lib/webhook-core.js", "sallaWebhookRequest"],
       ];
       for (const [route, modulePath, exportName] of routes) {
@@ -29,7 +30,7 @@ function devCouponApi() {
           const chunks = [];
           for await (const c of req) chunks.push(c);
           const mod = await server.ssrLoadModule(modulePath);
-          const { statusCode, headers, body } = await mod[exportName]({
+          const { statusCode, headers, body, isBase64Encoded } = await mod[exportName]({
             method: req.method,
             body: Buffer.concat(chunks).toString("utf8"),
             query: Object.fromEntries(new URL(req.url, "http://localhost").searchParams),
@@ -37,7 +38,7 @@ function devCouponApi() {
           });
           res.statusCode = statusCode;
           for (const [k, v] of Object.entries(headers || {})) res.setHeader(k, v);
-          res.end(body);
+          res.end(isBase64Encoded ? Buffer.from(body, "base64") : body);
         });
       }
     },

@@ -9,6 +9,7 @@ export const RISKY_ORDERS_FUNCTION_URL = "/api/risky-orders";
 export const INCENTIVE_CONFIG_FUNCTION_URL = "/api/incentive-config";
 export const INCENTIVE_OFFERS_FUNCTION_URL = "/api/incentive-offers";
 export const TRYON_CONFIG_FUNCTION_URL = "/api/tryon-config";
+export const SCAN_SESSION_FUNCTION_URL = "/api/scan-session";
 
 // App ID - can be overridden via URL parameter ?appId=XXX
 export function getAppId() {

@@ -44,6 +44,13 @@ export default function Navbar({
       icon: "aiSparkles",
       badgeLabel: "جديد",
     },
+    {
+      id: "scan",
+      label: "أضف منتجًا بالتصوير",
+      subtitle: "امسح QR وصوّر، والذكاء يملأ البيانات",
+      icon: "aiSparkles",
+      badgeLabel: "جديد",
+    },
   ];
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];

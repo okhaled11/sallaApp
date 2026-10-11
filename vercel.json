@@ -5,7 +5,8 @@
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
   "functions": {
-    "api/risky-orders.js": { "maxDuration": 30 }
+    "api/risky-orders.js": { "maxDuration": 30 },
+    "api/scan-session.js": { "maxDuration": 30 }
   },
   "headers": [
     {
