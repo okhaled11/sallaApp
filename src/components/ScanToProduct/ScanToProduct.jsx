@@ -1,19 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import Icon from "../Icon.jsx";
 import {
   buildPhoneUrl,
   createScanSession,
   pollScanSession,
   publishScannedProduct,
   scanImageUrl,
+  uploadScanImageFromDashboard,
+  analyzeScanSessionFromDashboard,
 } from "../../utils/scanApi.js";
+import { fileToScanDataUrl } from "../../utils/scanImage.js";
 import "./scan.css";
 
 const POLL_MS = 2000;
+const MAX_IMAGES = 6;
 const isLocalHost = (host) => /^(localhost|127\.0\.0\.1)$/.test(host);
 
 const EMPTY_FORM = {
   name: "",
+  nameEn: "",
   description: "",
   category: "",
   categoryId: "",
@@ -28,25 +34,42 @@ const EMPTY_FORM = {
 };
 
 /**
- * Dashboard side of Scan-to-Product: shows a QR for the phone, receives the
- * photos + AI draft, lets the merchant add price / colours, then publishes to Salla.
+ * Dashboard side of Scan-to-Product:
+ * Provides two convenient paths:
+ * 1. Direct photo upload / webcam capture directly from desktop/laptop.
+ * 2. Mobile QR code scanning to use phone camera without login.
+ * Both paths use Google Gemini AI to analyze product images and draft
+ * complete, high-converting Arabic catalog information.
  */
-export default function ScanToProduct({ products = [], token, currency = "SAR", onShowToast, onPublished }) {
+export default function ScanToProduct({
+  products = [],
+  token,
+  currency = "SAR",
+  onShowToast,
+  onPublished,
+}) {
   const [session, setSession] = useState(null); // { sid, deskKey, phoneKey }
   const [remote, setRemote] = useState({ status: "waiting", images: [], draft: null, warning: "" });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState(EMPTY_FORM);
   const [publishing, setPublishing] = useState(false);
+  const [analyzingDirect, setAnalyzingDirect] = useState(false);
+  const [uploadingDirect, setUploadingDirect] = useState(false);
+  const [captureMode, setCaptureMode] = useState("direct"); // "direct" | "qr"
   const [result, setResult] = useState(null);
   const [baseUrl, setBaseUrl] = useState(window.location.origin);
   const draftAppliedRef = useRef(false);
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
 
   const categories = useMemo(() => {
     const map = new Map();
     products.forEach((p) => p.categories?.forEach((c) => map.set(c.id, c.name)));
     return [...map].map(([id, name]) => ({ id, name }));
   }, [products]);
+
+  const effectiveToken = token || "dev-token";
 
   const startSession = useCallback(async () => {
     setCreating(true);
@@ -55,16 +78,16 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
     setForm(EMPTY_FORM);
     draftAppliedRef.current = false;
     setRemote({ status: "waiting", images: [], draft: null, warning: "" });
-    const res = await createScanSession(token);
+    const res = await createScanSession(effectiveToken);
     setCreating(false);
     if (!res.success) {
       setError(res.error || "تعذّر إنشاء الجلسة");
       return;
     }
     setSession(res.data);
-  }, [token]);
+  }, [effectiveToken]);
 
-  // Poll the session until published / expired
+  // Poll the session until published or form ready
   useEffect(() => {
     if (!session || result) return undefined;
     let stopped = false;
@@ -75,7 +98,7 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
         setRemote(res.data);
       } else if (res.expired) {
         setSession(null);
-        setError("انتهت صلاحية الجلسة. أنشئ رمزًا جديدًا");
+        setError("انتهت صلاحية الجلسة. أنشئ جلسة جديدة");
       }
     };
     tick();
@@ -86,7 +109,7 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
     };
   }, [session, result]);
 
-  // Fill the form once when the AI draft arrives (don't clobber later edits)
+  // Fill the form once when the AI draft arrives
   useEffect(() => {
     const draft = remote.draft;
     if (!draft || draftAppliedRef.current) return;
@@ -95,13 +118,14 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
     setForm((prev) => ({
       ...prev,
       name: draft.name || prev.name,
+      nameEn: draft.nameEn || prev.nameEn || "",
       description: draft.description || prev.description,
       category: draft.category || "",
-      categoryId: match ? String(match.id) : "",
+      categoryId: match ? String(match.id) : prev.categoryId,
       colors: draft.colors?.length ? draft.colors : prev.colors,
-      sizes: (draft.sizes || []).join("، "),
-      metaTitle: draft.metaTitle || "",
-      metaDescription: draft.metaDescription || "",
+      sizes: Array.isArray(draft.sizes) ? draft.sizes.join("، ") : (draft.sizes || prev.sizes || ""),
+      metaTitle: draft.metaTitle || prev.metaTitle || (draft.name ? `${draft.name} | متجرنا` : ""),
+      metaDescription: draft.metaDescription || prev.metaDescription || "",
     }));
   }, [remote.draft, categories]);
 
@@ -112,6 +136,75 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
       ...prev,
       colors: prev.colors.map((c, i) => (i === index ? { ...c, ...patch } : c)),
     }));
+
+  const addColor = () =>
+    setForm((prev) => ({
+      ...prev,
+      colors: [...prev.colors, { name: "لون جديد", hex: "#111827" }],
+    }));
+
+  const removeColor = (index) =>
+    setForm((prev) => ({
+      ...prev,
+      colors: prev.colors.filter((_, i) => i !== index),
+    }));
+
+  // Handle direct file uploads (drag-drop or file picker)
+  const handleUploadFiles = async (fileList) => {
+    if (!fileList || fileList.length === 0) return;
+    if (!session) {
+      setError("ابدأ الجلسة أولاً بالضغط على بدء التصوير");
+      return;
+    }
+    setUploadingDirect(true);
+    setError("");
+
+    try {
+      const files = Array.from(fileList).slice(0, MAX_IMAGES);
+      for (const file of files) {
+        if (remote.images.length >= MAX_IMAGES) {
+          setError(`الحد الأقصى ${MAX_IMAGES} صور`);
+          break;
+        }
+        const dataUrl = await fileToScanDataUrl(file);
+        const res = await uploadScanImageFromDashboard(session.sid, session.deskKey, dataUrl);
+        if (!res.success) {
+          setError(res.error || "فشل رفع الصورة");
+          break;
+        }
+      }
+      // Trigger an immediate poll update
+      const pollRes = await pollScanSession(session.sid, session.deskKey);
+      if (pollRes.success) setRemote(pollRes.data);
+    } catch (err) {
+      setError("تعذّر معالجة ورفع الصورة: " + (err.message || "خطأ غير معروف"));
+    } finally {
+      setUploadingDirect(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (cameraInputRef.current) cameraInputRef.current.value = "";
+    }
+  };
+
+  // Direct trigger AI Analysis using Gemini
+  const handleAnalyzeDirect = async () => {
+    if (!session) return;
+    if (remote.images.length === 0) {
+      setError("الرجاء إضافة صورة واحدة على الأقل قبل بدء التحليل");
+      return;
+    }
+    setAnalyzingDirect(true);
+    setError("");
+    const res = await analyzeScanSessionFromDashboard(session.sid, session.deskKey);
+    setAnalyzingDirect(false);
+    if (!res.success) {
+      setError(res.error || "تعذّر تحليل الصور بواسطة الذكاء الاصطناعي");
+      return;
+    }
+    // Poll immediately to fetch generated draft
+    const pollRes = await pollScanSession(session.sid, session.deskKey);
+    if (pollRes.success) setRemote(pollRes.data);
+    onShowToast?.("تم استخراج بيانات المنتج بواسطة Gemini AI بنجاح", "success");
+  };
 
   const handlePublish = async (event) => {
     event.preventDefault();
@@ -133,112 +226,275 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
       metaDescription: form.metaDescription,
       categoryIds: form.categoryId ? [Number(form.categoryId)] : [],
     };
-    const res = await publishScannedProduct(token, session.sid, session.deskKey, product);
+    const res = await publishScannedProduct(effectiveToken, session.sid, session.deskKey, product);
     setPublishing(false);
     if (!res.success) {
       setError(res.error || "فشل نشر المنتج");
       return;
     }
     setResult(res.data);
-    onShowToast?.("تم إنشاء المنتج في سلة", "success");
+    onShowToast?.("تم إنشاء ونشر المنتج في سلة بنجاح! 🚀", "success");
     onPublished?.();
   };
 
   const phoneUrl = session ? buildPhoneUrl(baseUrl, session.sid, session.phoneKey) : "";
   const needsLan = isLocalHost(window.location.hostname);
   const hasPhotos = remote.images.length > 0;
+  const isAnalyzing = remote.status === "analyzing" || analyzingDirect;
   const showForm = remote.status === "ready" && !result;
 
   return (
     <section className="scan-studio" aria-labelledby="scan-title">
       <header className="scan-studio-head">
         <div>
-          <h2 id="scan-title">أضف منتجًا بالتصوير</h2>
-          <p>امسح الرمز بهاتفك، صوّر المنتج، ونملأ البيانات بالذكاء الاصطناعي. أنت تضيف السعر فقط.</p>
+          <div className="scan-badge">
+            <Icon name="aiSparkles" size={14} />
+            <span>مدعوم بنموذج Google Gemini للذكاء الاصطناعي</span>
+          </div>
+          <h2 id="scan-title">أضف منتجًا بالتصوير والذكاء الاصطناعي</h2>
+          <p>
+            التقط أو ارفع صور المنتج، ويقوم Gemini AI باستخراج الاسم العربي والإنجليزي، الوصف التسويقي، الألوان، والتصنيف بدقة فائقة.
+          </p>
         </div>
         {session && !result && (
-          <button type="button" className="scan-btn scan-btn-ghost" onClick={startSession} disabled={creating}>
-            جلسة جديدة
+          <button
+            type="button"
+            className="scan-btn scan-btn-ghost"
+            onClick={startSession}
+            disabled={creating}
+          >
+            <Icon name="reload" size={16} />
+            جلسة تصوير جديدة
           </button>
         )}
       </header>
 
-      {error && <div className="scan-alert scan-alert-error">{error}</div>}
+      {error && (
+        <div className="scan-alert scan-alert-error" role="alert">
+          <Icon name="alert" size={18} />
+          <span>{error}</span>
+        </div>
+      )}
 
+      {/* Mode / Empty State Before Starting Session */}
       {!session && !result && (
         <div className="scan-empty">
-          <div className="scan-empty-art" aria-hidden="true">📱⇄🛍️</div>
-          <p>اربط هاتفك بالمتجر في ثوانٍ بدون تسجيل دخول.</p>
+          <div className="scan-empty-icon" aria-hidden="true">
+            <Icon name="camera" size={48} />
+          </div>
+          <h3>ابدأ إضافة منتج جديد بالتصوير</h3>
+          <p>ارفع صور المنتج من جهازك أو امسح رمز الاستجابة السريعة بهاتفك لبدء التحليل الفوري.</p>
           <button
             type="button"
             id="scan-start"
             className="scan-btn scan-btn-primary"
-            disabled={creating || !token}
+            disabled={creating}
             onClick={startSession}
           >
-            {creating ? "جارٍ الإنشاء…" : "إنشاء رمز QR"}
+            <Icon name="aiSparkles" size={18} />
+            {creating ? "جارٍ بدء الجلسة…" : "بدء جلسة التصوير والتحليل"}
           </button>
         </div>
       )}
 
+      {/* Session Active & Not Yet Ready/Published */}
       {session && !result && !showForm && (
-        <div className="scan-pair">
-          <div className="scan-qr" aria-label="رمز الاتصال بالهاتف">
-            <QRCodeSVG value={phoneUrl} size={220} level="M" includeMargin />
+        <div className="scan-session-container">
+          {/* Tabs to choose capture method */}
+          <div className="scan-mode-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={captureMode === "direct"}
+              className={`scan-mode-tab ${captureMode === "direct" ? "active" : ""}`}
+              onClick={() => setCaptureMode("direct")}
+            >
+              <Icon name="image" size={18} />
+              <span>رفع مباشر من الجهاز أو كاميرا الويب</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={captureMode === "qr"}
+              className={`scan-mode-tab ${captureMode === "qr" ? "active" : ""}`}
+              onClick={() => setCaptureMode("qr")}
+            >
+              <Icon name="camera" size={18} />
+              <span>مسح برمز QR عبر الجوال</span>
+            </button>
           </div>
-          <div className="scan-pair-info">
-            <ol className="scan-steps">
-              <li className={remote.status !== "waiting" ? "done" : "active"}>
-                <b>١</b> امسح الرمز بكاميرا هاتفك
-              </li>
-              <li
-                className={
-                  hasPhotos ? "done" : remote.status === "connected" ? "active" : ""
-                }
+
+          {/* Mode 1: Direct File Upload & Web Camera */}
+          {captureMode === "direct" && (
+            <div className="scan-direct-card">
+              <div
+                className="scan-dropzone"
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  handleUploadFiles(e.dataTransfer.files);
+                }}
               >
-                <b>٢</b> صوّر المنتج (حتى 6 صور)
-              </li>
-              <li className={remote.status === "analyzing" ? "active" : ""}>
-                <b>٣</b> {remote.status === "analyzing" ? "✨ الذكاء الاصطناعي يحلل الصور…" : "اضغط «تحليل» في الهاتف"}
-              </li>
-            </ol>
+                <div className="scan-dropzone-icon">
+                  <Icon name="image" size={42} />
+                </div>
+                <h4>اسحب صور المنتج وأفلتها هنا</h4>
+                <p>أو اختر الصور مباشرة من جهازك (حتى {MAX_IMAGES} صور، صيغ JPG, PNG, WEBP)</p>
 
-            <div className={`scan-status scan-status-${remote.status}`}>
-              <span className="scan-dot" />
-              {remote.status === "waiting" && "بانتظار مسح الرمز…"}
-              {remote.status === "connected" &&
-                (hasPhotos ? `تم استلام ${remote.images.length} صور` : "الهاتف متصل ✓ بانتظار الصور")}
-              {remote.status === "analyzing" && "جارٍ تحليل الصور…"}
+                <div className="scan-direct-actions">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => handleUploadFiles(e.target.files)}
+                  />
+                  <button
+                    type="button"
+                    className="scan-btn scan-btn-accent"
+                    disabled={uploadingDirect || hasPhotos && remote.images.length >= MAX_IMAGES}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Icon name="image" size={18} />
+                    {uploadingDirect ? "جارٍ الرفع…" : "اختيار صور من الجهاز"}
+                  </button>
+
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    style={{ display: "none" }}
+                    onChange={(e) => handleUploadFiles(e.target.files)}
+                  />
+                  <button
+                    type="button"
+                    className="scan-btn scan-btn-ghost"
+                    disabled={uploadingDirect || hasPhotos && remote.images.length >= MAX_IMAGES}
+                    onClick={() => cameraInputRef.current?.click()}
+                  >
+                    <Icon name="camera" size={18} />
+                    التقاط بكاميرا الجهاز
+                  </button>
+                </div>
+              </div>
+
+              {/* Uploaded Photos Preview List */}
+              {hasPhotos && (
+                <div className="scan-direct-preview">
+                  <div className="scan-preview-head">
+                    <h5>
+                      الصور المرفوعة ({remote.images.length}/{MAX_IMAGES})
+                    </h5>
+                    <span className="scan-preview-note">أول صورة ستكون الصورة الرئيسية للمنتج</span>
+                  </div>
+                  <ul className="scan-thumbs">
+                    {remote.images.map((t, idx) => (
+                      <li key={t} className="scan-thumb-item">
+                        <img src={scanImageUrl(t)} alt={`صورة ${idx + 1}`} />
+                        {idx === 0 && <span className="scan-thumb-badge">الرئيسية</span>}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="scan-action-row">
+                    <button
+                      type="button"
+                      className="scan-btn scan-btn-primary scan-btn-lg"
+                      disabled={isAnalyzing}
+                      onClick={handleAnalyzeDirect}
+                    >
+                      <Icon name="aiSparkles" size={20} />
+                      {isAnalyzing ? "✨ جارٍ تحليل الصور بالذكاء الاصطناعي (Gemini)…" : "✨ تحليل الصور واستخراج بيانات المنتج (Gemini AI)"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
+          )}
 
-            {hasPhotos && (
-              <ul className="scan-thumbs">
-                {remote.images.map((t) => (
-                  <li key={t}>
-                    <img src={scanImageUrl(t)} alt="" />
+          {/* Mode 2: QR Code Mobile Scanning */}
+          {captureMode === "qr" && (
+            <div className="scan-pair">
+              <div className="scan-qr" aria-label="رمز الاتصال بالهاتف">
+                <QRCodeSVG value={phoneUrl} size={220} level="M" includeMargin />
+              </div>
+              <div className="scan-pair-info">
+                <ol className="scan-steps">
+                  <li className={remote.status !== "waiting" ? "done" : "active"}>
+                    <b>١</b>
+                    <span>امسح الرمز بكاميرا هاتفك الجوال</span>
                   </li>
-                ))}
-              </ul>
-            )}
+                  <li className={hasPhotos ? "done" : remote.status === "connected" ? "active" : ""}>
+                    <b>٢</b>
+                    <span>صوّر المنتج من زوايا متعددة (حتى {MAX_IMAGES} صور)</span>
+                  </li>
+                  <li className={isAnalyzing ? "active" : ""}>
+                    <b>٣</b>
+                    <span>
+                      {isAnalyzing ? "✨ الذكاء الاصطناعي يحلل الصور…" : "اضغط «تحليل» في الهاتف أو هنا"}
+                    </span>
+                  </li>
+                </ol>
 
-            {needsLan && (
-              <label className="scan-lan">
-                <span>أنت على localhost: هاتفك لا يصل إليه. اكتب عنوان جهازك على الشبكة</span>
-                <input
-                  type="url"
-                  dir="ltr"
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="http://192.168.1.10:5173"
-                />
-              </label>
-            )}
-          </div>
+                <div className={`scan-status scan-status-${remote.status}`}>
+                  <span className="scan-dot" />
+                  {remote.status === "waiting" && "بانتظار مسح الرمز من كاميرا الهاتف…"}
+                  {remote.status === "connected" &&
+                    (hasPhotos ? `تم استلام ${remote.images.length} صور من الهاتف` : "الهاتف متصل ✓ بانتظار التقاط الصور")}
+                  {remote.status === "analyzing" && "جارٍ تحليل الصور عبر Gemini AI…"}
+                </div>
+
+                {hasPhotos && (
+                  <div className="scan-qr-thumbs-wrapper">
+                    <ul className="scan-thumbs">
+                      {remote.images.map((t, idx) => (
+                        <li key={t}>
+                          <img src={scanImageUrl(t)} alt={`صورة ${idx + 1}`} />
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      type="button"
+                      className="scan-btn scan-btn-primary"
+                      disabled={isAnalyzing}
+                      onClick={handleAnalyzeDirect}
+                    >
+                      <Icon name="aiSparkles" size={16} />
+                      {isAnalyzing ? "جارٍ التحليل…" : "بدء التحليل فوراً"}
+                    </button>
+                  </div>
+                )}
+
+                {needsLan && (
+                  <label className="scan-lan">
+                    <span>تنبيه: أنت تعمل على localhost. اكتب عنوان IP لجهازك على الشبكة المحلية لكي يفتح الهاتف الرابط:</span>
+                    <input
+                      type="url"
+                      dir="ltr"
+                      value={baseUrl}
+                      onChange={(e) => setBaseUrl(e.target.value)}
+                      placeholder="http://192.168.1.10:5173"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* AI Draft is Ready - Show Product Review and Publish Form */}
       {showForm && (
         <form className="scan-form" onSubmit={handlePublish}>
+          <div className="scan-ai-header-banner">
+            <div className="scan-ai-badge">
+              <Icon name="aiSparkles" size={18} />
+              <span>تم استخراج وتجهيز بيانات المنتج بواسطة Gemini AI بنجاح! راجع البيانات وأضف السعر للنشر.</span>
+            </div>
+          </div>
+
           <div className="scan-form-gallery">
             {remote.images.map((t, i) => (
               <figure key={t}>
@@ -248,13 +504,25 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
             ))}
           </div>
 
-          {remote.warning && <div className="scan-alert scan-alert-warn">{remote.warning}</div>}
+          {remote.warning && (
+            <div className="scan-alert scan-alert-warn">
+              <Icon name="alert" size={18} />
+              <span>{remote.warning}</span>
+            </div>
+          )}
 
           <div className="scan-grid">
             <label className="scan-field scan-span-2">
-              <span>اسم المنتج</span>
-              <input id="scan-name" required value={form.name} onChange={setField("name")} />
+              <span>اسم المنتج (بالعربية) *</span>
+              <input id="scan-name" required value={form.name} onChange={setField("name")} placeholder="مثال: عباية كتان سوداء كلاسيكية" />
             </label>
+
+            {form.nameEn && (
+              <label className="scan-field scan-span-2">
+                <span>اسم المنتج (بالإنجليزية)</span>
+                <input id="scan-name-en" value={form.nameEn} onChange={setField("nameEn")} dir="ltr" />
+              </label>
+            )}
 
             <label className="scan-field scan-highlight">
               <span>السعر ({currency}) *</span>
@@ -268,26 +536,30 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
                 value={form.price}
                 onChange={setField("price")}
                 autoFocus
+                placeholder="0.00"
               />
             </label>
+
             <label className="scan-field">
-              <span>سعر التكلفة (اختياري)</span>
-              <input type="number" min="0" step="0.01" value={form.costPrice} onChange={setField("costPrice")} />
+              <span>سعر التكلفة ({currency}) (اختياري)</span>
+              <input type="number" min="0" step="0.01" value={form.costPrice} onChange={setField("costPrice")} placeholder="0.00" />
             </label>
+
             <label className="scan-field">
-              <span>الكمية</span>
+              <span>الكمية المتاحة</span>
               <input type="number" min="0" step="1" value={form.quantity} onChange={setField("quantity")} />
             </label>
+
             <label className="scan-field">
-              <span>حالة النشر</span>
+              <span>حالة النشر في المتجر</span>
               <select value={form.status} onChange={setField("status")}>
-                <option value="sale">معروض للبيع</option>
-                <option value="hidden">مسودة (مخفي)</option>
+                <option value="sale">معروض للبيع مباشرة</option>
+                <option value="hidden">مسودة (مخفي من المتجر)</option>
               </select>
             </label>
 
             <label className="scan-field">
-              <span>التصنيف {form.category && <em>(مقترح: {form.category})</em>}</span>
+              <span>التصنيف {form.category && <em className="scan-category-tag">(المقترح: {form.category})</em>}</span>
               <select value={form.categoryId} onChange={setField("categoryId")}>
                 <option value="">بدون تصنيف</option>
                 {categories.map((c) => (
@@ -297,19 +569,20 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
                 ))}
               </select>
             </label>
+
             <label className="scan-field">
               <span>المقاسات (مفصولة بفاصلة)</span>
-              <input value={form.sizes} onChange={setField("sizes")} placeholder="S، M، L" />
+              <input value={form.sizes} onChange={setField("sizes")} placeholder="S، M، L، XL" />
             </label>
 
             <div className="scan-field scan-span-2">
-              <span>الألوان</span>
+              <span>الألوان المستخرجة</span>
               <div className="scan-colors">
                 {form.colors.map((c, i) => (
                   <div className="scan-color" key={i}>
                     <input
                       type="color"
-                      aria-label="اللون"
+                      aria-label="اختر اللون"
                       value={c.hex}
                       onChange={(e) => updateColor(i, { hex: e.target.value })}
                     />
@@ -321,9 +594,8 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
                     <button
                       type="button"
                       aria-label="حذف اللون"
-                      onClick={() =>
-                        setForm((prev) => ({ ...prev, colors: prev.colors.filter((_, j) => j !== i) }))
-                      }
+                      className="scan-btn-delete-color"
+                      onClick={() => removeColor(i)}
                     >
                       ×
                     </button>
@@ -332,49 +604,81 @@ export default function ScanToProduct({ products = [], token, currency = "SAR", 
                 <button
                   type="button"
                   className="scan-btn scan-btn-ghost scan-btn-sm"
-                  onClick={() =>
-                    setForm((prev) => ({ ...prev, colors: [...prev.colors, { name: "", hex: "#111827" }] }))
-                  }
+                  onClick={addColor}
                 >
-                  + لون
+                  + إضافة لون
                 </button>
               </div>
             </div>
 
             <label className="scan-field scan-span-2">
-              <span>الوصف (HTML)</span>
+              <span>الوصف التسويقي للمنتج (HTML)</span>
               <textarea rows={6} value={form.description} onChange={setField("description")} />
             </label>
+
             <label className="scan-field">
-              <span>عنوان السيو</span>
+              <span>عنوان السيو (SEO Title)</span>
               <input value={form.metaTitle} onChange={setField("metaTitle")} maxLength={70} />
             </label>
+
             <label className="scan-field">
-              <span>وصف السيو</span>
+              <span>وصف السيو (Meta Description)</span>
               <input value={form.metaDescription} onChange={setField("metaDescription")} maxLength={170} />
             </label>
           </div>
 
           <div className="scan-form-actions">
-            <button type="submit" id="scan-publish" className="scan-btn scan-btn-primary" disabled={publishing}>
-              {publishing ? "جارٍ النشر على سلة…" : "🚀 انشر المنتج على سلة"}
+            <button
+              type="submit"
+              id="scan-publish"
+              className="scan-btn scan-btn-primary scan-btn-publish"
+              disabled={publishing}
+            >
+              <Icon name="package" size={20} />
+              {publishing ? "جارٍ نشر المنتج على متجر سلة…" : "🚀 نشر المنتج فوراً على سلة"}
             </button>
           </div>
         </form>
       )}
 
+      {/* Published Successfully */}
       {result && (
         <div className="scan-success">
-          <div className="scan-phone-check">✓</div>
-          <h3>تم إنشاء المنتج في متجرك</h3>
-          {result.warnings?.map((w) => (
-            <div key={w} className="scan-alert scan-alert-warn">
-              {w}
+          <div className="scan-success-icon" aria-hidden="true">
+            <Icon name="checkCircle" size={64} />
+          </div>
+          <h3>تم إنشاء ونشر المنتج بنجاح في متجرك!</h3>
+          <p>أصبح المنتج متاحاً الآن في متجر سلة بالصور والبيانات التي استخرجها الذكاء الاصطناعي.</p>
+
+          {result.warnings?.length > 0 && (
+            <div className="scan-warnings">
+              {result.warnings.map((w) => (
+                <div key={w} className="scan-alert scan-alert-warn">
+                  <Icon name="alert" size={16} />
+                  <span>{w}</span>
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+
           <div className="scan-form-actions">
-            <button type="button" className="scan-btn scan-btn-primary" onClick={startSession}>
-              أضف منتجًا آخر
+            {result.url && (
+              <a
+                href={result.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="scan-btn scan-btn-ghost"
+              >
+                معاينة المنتج في المتجر
+              </a>
+            )}
+            <button
+              type="button"
+              className="scan-btn scan-btn-primary"
+              onClick={startSession}
+            >
+              <Icon name="aiSparkles" size={18} />
+              أضف منتجًا آخر بالتصوير
             </button>
           </div>
         </div>

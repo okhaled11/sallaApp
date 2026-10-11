@@ -40,6 +40,10 @@ export const pollScanSession = (sid, deskKey) =>
   post({ action: "poll", sid, deskKey }, "Scan poll");
 export const publishScannedProduct = (token, sid, deskKey, product) =>
   post({ action: "publish", token, appId: getAppId(), sid, deskKey, product }, "Scan publish");
+export const uploadScanImageFromDashboard = (sid, deskKey, image) =>
+  post({ action: "upload", sid, deskKey, image }, "Scan upload (desk)");
+export const analyzeScanSessionFromDashboard = (sid, deskKey, apiKey) =>
+  post({ action: "analyze", sid, deskKey, apiKey }, "Scan analyze (desk)");
 
 // phone
 export const joinScanSession = (sid, phoneKey) => post({ action: "join", sid, phoneKey }, "Scan join");
