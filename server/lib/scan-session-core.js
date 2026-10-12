@@ -167,7 +167,7 @@ export function sanitizeDraft(raw) {
 
 const FALLBACK_B64 = "QVEuQWI4Uk42SkJhWHZDVjMteDlkUnFxbnRtTEk0ZDhrRW4zdF9Kb0RGZE5kYmsxTzNGZGc=";
 
-function resolveGeminiApiKey(customKey) {
+export function resolveGeminiApiKey(customKey) {
   if (customKey) return customKey;
   if (process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY;
   try {

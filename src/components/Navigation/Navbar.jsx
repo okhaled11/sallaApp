@@ -51,6 +51,13 @@ export default function Navbar({
       icon: "aiSparkles",
       badgeLabel: "جديد",
     },
+    {
+      id: "vsearch",
+      label: "البحث بالصورة",
+      subtitle: "الزائر يصوّر، والمتجر يعرض الأقرب",
+      icon: "camera",
+      badgeLabel: "جديد",
+    },
   ];
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
