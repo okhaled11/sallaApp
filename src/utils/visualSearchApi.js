@@ -1,13 +1,13 @@
-import { VISUAL_SEARCH_FUNCTION_URL } from "./constants.js";
+import { SCAN_SESSION_FUNCTION_URL } from "./constants.js";
 import logger from "./logger.js";
 
 /** Find the store products closest to a photo (image = JPEG/PNG/WebP data URL). */
 export async function searchByImage(image) {
   try {
-    const response = await fetch(VISUAL_SEARCH_FUNCTION_URL, {
+    const response = await fetch(SCAN_SESSION_FUNCTION_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image }),
+      body: JSON.stringify({ action: "vsearch", image }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok && result.success === undefined) {

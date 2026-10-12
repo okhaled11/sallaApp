@@ -6,8 +6,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/risky-orders.js": { "maxDuration": 30 },
-    "api/scan-session.js": { "maxDuration": 60 },
-    "api/visual-search.js": { "maxDuration": 60 }
+    "api/scan-session.js": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/scan-img/:token.jpg", "destination": "/api/scan-session?img=:token" }

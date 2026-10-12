@@ -206,10 +206,10 @@
       .then(function (dataUrl) {
         preview.src = dataUrl;
         preview.style.display = "block";
-        return fetch(APP_ORIGIN + "/api/visual-search", {
+        return fetch(APP_ORIGIN + "/api/scan-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: dataUrl }),
+          body: JSON.stringify({ action: "vsearch", image: dataUrl }),
         });
       })
       .then(function (res) {

@@ -23,7 +23,6 @@ function devCouponApi() {
         ["/api/incentive-offers", "/server/lib/incentive-offers-core.js", "incentiveOffersRequest"],
         ["/api/tryon-config", "/server/lib/tryon-config-core.js", "tryonConfigRequest"],
         ["/api/scan-session", "/server/lib/scan-session-core.js", "scanSessionRequest"],
-        ["/api/visual-search", "/server/lib/visual-search-core.js", "visualSearchRequest"],
         ["/api/webhooks/salla", "/server/lib/webhook-core.js", "sallaWebhookRequest"],
       ];
       for (const [route, modulePath, exportName] of routes) {

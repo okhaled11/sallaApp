@@ -7,14 +7,14 @@
  *
  *   POST {image}   image = JPEG/PNG/WebP data URL (the client downsizes it)
  *
- * Public endpoint (the storefront has no Salla login), so it is rate limited
+ * Served through the scan-session function (action "vsearch") so the project
+ * stays within the serverless function limit. Public endpoint (the storefront has no Salla login), so it is rate limited
  * per IP and only ever returns data already shown on the storefront. The Salla
  * access token and the Gemini key stay on the server.
  */
 import { Redis } from "@upstash/redis";
 import { fetchAllProducts, mapProduct } from "./products-core.js";
 import { getActiveAccessToken } from "./salla-tokens-core.js";
-import { resolveGeminiApiKey } from "./scan-session-core.js";
 import { logError } from "./errors.js";
 
 const IMAGE_RE = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/;
@@ -174,7 +174,7 @@ export function pickMatches(raw, products) {
   return out;
 }
 
-export async function visualSearchRequest({ method, body, headers = {} }) {
+export async function visualSearchRequest({ method, body, headers = {}, apiKey = "" }) {
   if (method === "OPTIONS") return json(204);
   if (method !== "POST") return json(405, { success: false, error: "Method not allowed" });
 
@@ -195,7 +195,6 @@ export async function visualSearchRequest({ method, body, headers = {} }) {
     if (!(await allowed(clientIp(headers)))) {
       return json(429, { success: false, error: "محاولات كثيرة. انتظر دقيقة ثم حاول مرة أخرى" });
     }
-    const apiKey = resolveGeminiApiKey();
     if (!apiKey) return json(503, { success: false, error: "البحث بالصورة غير متاح حاليًا" });
 
     const products = await loadCatalog();
