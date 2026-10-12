@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import Icon from "../Icon.jsx";
 
 /**
@@ -62,6 +63,14 @@ export default function Navbar({
 
   const currentTab = tabs.find((t) => t.id === activeTab) || tabs[0];
 
+  // With many tabs the bar scrolls: keep the active one in view.
+  const tabsRef = useRef(null);
+  useEffect(() => {
+    tabsRef.current
+      ?.querySelector('[aria-selected="true"]')
+      ?.scrollIntoView?.({ block: "nearest", inline: "center" });
+  }, [activeTab]);
+
   return (
     <nav className="app-navbar salla-dashboard-navbar" aria-label="Main Navigation">
       {/* Salla Official Header: Breadcrumbs & Date Range Controls */}
@@ -86,7 +95,7 @@ export default function Navbar({
 
       {/* Salla Nav Tabs Bar */}
       <div className="navbar-container salla-tabs-wrapper">
-        <div className="navbar-tabs salla-pill-tabs" role="tablist">
+        <div ref={tabsRef} className="navbar-tabs salla-pill-tabs" role="tablist">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (

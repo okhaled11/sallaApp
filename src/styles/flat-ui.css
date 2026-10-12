@@ -866,3 +866,25 @@
   background: var(--success-soft);
   color: var(--success-text);
 }
+
+/* Many tabs: let the bar scroll (flex children need min-width:0) and keep it visible */
+:root .salla-pill-tabs {
+  min-width: 0;
+  gap: 20px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+  scroll-snap-type: x proximity;
+}
+:root .salla-tab-btn {
+  flex: none;
+  scroll-snap-align: center;
+}
+:root .salla-sync-pill {
+  flex: none;
+}
+@media (max-width: 1100px) {
+  :root .salla-sync-pill {
+    display: none;
+  }
+}
