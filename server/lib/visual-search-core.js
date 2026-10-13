@@ -25,7 +25,18 @@ const MAX_RESULTS = 6;
 const RATE_LIMIT = 8; // requests
 const RATE_WINDOW = 60; // seconds
 const GEMINI_TIMEOUT_MS = 20_000;
-const MODELS = ["gemini-flash-latest", "gemini-3.5-flash"];
+// Same fallback chain as the scan analysis, which is known to work on this project's key.
+const MODELS = () =>
+  Array.from(
+    new Set([
+      process.env.GEMINI_MODEL,
+      "gemini-3.5-flash",
+      "gemini-flash-lite-latest",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-latest",
+    ]),
+  ).filter(Boolean);
+const TOTAL_BUDGET_MS = 50_000;
 
 const json = (statusCode, payload) => ({
   statusCode,
@@ -111,8 +122,11 @@ Return at most ${MAX_RESULTS} matches, best first.`;
 }
 
 async function askGemini(apiKey, mime, data, products) {
-  let lastError = null;
-  for (const model of MODELS) {
+  const errors = [];
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  for (const model of MODELS()) {
+    const remaining = deadline - Date.now();
+    if (remaining < 3000) break;
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -128,21 +142,21 @@ async function askGemini(apiKey, mime, data, products) {
             ],
             generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
           }),
-          signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+          signal: AbortSignal.timeout(Math.min(remaining, GEMINI_TIMEOUT_MS)),
         },
       );
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        lastError = new Error(`Gemini (${model}) ${response.status}: ${result.error?.message || "failed"}`);
+        errors.push(`${model}: ${response.status} ${result.error?.message || "failed"}`);
         continue;
       }
       const text = result.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
       return JSON.parse(text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, ""));
     } catch (err) {
-      lastError = err;
+      errors.push(`${model}: ${err.message}`);
     }
   }
-  throw lastError || new Error("تعذّر تحليل الصورة");
+  throw new Error(errors.join(" | ") || "تعذّر تحليل الصورة");
 }
 
 /** Keep only real catalogue ids, de-duplicated, best first. */
@@ -207,6 +221,11 @@ export async function visualSearchRequest({ method, body, headers = {}, apiKey =
     });
   } catch (err) {
     logError("visual search", err);
-    return json(502, { success: false, error: "تعذّر البحث بالصورة. حاول مرة أخرى" });
+    return json(502, {
+      success: false,
+      error: "تعذّر البحث بالصورة. حاول مرة أخرى",
+      // Provider reason (never the key), only for the dashboard test box.
+      ...(data.debug ? { detail: String(err.message || err).slice(0, 600) } : {}),
+    });
   }
 }

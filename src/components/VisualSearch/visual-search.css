@@ -100,3 +100,11 @@
     grid-template-columns: 1fr;
   }
 }
+.vsearch-error small {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  opacity: 0.85;
+  word-break: break-word;
+  text-align: left;
+}

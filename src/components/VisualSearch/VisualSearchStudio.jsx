@@ -12,6 +12,7 @@ export default function VisualSearchStudio({ onShowToast }) {
   const [preview, setPreview] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [errorDetail, setErrorDetail] = useState("");
   const [outcome, setOutcome] = useState(null); // { description, matches }
   const [copied, setCopied] = useState(false);
   const fileRef = useRef(null);
@@ -25,13 +26,17 @@ export default function VisualSearchStudio({ onShowToast }) {
     if (!file) return;
     setBusy(true);
     setError("");
+    setErrorDetail("");
     setOutcome(null);
     try {
       const dataUrl = await fileToScanDataUrl(file, 768, 0.8);
       setPreview(dataUrl);
       const res = await searchByImage(dataUrl);
       if (res.success) setOutcome(res.data);
-      else setError(res.error || "تعذّر البحث");
+      else {
+        setError(res.error || "تعذّر البحث");
+        setErrorDetail(res.detail || "");
+      }
     } catch {
       setError("تعذّرت قراءة الصورة");
     } finally {
@@ -93,6 +98,7 @@ export default function VisualSearchStudio({ onShowToast }) {
           {error && (
             <p className="vsearch-error" role="alert">
               {error}
+              {errorDetail && <small dir="ltr">{errorDetail}</small>}
             </p>
           )}
           {outcome && (

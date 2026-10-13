@@ -7,7 +7,7 @@ export async function searchByImage(image) {
     const response = await fetch(SCAN_SESSION_FUNCTION_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "vsearch", image }),
+      body: JSON.stringify({ action: "vsearch", image, debug: true }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok && result.success === undefined) {
