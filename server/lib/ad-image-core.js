@@ -176,6 +176,8 @@ export async function adImageRequest({ method, body, apiKey = "" }) {
     return json(502, {
       success: false,
       error: known ? err.message : "تعذّر توليد الصورة. حاول مرة أخرى بعد قليل",
+      // Provider reason (status + message, never the key) so the merchant can see why it failed.
+      ...(known ? {} : { detail: String(err.message || err).slice(0, 300) }),
     });
   }
 }

@@ -17,6 +17,7 @@ export default function AdStudio({ products = [], token, onShowToast }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [errorDetail, setErrorDetail] = useState("");
   const [current, setCurrent] = useState(null); // { image, productName, style, format }
   const [history, setHistory] = useState([]);
 
@@ -29,10 +30,12 @@ export default function AdStudio({ products = [], token, onShowToast }) {
     }
     setBusy(true);
     setError("");
+    setErrorDetail("");
     const res = await generateAdImage({ token, productId: selected.id, style, format, note });
     setBusy(false);
     if (!res.success) {
       setError(res.error || "تعذّر توليد الصورة");
+      setErrorDetail(res.detail || "");
       return;
     }
     const entry = { image: res.data.image, productName: selected.name, style, format };
@@ -134,6 +137,7 @@ export default function AdStudio({ products = [], token, onShowToast }) {
           {error && (
             <p className="adstudio-error" role="alert">
               {error}
+              {errorDetail && <small dir="ltr">{errorDetail}</small>}
             </p>
           )}
 
