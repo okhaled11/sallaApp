@@ -80,18 +80,14 @@ export function isSearchable(product) {
   return product.quantity === null || product.quantity > 0;
 }
 
-async function loadCatalog() {
-  if (Date.now() - catalogCache.at < CATALOG_TTL_MS && catalogCache.items.length) {
-    return catalogCache.items;
+/** Store catalogue (cached 5 min). `all` includes hidden / out-of-stock products. */
+export async function loadCatalog({ all = false } = {}) {
+  if (Date.now() - catalogCache.at >= CATALOG_TTL_MS || !catalogCache.items.length) {
+    const accessToken = await getActiveAccessToken();
+    if (!accessToken) throw new Error("SALLA_ACCESS_TOKEN غير مضبوط على السيرفر");
+    catalogCache = { at: Date.now(), items: (await fetchAllProducts(accessToken)).map(mapProduct) };
   }
-  const accessToken = await getActiveAccessToken();
-  if (!accessToken) throw new Error("SALLA_ACCESS_TOKEN غير مضبوط على السيرفر");
-  const items = (await fetchAllProducts(accessToken))
-    .map(mapProduct)
-    .filter(isSearchable)
-    .slice(0, MAX_CATALOG);
-  catalogCache = { at: Date.now(), items };
-  return items;
+  return all ? catalogCache.items : catalogCache.items.filter(isSearchable).slice(0, MAX_CATALOG);
 }
 
 // ---------- AI ----------

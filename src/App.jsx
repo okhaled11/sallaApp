@@ -13,6 +13,7 @@ import VisitorIncentivesStudio from "./components/Incentives/VisitorIncentivesSt
 import RiskyOrders from "./components/RiskyOrders/RiskyOrders.jsx";
 import TryOnStudio from "./components/TryOn/TryOnStudio.jsx";
 import ScanToProduct from "./components/ScanToProduct/ScanToProduct.jsx";
+import AdStudio from "./components/AdStudio/AdStudio.jsx";
 import VisualSearchStudio from "./components/VisualSearch/VisualSearchStudio.jsx";
 import ProductsSales from "./components/ProductsSales.jsx";
 import CategoryInsights from "./components/CategoryInsights.jsx";
@@ -231,6 +232,8 @@ function AppContent() {
             ? "التجربة الافتراضية"
             : activeTab === "scan"
               ? "أضف منتجًا بالتصوير"
+              : activeTab === "ads"
+              ? "الصور الإعلانية"
               : activeTab === "vsearch"
               ? "البحث بالصورة"
               : activeTab === "incentives"
@@ -350,6 +353,8 @@ function AppContent() {
                   onShowToast={showToast}
                   onPublished={reload}
                 />
+              ) : activeTab === "ads" ? (
+                <AdStudio products={products} token={token} onShowToast={showToast} />
               ) : activeTab === "vsearch" ? (
                 <VisualSearchStudio onShowToast={showToast} />
               ) : activeTab === "tryon" ? (
