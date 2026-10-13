@@ -14,7 +14,6 @@
  *   publish  {sid, phoneKey, product}        phone (the QR key authorises it)
  *   reset    {sid, phoneKey|deskKey}         start another product in the same session
 
- *   adimage  {token, appId, productId, style, format, note}  dashboard ad-image generator (see ad-image-core.js)
  *   vsearch  {image}                         public storefront visual search (see visual-search-core.js)
  *   join     {sid, phoneKey}                 phone
  *   upload   {sid, phoneKey, image}          phone (image = data URL)
@@ -35,7 +34,6 @@ import { verifyEmbeddedToken } from "./verify-token-core.js";
 import { getActiveAccessToken } from "./salla-tokens-core.js";
 import { logError } from "./errors.js";
 import { visualSearchRequest } from "./visual-search-core.js";
-import { adImageRequest } from "./ad-image-core.js";
 
 const SESSION_TTL = 20 * 60; // seconds
 const IMAGE_TTL = 60 * 60;
@@ -568,7 +566,6 @@ const ACTIONS = {
   publish: (data, headers) => handlePublish(data, headers),
   reset: (data) => handleReset(data),
   // Storefront visual search (kept here to stay within the serverless function limit)
-  adimage: (data) => adImageRequest({ method: "POST", body: data, apiKey: resolveGeminiApiKey() }),
   vsearch: (data, headers) =>
     visualSearchRequest({ method: "POST", body: data, headers, apiKey: resolveGeminiApiKey() }),
 };

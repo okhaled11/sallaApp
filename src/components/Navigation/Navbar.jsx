@@ -53,13 +53,6 @@ export default function Navbar({
       badgeLabel: "جديد",
     },
     {
-      id: "ads",
-      label: "الصور الإعلانية",
-      subtitle: "حوّل صورة المنتج إلى إعلان احترافي",
-      icon: "aiPaintbrush",
-      badgeLabel: "جديد",
-    },
-    {
       id: "vsearch",
       label: "البحث بالصورة",
       subtitle: "الزائر يصوّر، والمتجر يعرض الأقرب",
